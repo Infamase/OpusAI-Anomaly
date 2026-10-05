@@ -54,7 +54,7 @@ const rgb = (...hex: string[]) => hex.map(hexToRgb) as unknown as Ramp;
 /** Hair / fur / scales: palette-swapped to the chosen color. */
 const KEY: Ramp = KEY_COLORS.primary.map(hexToRgb) as unknown as Ramp;
 const SKIN = rgb('#5e2a2c', '#b0634f', '#d68a67', '#f0ad84', '#ffd2a8');
-const PALE = rgb('#7a3a4a', '#cf9a9c', '#e8c4c0', '#f7e6e0', '#fffaf4'); // sergal underside
+const PALE = rgb('#6a3440', '#d2b0b2', '#ead8d6', '#f8efec', '#ffffff'); // sergal underside
 const BELLY = rgb('#5a4a2c', '#b8a46a', '#d8c88c', '#ece0aa', '#faf4cc'); // lizard underside
 const CLAW = rgb('#2e0e16', '#6e1e2a', '#962c38', '#b8404a', '#d86a6a');
 const SHORTS = rgb('#1e2a4a', '#3e5f8c', '#5a80b0', '#7aa2cc', '#a6c6e2');
@@ -64,7 +64,7 @@ const MOUTH_IN = rgb('#2a0e14', '#5e1a26', '#7e2634', '#9a3442', '#b84c58');
 const EYE_HUMAN: RGB = [52, 34, 38];
 const EYE_WHITE: RGB = [236, 226, 214];
 const EYE_SERGAL: RGB = [255, 112, 40];
-const EYE_SERGAL_HI: RGB = [255, 214, 120];
+const EYE_SERGAL_DARK: RGB = [168, 28, 36];
 const EYE_LIZARD: RGB = [250, 196, 40];
 const EYE_LIZARD_HI: RGB = [255, 238, 150];
 const PUPIL: RGB = [36, 14, 20];
@@ -555,64 +555,93 @@ function humanHead(rig: Rig, dir: Dir, hy: number): void {
   rig.add({ region: P.HAIR, ramp: KEY }, [ell(v(AX, hy - 1.2), 5, 4.8), ell(v(AX, hy + 2.6), 3.6, 2.2), tri(v(AX - 4, hy - 4), v(AX - 1.6, hy - 7.4), v(AX + 0.8, hy - 4.6)), tri(v(AX + 1.2, hy - 4.6), v(AX + 4.2, hy - 6.6), v(AX + 4.8, hy - 2.4))]);
 }
 
+/**
+ * Sergal head, after the reference sheet: a long, flat, shark-like wedge with a
+ * slender separate lower jaw, a pale muzzle and jaw, red eyes set high and far
+ * back under a heavy brow, tall swept ears and a spiky mane.
+ */
 function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
   const twitch = p.earTwitch ? 1 : 0;
   if (dir === 'right') {
-    // Long wedge muzzle, ears swept back, spiky mane down the neck.
-    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(26.6, hy - 1), v(29.6, hy - 2.6), v(23.4 - twitch, hy - 9.6))]);
+    // Far ear (behind everything).
+    rig.add({ region: P.EAR, ramp: KEY, toneShift: -1 }, [tri(v(26.4, hy - 1.6), v(29.4, hy - 3), v(22.6 - twitch, hy - 10.6))]);
+    // Mane: long spikes sweeping back and down the neck.
     rig.add({ region: P.HAIR, ramp: KEY }, [
-      tri(v(29, hy), v(25, hy + 2.4), v(29.6, hy + 4)),
-      tri(v(28.6, hy + 3), v(25.4, hy + 7.2), v(30, hy + 6.4)),
-      tri(v(29.4, hy + 6), v(26.6, hy + 10.4), v(31, hy + 9)),
+      tri(v(28.4, hy - 2.4), v(29.4, hy + 0.6), v(22.4, hy - 0.4)),
+      tri(v(28, hy), v(29, hy + 3.4), v(21.6, hy + 3.6)),
+      tri(v(28.2, hy + 2.6), v(29.6, hy + 6.4), v(22.6, hy + 7.8)),
+      tri(v(28.8, hy + 5.4), v(30.6, hy + 9), v(24.4, hy + 11.4)),
+      tri(v(29.6, hy + 8.2), v(31.6, hy + 11.2), v(26.6, hy + 13.4)),
     ]);
-    const h = rig.add({ region: P.HEAD, ramp: KEY }, [
-      ell(v(30.6, hy), 4.2, 3.8),
-      tri(v(30.8, hy - 2.6), v(31.4, hy + 3.8), v(42, hy + 2.4), { region: P.SNOUT, dome: 0.8 }),
-      tri(v(30.6, hy + 1.8), v(31.4, hy + 5.2), v(40.4, hy + 3.6), { region: P.SNOUT, dome: 0.6 }),
+    // Skull, then the long, flat upper snout (a flatter part of its own, so its top
+    // catches the light): a tall wedge with a gently sloping top.
+    const skull = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(30.4, hy - 0.8), 3.9, 3.3)]);
+    const h = rig.add({ region: P.SNOUT, ramp: KEY, relief: 0.55, line: false }, [
+      tri(v(29.8, hy - 3.6), v(41.6, hy - 0.4), v(30.4, hy + 3)),
+      tri(v(30.4, hy + 3), v(41.6, hy - 0.4), v(41.6, hy + 2.6)),
+      tri(v(41.4, hy - 0.4), v(44, hy + 1.2), v(41.4, hy + 2.6)),
     ]);
-    rig.decal(PALE, [tri(v(30.4, hy + 2.4), v(31.2, hy + 5.6), v(41, hy + 3.4)), ell(v(31, hy + 3.4), 2, 1.8)], { parts: [h] });
-    rig.dot(33.6, hy - 0.6, EYE_SERGAL, P.EYE);
-    rig.dot(34.6, hy - 0.4, EYE_SERGAL, P.EYE);
-    rig.dot(33.6, hy - 1.6, KEY[0], P.EYE);
-    rig.dot(41.2, hy + 2, PUPIL, P.SNOUT);
-    rig.markLine(v(34.4, hy + 3), v(39.4, hy + 2.8), 0);
-    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(28.2, hy - 1.8), v(31, hy - 2.8), v(26.2 - twitch, hy - 10.4))]);
-    rig.decal(PALE, [tri(v(28.6, hy - 2.4), v(29.8, hy - 2.8), v(27 - twitch, hy - 7.6))], { regions: [P.EAR] });
+    // The front of the snout and its underside are pale; the bridge stays fur-colored.
+    rig.decal(PALE, [tri(v(35.6, hy + 0.2), v(44.4, hy + 1), v(32, hy + 3.4)), ell(v(41.8, hy + 1.2), 2.4, 1.6)], { parts: [h, skull] });
+    // Slender pale lower jaw under the snout; its top edge is the mouth line.
+    rig.add({ region: P.SNOUT, ramp: PALE, line: false, shadow: false, relief: 0.45 }, [tri(v(30.4, hy + 2.2), v(31.4, hy + 6.8), v(42, hy + 2.8), { dome: 0.5 })]);
+    rig.markLine(v(31.4, hy + 2.6), v(41.4, hy + 2.6), 0);
+    rig.dot(31.8, hy + 3.6, MOUTH_IN[2], P.MOUTH);
+    rig.dot(38, hy + 3.4, TOOTH, P.MOUTH);
+    rig.dot(35, hy + 3.4, TOOTH, P.MOUTH);
+    // Eye high and back on the snout, under a heavy brow.
+    rig.markLine(v(32.2, hy - 2.8), v(36.2, hy - 1.6), 0);
+    rig.dot(33.6, hy - 1.4, EYE_SERGAL, P.EYE);
+    rig.dot(34.6, hy - 1, EYE_SERGAL, P.EYE);
+    rig.dot(35.4, hy - 1, EYE_SERGAL_DARK, P.EYE);
+    rig.dot(43.6, hy + 0.6, PUPIL, P.SNOUT); // nose
+    // Near ear on top, with a pale inner edge.
+    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(28.2, hy - 2.2), v(31, hy - 3.2), v(25.4 - twitch, hy - 11.4))]);
+    rig.decal(PALE, [tri(v(28.8, hy - 2.8), v(30, hy - 3.2), v(26.4 - twitch, hy - 8.6))], { regions: [P.EAR] });
     return;
   }
   const front = dir === 'down';
-  // Ears: tall and pointed, a little outward.
+  // Ears: tall, set wide, leaning a little outward.
   for (const sx of [-1, 1]) {
     const tw = sx === 1 ? twitch : 0;
-    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(AX + sx * 1.2, hy - 2.6), v(AX + sx * 4.8, hy - 1), v(AX + sx * (5.6 + tw), hy - 11 + tw))]);
-    if (front) rig.decal(PALE, [tri(v(AX + sx * 2.6, hy - 2.6), v(AX + sx * 4.4, hy - 1.8), v(AX + sx * 5, hy - 8))], { regions: [P.EAR] });
+    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(AX + sx * 1.6, hy - 2.8), v(AX + sx * 5.2, hy - 0.8), v(AX + sx * (6.2 + tw), hy - 11.2 + tw))]);
+    if (front) rig.decal(PALE, [tri(v(AX + sx * 3, hy - 2.4), v(AX + sx * 4.8, hy - 1.4), v(AX + sx * 5.6, hy - 7.8))], { regions: [P.EAR] });
   }
-  // Mane: spiky ruff around the cheeks and neck.
+  // Mane: spiky ruff flaring out from the cheeks and down the neck.
   rig.add({ region: P.HAIR, ramp: KEY }, [
-    tri(v(AX - 3, hy + 1), v(AX - 7.6, hy + 3.6), v(AX - 3, hy + 5)),
-    tri(v(AX - 3, hy + 3.4), v(AX - 6.4, hy + 8.6), v(AX - 1.6, hy + 6.6)),
-    tri(v(AX + 3, hy + 1), v(AX + 7.6, hy + 3.6), v(AX + 3, hy + 5)),
-    tri(v(AX + 3, hy + 3.4), v(AX + 6.4, hy + 8.6), v(AX + 1.6, hy + 6.6)),
+    tri(v(AX - 3.6, hy - 0.4), v(AX - 8.6, hy + 1.6), v(AX - 3.8, hy + 3)),
+    tri(v(AX - 3.6, hy + 2), v(AX - 8, hy + 5.6), v(AX - 2.8, hy + 5.4)),
+    tri(v(AX - 3, hy + 4.4), v(AX - 6, hy + 9.4), v(AX - 1, hy + 7)),
+    tri(v(AX + 3.6, hy - 0.4), v(AX + 8.6, hy + 1.6), v(AX + 3.8, hy + 3)),
+    tri(v(AX + 3.6, hy + 2), v(AX + 8, hy + 5.6), v(AX + 2.8, hy + 5.4)),
+    tri(v(AX + 3, hy + 4.4), v(AX + 6, hy + 9.4), v(AX + 1, hy + 7)),
   ]);
   if (front) {
-    // The muzzle points at the viewer: a wedge narrowing to the nose.
+    // Head-on, the long muzzle points at the viewer: a broad brow with the eyes at its
+    // corners, the snout narrowing down to the nose, and the lower jaw showing on both
+    // sides of it (drawn first, so the overlap draws the mouth lines).
+    rig.add({ region: P.SNOUT, ramp: PALE, relief: 0.5 }, [tri(v(AX - 4.6, hy + 1.4), v(AX + 4.6, hy + 1.4), v(AX, hy + 8.6), { dome: 0.6 })]);
     const h = rig.add({ region: P.HEAD, ramp: KEY }, [
-      ell(v(AX, hy - 0.4), 4.6, 3.8),
-      tri(v(AX - 4.4, hy), v(AX + 4.4, hy), v(AX, hy + 7.6), { region: P.SNOUT, dome: 0.9 }),
+      ell(v(AX, hy - 1), 5.2, 3.6),
+      tri(v(AX - 3.8, hy), v(AX + 3.8, hy), v(AX, hy + 7.4), { region: P.SNOUT, dome: 0.8 }),
     ]);
-    rig.decal(PALE, [tri(v(AX - 2.6, hy + 3), v(AX + 2.6, hy + 3), v(AX, hy + 7.6))], { parts: [h] });
+    // Pale muzzle below the eyes, as in the reference.
+    rig.decal(PALE, [tri(v(AX - 3.9, hy + 0.6), v(AX + 3.9, hy + 0.6), v(AX, hy + 7.8))], { parts: [h] });
     for (const sx of [-1, 1]) {
-      rig.dot(AX + sx * 2.6, hy + 0.2, EYE_SERGAL, P.EYE);
-      rig.dot(AX + sx * 1.8, hy + 0.8, EYE_SERGAL_HI, P.EYE);
-      rig.markLine(v(AX + sx * 1.4, hy - 1), v(AX + sx * 3.6, hy - 0.8), 0);
+      // Angled eyes at the corners of the brow, under a heavy brow line.
+      rig.markLine(v(AX + sx * 1, hy - 1.2), v(AX + sx * 4.6, hy - 2.2), 0);
+      rig.dot(AX + sx * 3.4, hy - 0.8, EYE_SERGAL, P.EYE);
+      rig.dot(AX + sx * 2.4, hy - 0.6, EYE_SERGAL, P.EYE);
+      rig.dot(AX + sx * 3.4, hy - 1.4, EYE_SERGAL_DARK, P.EYE);
+      // Mouth line down each side of the muzzle, with a fang near the corner.
+      rig.markLine(v(AX + sx * 3.9, hy + 1.8), v(AX + sx * 1, hy + 7), 0);
+      rig.dot(AX + sx * 3.2, hy + 3.2, TOOTH, P.MOUTH);
     }
-    rig.dot(AX, hy + 7, PUPIL, P.SNOUT);
-    rig.dot(AX - 1.5, hy + 5.4, TOOTH, P.MOUTH);
-    rig.dot(AX + 1.5, hy + 5.4, TOOTH, P.MOUTH);
+    rig.dot(AX, hy + 7, PUPIL, P.SNOUT); // nose
     return;
   }
-  rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.4), 4.6, 4.2), ell(v(AX, hy + 2.6), 3.2, 2.6)]);
-  rig.add({ region: P.HAIR, ramp: KEY }, [tri(v(AX - 2.4, hy + 1), v(AX + 2.4, hy + 1), v(AX, hy + 9.4)), tri(v(AX - 4, hy + 2), v(AX - 0.6, hy + 2.6), v(AX - 2.6, hy + 8))]);
+  rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.6), 5, 4), ell(v(AX, hy + 2.4), 3.8, 2.8)]);
+  rig.add({ region: P.HAIR, ramp: KEY }, [tri(v(AX - 2.6, hy + 0.6), v(AX + 2.6, hy + 0.6), v(AX, hy + 10.4)), tri(v(AX - 4.4, hy + 1.6), v(AX - 0.6, hy + 2.4), v(AX - 3, hy + 8.4)), tri(v(AX + 4.4, hy + 1.6), v(AX + 0.6, hy + 2.4), v(AX + 3, hy + 8.4))]);
 }
 
 function lizardHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
