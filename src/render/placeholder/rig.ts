@@ -51,6 +51,8 @@ export interface PartOptions {
   ramp: Ramp;
   /** Draw an inner contour where this part overlaps parts behind it (default true). */
   line?: boolean;
+  /** Draw the automatic colored outline around this part (default true; off for hand-drawn art that has its own). */
+  outline?: boolean;
   /** Casts a 1px shadow onto parts behind it (default true). */
   shadow?: boolean;
   /** Shading strength: <1 flatter, >1 rounder (default 1). */
@@ -116,6 +118,30 @@ export class Rig {
       this.ramps.push(r);
     }
     return i;
+  }
+
+  /**
+   * Places hand-drawn pixels as a part, exactly as given: fixed colors, a tone per
+   * pixel (so armor drawn over it is shaded to match), no lighting, no outline.
+   */
+  addPixels(opts: PartOptions, pixels: { x: number; y: number; color: RGB; tone: number; region: number }[]): number {
+    const index = this.parts.length;
+    this.parts.push({ line: false, shadow: false, outline: false, ...opts });
+    const ramp = this.rampIndex(opts.ramp);
+    for (const p of pixels) {
+      const i = this.idx(p.x, p.y);
+      if (i < 0) continue;
+      this.part[i] = index;
+      this.regions[i] = p.region;
+      this.rampOf[i] = ramp;
+      this.height[i] = 3;
+      this.nx[i] = 0;
+      this.ny[i] = 0;
+      this.nz[i] = 1;
+      this.fixed.set(i, p.color);
+      this.toneMarks.set(i, p.tone);
+    }
+    return index;
   }
 
   /** Paints one body part (later parts cover earlier ones). Returns its index. */
@@ -300,7 +326,7 @@ export class Rig {
         // Prefer the neighbor below (feet on the ground), then sides, then above.
         for (const [dx, dy] of OUTLINE_ORDER) {
           const j = this.idx(x + dx, y + dy);
-          if (j < 0 || this.part[j] === EMPTY) continue;
+          if (j < 0 || this.part[j] === EMPTY || this.parts[this.part[j]!]!.outline === false) continue;
           marks.push([x, y, this.ramps[this.rampOf[j]!]![0], this.regions[j]!]);
           break;
         }

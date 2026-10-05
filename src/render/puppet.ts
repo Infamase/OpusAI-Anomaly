@@ -141,7 +141,8 @@ export function solveIk(root: Pt, end: Pt, a: number, b: number, prefer: Pt): Pt
 // ---- pose solver -----------------------------------------------------------------------
 
 const ORDER: Record<PuppetDir, (PartId | 'weapon')[]> = {
-  down: ['tail', 'lowerLegA', 'upperLegA', 'lowerLegB', 'upperLegB', 'torso', 'head', 'upperArmA', 'upperArmB', 'weapon', 'lowerArmA', 'lowerArmB'],
+  // The head goes over the arms so a mane can lie on the shoulders.
+  down: ['tail', 'lowerLegA', 'upperLegA', 'lowerLegB', 'upperLegB', 'torso', 'upperArmA', 'upperArmB', 'weapon', 'lowerArmA', 'lowerArmB', 'head'],
   right: ['upperArmA', 'lowerArmA', 'tail', 'lowerLegA', 'upperLegA', 'torso', 'lowerLegB', 'upperLegB', 'head', 'weapon', 'upperArmB', 'lowerArmB'],
   up: ['weapon', 'lowerLegA', 'upperLegA', 'lowerLegB', 'upperLegB', 'torso', 'upperArmA', 'lowerArmA', 'upperArmB', 'lowerArmB', 'head', 'tail'],
 };

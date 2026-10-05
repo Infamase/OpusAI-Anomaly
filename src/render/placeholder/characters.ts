@@ -2,6 +2,7 @@ import { PUPPET_DIRS, PUPPET_PARTS, type PartId, type PuppetDir, type PuppetRig,
 import { KEY_COLORS, hexToRgb, type RGB } from '../palette';
 import { PixelCanvas } from '../PixelCanvas';
 import { cap, ell, Rig, tri, v, type Ramp, type Shape, type V } from './rig';
+import { SERGAL_HEAD, SERGAL_HEAD_COLORS, type PixelArt } from './sergalHead';
 
 /**
  * Generates each race's cutout pieces in code (see render/puppet.ts): torso,
@@ -63,9 +64,6 @@ const WRAP = rgb('#2a1018', '#5a2232', '#743042', '#8c4052', '#ac5e6c');
 const MOUTH_IN = rgb('#2a0e14', '#5e1a26', '#7e2634', '#9a3442', '#b84c58');
 const EYE_HUMAN: RGB = [52, 34, 38];
 const EYE_WHITE: RGB = [236, 226, 214];
-const EYE_SERGAL: RGB = [255, 112, 40];
-const EYE_SERGAL_DARK: RGB = [168, 28, 36];
-const EYE_SERGAL_HI: RGB = [255, 214, 90];
 const EYE_LIZARD: RGB = [250, 196, 40];
 const EYE_LIZARD_HI: RGB = [255, 238, 150];
 const PUPIL: RGB = [36, 14, 20];
@@ -263,11 +261,6 @@ function armShapes(b: Build, a: Arm): Shape[] {
   ];
 }
 
-/** A convex quadrilateral (corners in order) as two triangles. */
-function quad(a: V, b: V, c: V, d: V, extra: { region?: number; dome?: number } = {}): Shape[] {
-  return [tri(a, b, c, { dome: 0.6, ...extra }), tri(a, c, d, { dome: 0.6, ...extra })];
-}
-
 /** A tapering chain of capsules through `pts` (tails, tufts). */
 function chain(pts: V[], r0: number, r1: number, region: number, z = 0): Shape[] {
   const out: Shape[] = [];
@@ -317,6 +310,28 @@ function bindSkeleton(race: PlaceholderRace, dir: Dir): Skeleton {
   return { hip, legs, arms: [arm(-1), arm(1)], neck: v(AX, b.neck.top + 1.5), tail: tailRoot };
 }
 
+const ART_REGIONS: Record<string, number> = { h: P.HEAD, e: P.EAR, y: P.EYE, m: P.HAIR, s: P.SNOUT, o: P.MOUTH };
+
+/** Places hand-drawn pixel art (fur digits use the recolorable key ramp). */
+function drawPixelArt(rig: Rig, art: PixelArt, colors: Record<string, { rgb: RGB; tone: number }>): void {
+  const px: { x: number; y: number; color: RGB; tone: number; region: number }[] = [];
+  art.rows.forEach((row, j) => {
+    for (let i = 0; i < row.length; i++) {
+      const ch = row[i]!;
+      if (ch === '.') continue;
+      const region = ART_REGIONS[art.regions[j]![i]!] ?? P.HEAD;
+      if (ch >= '0' && ch <= '4') {
+        const t = Number(ch);
+        px.push({ x: art.x0 + i, y: art.y0 + j, color: KEY[t]!, tone: t, region });
+      } else {
+        const c = colors[ch]!;
+        px.push({ x: art.x0 + i, y: art.y0 + j, color: c.rgb, tone: c.tone, region });
+      }
+    }
+  });
+  rig.addPixels({ region: P.HEAD, ramp: KEY }, px);
+}
+
 /** Center of the hand (where a gun grip sits). */
 const handCenter = (b: Build, a: Arm): V => v(a.hand.x, a.hand.y + b.hand * 0.6);
 
@@ -352,8 +367,12 @@ function drawPiece(rig: Rig, race: PlaceholderRace, dir: Dir, part: PartId): boo
     }
     case 'head':
     case 'headAlt':
-      if (part === 'headAlt' && race === 'human') return false;
-      head(rig, race, dir, b, part === 'headAlt' ? { sway: 0, tongue: race === 'lizardman', earTwitch: race === 'sergal' } : REST, 0);
+      if (part === 'headAlt' && race !== 'lizardman') return false;
+      if (race === 'sergal') {
+        drawPixelArt(rig, SERGAL_HEAD[dir], SERGAL_HEAD_COLORS);
+        return true;
+      }
+      head(rig, race, dir, b, part === 'headAlt' ? { sway: 0, tongue: true, earTwitch: false } : REST, 0);
       return true;
     case 'tail':
       if (race === 'human') return false;
@@ -504,7 +523,6 @@ function tail(rig: Rig, race: PlaceholderRace, dir: Dir, p: Pose, bob: number): 
 function head(rig: Rig, race: PlaceholderRace, dir: Dir, b: Build, p: Pose, bob: number): void {
   const hy = b.headY + bob;
   if (race === 'human') return humanHead(rig, dir, hy);
-  if (race === 'sergal') return sergalHead(rig, dir, hy, p);
   return lizardHead(rig, dir, hy, p);
 }
 
@@ -558,86 +576,6 @@ function humanHead(rig: Rig, dir: Dir, hy: number): void {
     return;
   }
   rig.add({ region: P.HAIR, ramp: KEY }, [ell(v(AX, hy - 1.2), 5, 4.8), ell(v(AX, hy + 2.6), 3.6, 2.2), tri(v(AX - 4, hy - 4), v(AX - 1.6, hy - 7.4), v(AX + 0.8, hy - 4.6)), tri(v(AX + 1.2, hy - 4.6), v(AX + 4.2, hy - 6.6), v(AX + 4.8, hy - 2.4))]);
-}
-
-/**
- * Sergal head, after the reference sheet: a long, flat, shark-like wedge with a
- * slender separate lower jaw, a pale muzzle and jaw, red eyes set high and far
- * back under a heavy brow, tall swept ears and a spiky mane.
- */
-function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
-  const twitch = p.earTwitch ? 1 : 0;
-  if (dir === 'right') {
-    // Far ear (behind everything).
-    rig.add({ region: P.EAR, ramp: KEY, toneShift: -1 }, [tri(v(26.4, hy - 1.6), v(29.4, hy - 3), v(22.6 - twitch, hy - 10.6))]);
-    // Mane: long spikes sweeping back and down the neck.
-    rig.add({ region: P.HAIR, ramp: KEY }, [
-      tri(v(28.4, hy - 2.4), v(29.4, hy + 0.6), v(22.4, hy - 0.4)),
-      tri(v(28, hy), v(29, hy + 3.4), v(21.6, hy + 3.6)),
-      tri(v(28.2, hy + 2.6), v(29.6, hy + 6.4), v(22.6, hy + 7.8)),
-      tri(v(28.8, hy + 5.4), v(30.6, hy + 9), v(24.4, hy + 11.4)),
-      tri(v(29.6, hy + 8.2), v(31.6, hy + 11.2), v(26.6, hy + 13.4)),
-    ]);
-    // Proportions taken pixel-for-pixel from the reference (downsampled to this
-    // scale): a blue skull, and a long, slim white snout ~12px long and 3-4px deep
-    // with a flat vertical front. The jaw is shorter, so the front slants back
-    // toward the bottom; the mouth is open at the back and closes toward the front.
-    const skull = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(30, hy - 2), 3.6, 3.2)]);
-    const h = rig.add({ region: P.SNOUT, ramp: KEY, relief: 0.4, line: false }, quad(v(30.8, hy - 2.4), v(43.4, hy - 1.4), v(43.4, hy + 1.6), v(31.6, hy + 1.6)));
-    rig.decal(PALE, [...quad(v(32.6, hy - 1.8), v(43.8, hy - 1.2), v(43.8, hy + 2), v(30.4, hy + 2)), ell(v(30.8, hy + 0.6), 1.6, 1.4)], { parts: [h, skull] });
-    // Open mouth at the back.
-    rig.add({ region: P.MOUTH, ramp: MOUTH_IN, line: false, shadow: false, relief: 0.3 }, [tri(v(30.6, hy + 1.2), v(36.4, hy + 1.8), v(31.4, hy + 3.6))]);
-    // Lower jaw: shorter than the snout, its front set back.
-    rig.add({ region: P.SNOUT, ramp: PALE, line: false, shadow: false, relief: 0.4 }, quad(v(32.6, hy + 2.2), v(41.8, hy + 1.8), v(41.4, hy + 3.2), v(33.2, hy + 3.8)));
-    rig.markLine(v(35.4, hy + 1.8), v(41.6, hy + 1.8), 0);
-    // Eye on top of the snout, about halfway along.
-    rig.dot(37, hy - 0.8, EYE_SERGAL_DARK, P.EYE);
-    rig.dot(38, hy - 0.8, EYE_SERGAL, P.EYE);
-    // Near ear on top, with a pale inner edge.
-    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(28.2, hy - 2.2), v(31, hy - 3.2), v(25.4 - twitch, hy - 11.4))]);
-    rig.decal(PALE, [tri(v(28.8, hy - 2.8), v(30, hy - 3.2), v(26.4 - twitch, hy - 8.6))], { regions: [P.EAR] });
-    return;
-  }
-  const front = dir === 'down';
-  // Ears: tall, set wide, leaning a little outward.
-  for (const sx of [-1, 1]) {
-    const tw = sx === 1 ? twitch : 0;
-    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(AX + sx * 1.6, hy - 2.8), v(AX + sx * 5.2, hy - 0.8), v(AX + sx * (6.2 + tw), hy - 11.2 + tw))]);
-    if (front) rig.decal(PALE, [tri(v(AX + sx * 3, hy - 2.4), v(AX + sx * 4.8, hy - 1.4), v(AX + sx * 5.6, hy - 7.8))], { regions: [P.EAR] });
-  }
-  // Mane: spiky ruff flaring out from the cheeks and down the neck.
-  rig.add({ region: P.HAIR, ramp: KEY }, [
-    tri(v(AX - 3.6, hy - 0.4), v(AX - 8.6, hy + 1.6), v(AX - 3.8, hy + 3)),
-    tri(v(AX - 3.6, hy + 2), v(AX - 8, hy + 5.6), v(AX - 2.8, hy + 5.4)),
-    tri(v(AX - 3, hy + 4.4), v(AX - 6, hy + 9.4), v(AX - 1, hy + 7)),
-    tri(v(AX + 3.6, hy - 0.4), v(AX + 8.6, hy + 1.6), v(AX + 3.8, hy + 3)),
-    tri(v(AX + 3.6, hy + 2), v(AX + 8, hy + 5.6), v(AX + 2.8, hy + 5.4)),
-    tri(v(AX + 3, hy + 4.4), v(AX + 6, hy + 9.4), v(AX + 1, hy + 7)),
-  ]);
-  if (front) {
-    // Head-on: a broad blue brow coming down in a V between the eyes, pale around
-    // the eyes, and a broad, flat-bottomed pale muzzle below with the jaw under it.
-    rig.add({ region: P.SNOUT, ramp: PALE, relief: 0.3 }, quad(v(AX - 2.6, hy + 4.4), v(AX + 2.6, hy + 4.4), v(AX + 2, hy + 6.6), v(AX - 2, hy + 6.6)));
-    const h = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 1.2), 5.2, 3.8)]);
-    const m = rig.add({ region: P.SNOUT, ramp: PALE, relief: 0.5, line: false }, quad(v(AX - 3.9, hy + 0.4), v(AX + 3.9, hy + 0.4), v(AX + 3.4, hy + 5.4), v(AX - 3.4, hy + 5.4)));
-    // Pale around the eyes; the blue V of the brow points down to the muzzle.
-    rig.decal(PALE, [ell(v(AX - 3.4, hy + 0.2), 2.2, 2), ell(v(AX + 3.4, hy + 0.2), 2.2, 2)], { parts: [h] });
-    rig.decal(KEY, [tri(v(AX - 2, hy - 1), v(AX + 2, hy - 1), v(AX, hy + 1.8))], { parts: [h, m] });
-    for (const sx of [-1, 1]) {
-      // Angled eyes under a heavy brow line sloping down to the middle.
-      rig.markLine(v(AX + sx * 1.4, hy - 1), v(AX + sx * 4.6, hy - 2.2), 0);
-      rig.dot(AX + sx * 2.6, hy - 0.2, EYE_SERGAL_DARK, P.EYE);
-      rig.dot(AX + sx * 3.6, hy - 0.2, EYE_SERGAL, P.EYE);
-      rig.dot(AX + sx * 3.6, hy + 0.8, EYE_SERGAL_HI, P.EYE);
-    }
-    // Wide mouth across the bottom of the muzzle, corners turned up.
-    rig.markLine(v(AX - 3.2, hy + 3.6), v(AX - 1.8, hy + 4.4), 0);
-    rig.markLine(v(AX - 1.8, hy + 4.4), v(AX + 1.8, hy + 4.4), 0);
-    rig.markLine(v(AX + 1.8, hy + 4.4), v(AX + 3.2, hy + 3.6), 0);
-    return;
-  }
-  rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.6), 5, 4), ell(v(AX, hy + 2.4), 3.8, 2.8)]);
-  rig.add({ region: P.HAIR, ramp: KEY }, [tri(v(AX - 2.6, hy + 0.6), v(AX + 2.6, hy + 0.6), v(AX, hy + 10.4)), tri(v(AX - 4.4, hy + 1.6), v(AX - 0.6, hy + 2.4), v(AX - 3, hy + 8.4)), tri(v(AX + 4.4, hy + 1.6), v(AX + 0.6, hy + 2.4), v(AX + 3, hy + 8.4))]);
 }
 
 function lizardHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
@@ -785,7 +723,8 @@ export function placeholderRig(race: PlaceholderRace): PuppetRig {
     const sk = bindSkeleton(race, dir);
     const parts: PuppetRig['dirs'][PuppetDir]['parts'] = {};
     for (const part of PUPPET_PARTS) {
-      if ((part === 'tail' || part === 'headAlt') && race === 'human') continue;
+      if (part === 'tail' && race === 'human') continue;
+      if (part === 'headAlt' && race !== 'lizardman') continue;
       const w = pieceWindow(race, dir, part);
       parts[part] = { joint: w.joint, pivot: w.pivot };
     }

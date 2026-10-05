@@ -43,8 +43,9 @@ describe('placeholder character pieces', () => {
       PUPPET_PARTS.forEach((part, col) => {
         let opaque = 0;
         for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) if (atlas.alpha(col * CELL + x, row * CELL + y)) opaque++;
-        const optional = part === 'tail' || part === 'headAlt';
-        if (race === 'human' && optional) expect(opaque, `${race} ${dir} ${part}`).toBe(0);
+        // Humans have no tail; only lizardmen have a second (tongue-out) head.
+        const absent = (part === 'tail' && race === 'human') || (part === 'headAlt' && race !== 'lizardman');
+        if (absent) expect(opaque, `${race} ${dir} ${part}`).toBe(0);
         else expect(opaque, `${race} ${dir} ${part}`).toBeGreaterThan(part === 'torso' ? 150 : part.startsWith('head') ? 80 : 25);
         // Nothing touches the cell edges (it would mean the piece was clipped).
         for (let i = 0; i < CELL; i++) {
