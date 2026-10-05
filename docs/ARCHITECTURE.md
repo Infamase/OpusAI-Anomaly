@@ -36,6 +36,36 @@ requestAnimationFrame
  └─ GameRenderer.render()
 ```
 
+## Scenes
+
+```
+MainMenuScene ──New Game──► CharacterCreatorScene ──Begin──► GameplayScene ⇄ PauseScene (overlay)
+      ▲  ├─Continue / Load Game (pick a slot) ─────────────────────▲    │
+      │  └─Import Save (file → slot, with replace/keep-both prompt)     │
+      └──────────────────────── Save & Quit to Menu ◄──────────────────┘
+```
+
+Scenes are stacked by `SceneManager`. Only gameplay captures game keys and shows
+the iPad touch sticks (`Game.setGameplayInput`). Menus are DOM over the canvas
+and draw animated characters with `CharacterPreview`.
+
+## Equipment and paper-doll armor (Module 6)
+
+- **Content:** `armor` defs (`content/base/armor/*.json`) have `slot` (`head`,
+  `torso` = top + gloves, `legs` = pants + boots), `fitsRace` (must equal a
+  race's `armorTag`), `modifiers`, `weight`, `value`, `dye`, and art: `sheet`
+  (a PNG) or `placeholder.style`. Races list `startingEquipment`.
+- **Items:** an `ItemInstance` `{uid, defId, condition}` is what saves store.
+  Defs are content; instances belong to the player.
+- **Stats:** equipping adds the def's modifiers with source `item:<uid>`, and
+  unequipping removes exactly those (`src/game/equipment.ts`).
+- **Rendering:** `CharacterView` draws `body → legs → torso → head`, each its
+  own sheet in the same layout. Armor is recolored by its `dye` through the
+  secondary key colors.
+- **Placeholder armor** (`src/render/placeholder/armor.ts`) is painted using the
+  body-part tags the body generator records per pixel. One set of rules fits
+  every body shape, and a tail drawn in front of the body is never covered.
+
 ## Extension points
 
 ### Add a playable race
@@ -43,6 +73,14 @@ requestAnimationFrame
 2. Art: a PNG sheet following `docs/SPRITE_SPEC.md` in `public/sprites/`, with `"sheet": "sprites/<id>.png"`.
    (Or add a placeholder generator to `src/render/placeholder/characters.ts`.)
 3. Done: the dev panel's race list, the stats and saving all pick it up.
+
+### Add armor
+Add an entry to `content/base/armor/<race>.json`: pick a `slot`, set `fitsRace`
+to the race's `armorTag`, and choose a `placeholder.style` (`hood`/`helmet`,
+`jacket`/`plate_vest`, `pants`/`plate_legs`) or point `sheet` at a PNG drawn
+per `docs/SPRITE_SPEC.md`. Use `dye` for color variants. A new playable race
+needs its own armor pieces, and its `startingEquipment` must fit it (the loader
+checks this).
 
 ### Add a stat
 Add an entry to `content/base/stats/core.json`. Races set it via `baseStats`.
@@ -92,6 +130,10 @@ IndexedDB "stalker-future-anomaly"
   iPad needs), and on manual save. Only chunks that changed are written.
 - Undoing a change (back to the generated tile) deletes the record, so saves stay small.
 - **Format changes:** bump `SAVE_VERSION` and add a step in `src/save/migrations.ts`.
+  Current format is **v2** (v1 → v2 added `player.equipment`).
+- **Slots:** each character is its own slot (`slot-<time>-<random>`). Export
+  writes `{format: "sfa-save", data, chunks}` JSON. Import upgrades older
+  formats and asks before replacing a slot that already exists.
 - **iPad:** Safari may evict website storage after ~7 days without a visit
   unless the game is added to the Home Screen. The game requests persistent
   storage, and the dev panel can export and import saves as JSON backups.

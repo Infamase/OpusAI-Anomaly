@@ -17,7 +17,7 @@ import { GameLoop } from './GameLoop';
 import { SceneManager } from './Scene';
 import { loadSettings, saveSettings, type Settings } from './Settings';
 
-export const GAME_VERSION = '0.1.0';
+export const GAME_VERSION = '0.2.0';
 
 export interface GameEvents {
   'input:device': InputDevice;
@@ -47,6 +47,11 @@ export class Game {
   contentReport!: LoadReport;
   saveWarning: string | undefined;
   debugVisible = false;
+  /** True while a gameplay scene is active: shows touch controls and captures game keys. */
+  gameplayInput = false;
+  /** Returns to the title screen. Assigned at startup (avoids scene import cycles). */
+  goToMainMenu: () => Promise<void> = async () => {};
+  private keyboard!: KeyboardMouseSource;
 
   /** Smoothed frames per second, for the debug overlay. */
   fps = 60;
@@ -95,12 +100,12 @@ export class Game {
     const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
     this.touch = new TouchSource(this.root);
     this.input = new InputManager(
-      [new KeyboardMouseSource(this.renderer.canvas), new GamepadSource(), this.touch],
+      [(this.keyboard = new KeyboardMouseSource(this.renderer.canvas)), new GamepadSource(), this.touch],
       coarse ? 'touch' : 'keyboardMouse',
     );
-    this.touch.visible = coarse;
+    this.setGameplayInput(false);
     this.input.onDeviceChange = (d) => {
-      this.touch.visible = d === 'touch';
+      this.touch.visible = this.gameplayInput && d === 'touch';
       this.events.emit('input:device', d);
     };
 
@@ -114,6 +119,14 @@ export class Game {
     });
     // iOS Safari may skip visibilitychange when the tab is closed; pagehide is the reliable last chance.
     window.addEventListener('pagehide', () => this.events.emit('app:hidden', undefined));
+  }
+
+  /** Gameplay scenes turn this on in enter() and off in exit(). */
+  setGameplayInput(on: boolean): void {
+    this.gameplayInput = on;
+    this.keyboard.capture = on;
+    this.touch.visible = on && this.input.device === 'touch';
+    this.input.reset();
   }
 
   start(): void {

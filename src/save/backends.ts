@@ -11,6 +11,7 @@ export interface SaveBackend {
   /** Writes the slot and changed chunks in one transaction; null delta = delete that chunk. */
   commit(data: SaveData, chunks: ChunkDeltaRecord[], deletedChunks: { worldId: string; chunkKey: string }[]): Promise<void>;
   loadWorldChunks(slotId: string, worldId: string): Promise<ChunkDeltaRecord[]>;
+  deleteWorldChunks(slotId: string, worldId: string): Promise<void>;
   deleteSlot(slotId: string): Promise<void>;
 }
 
@@ -41,6 +42,10 @@ export class MemoryBackend implements SaveBackend {
     return [...this.chunks.values()]
       .filter((c) => c.slotId === slotId && c.worldId === worldId)
       .map((c) => structuredClone(c));
+  }
+
+  async deleteWorldChunks(slotId: string, worldId: string): Promise<void> {
+    for (const [k, c] of this.chunks) if (c.slotId === slotId && c.worldId === worldId) this.chunks.delete(k);
   }
 
   async deleteSlot(slotId: string): Promise<void> {
@@ -114,6 +119,12 @@ export class IndexedDbBackend implements SaveBackend {
     const tx = this.db.transaction(CHUNKS, 'readonly');
     const range = IDBKeyRange.bound([slotId, worldId, ''], [slotId, worldId, '￿']);
     return req(tx.objectStore(CHUNKS).getAll(range) as IDBRequest<ChunkDeltaRecord[]>);
+  }
+
+  async deleteWorldChunks(slotId: string, worldId: string): Promise<void> {
+    const tx = this.db.transaction(CHUNKS, 'readwrite');
+    tx.objectStore(CHUNKS).delete(IDBKeyRange.bound([slotId, worldId, ''], [slotId, worldId, '\uffff']));
+    await done(tx);
   }
 
   async deleteSlot(slotId: string): Promise<void> {

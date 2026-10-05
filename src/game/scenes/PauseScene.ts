@@ -1,5 +1,6 @@
 import type { Game } from '../../core/Game';
 import type { Scene } from '../../core/Scene';
+import { button, el } from '../../ui/dom';
 
 /**
  * Overlay scene pushed on top of gameplay. Because it blocks updates, the world
@@ -11,20 +12,24 @@ export class PauseScene implements Scene {
   private overlay: HTMLElement | null = null;
   private closing = false;
 
-  constructor(private game: Game) {}
+  constructor(
+    private game: Game,
+    /** Leaves gameplay for the title screen (the gameplay scene saves on exit). */
+    private onQuit: () => Promise<void>,
+  ) {}
 
   enter(): void {
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'pause-overlay';
-    this.overlay.innerHTML = `
-      <div class="pause-box">
-        <h2>Paused</h2>
-        <p class="hint">Esc / Start / ❚❚ to resume</p>
-        <button class="resume">Resume</button>
-      </div>`;
-    this.overlay.querySelector('.resume')!.addEventListener('click', () => this.close());
+    const resume = button('Resume', () => this.close(), 'btn primary');
+    const quit = button('Save & Quit to Menu', () => void this.quit());
+    this.overlay = el(
+      'div',
+      'pause-overlay',
+      undefined,
+      el('div', 'pause-box', undefined, el('h2', '', 'Paused'), el('p', 'hint', 'Esc / Start / ❚❚ to resume'), resume, quit),
+    );
     this.game.root.appendChild(this.overlay);
     this.game.input.enabled = false;
+    resume.focus();
   }
 
   exit(): void {
@@ -43,5 +48,12 @@ export class PauseScene implements Scene {
     if (this.closing) return;
     this.closing = true;
     void this.game.scenes.pop();
+  }
+
+  private async quit(): Promise<void> {
+    if (this.closing) return;
+    this.closing = true;
+    this.overlay?.querySelectorAll('button').forEach((b) => (b.disabled = true));
+    await this.onQuit();
   }
 }

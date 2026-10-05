@@ -13,7 +13,10 @@ export interface Migration {
   chunk?: (delta: ChunkDelta) => ChunkDelta;
 }
 
-export const MIGRATIONS: Migration[] = [];
+export const MIGRATIONS: Migration[] = [
+  // v2 (Module 6): worn armor. Older characters start with nothing equipped.
+  { from: 1, save: (d) => ({ ...d, player: { equipment: {}, ...d.player } }) },
+];
 
 export class SaveVersionError extends Error {}
 

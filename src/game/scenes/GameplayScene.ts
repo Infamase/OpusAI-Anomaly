@@ -5,10 +5,13 @@ import type { Scene } from '../../core/Scene';
 import { World, type Entity } from '../../ecs/World';
 import type { ChannelColors } from '../../render/palette';
 import { TileAtlas, TilemapRenderer } from '../../render/TilemapRenderer';
+import { SaveManager } from '../../save/SaveManager';
+import type { EquipmentSave } from '../../save/types';
 import type { WorldDeltas } from '../../save/WorldDeltas';
 import { DevTools, type DevHooks } from '../../ui/DevTools';
-import { prepareRaceArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
-import { Aim, Character, PlayerControlled, Stats, Transform, View } from '../components';
+import { prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
+import { Aim, Character, Equipment, PlayerControlled, Stats, Transform, View } from '../components';
+import { createItem, equipArmor, prepareArmorArt, startingEquipment, unequipArmor, type ArmorSlot } from '../equipment';
 import { AnimationSystem } from '../systems/AnimationSystem';
 import { MovementSystem } from '../systems/MovementSystem';
 import { PlayerControlSystem } from '../systems/PlayerControlSystem';
@@ -18,19 +21,50 @@ import { TileSet } from '../world/TileSet';
 import '../world/testRangeGenerator';
 import { PauseScene } from './PauseScene';
 
-const SLOT_ID = 'autosave';
-const WORLD_ID = 'test_range';
+/** Where new characters start. Becomes the real starting location once planets exist. */
+export const START_WORLD_ID = 'test_range';
+const WORLD_ID = START_WORLD_ID;
 const AUTOSAVE_SEC = 30;
 const BUILD_WALL = 'metal_wall';
 const BUILD_FLOOR = 'dirt';
 
+export interface NewCharacter {
+  name: string;
+  raceId: string;
+  colors: ChannelColors;
+}
+
+/** Creates a fresh save slot for a new character (with its race's starting gear) and starts playing it. */
+export async function startNewGame(game: Game, who: NewCharacter): Promise<void> {
+  const slotId = SaveManager.newSlotId();
+  const race = game.content.get('race', who.raceId);
+  game.saves.newGame({
+    slotId,
+    name: who.name,
+    gameVersion: GAME_VERSION,
+    contentPacks: game.contentReport.packs.map((p) => ({ id: p.id, version: p.version })),
+    player: {
+      name: who.name,
+      raceId: race.id,
+      colors: resolveColors(race, who.colors),
+      worldId: START_WORLD_ID,
+      x: NaN,
+      y: NaN,
+      facing: 'down',
+      equipment: startingEquipment(game.content, race.id),
+    },
+  });
+  await game.saves.save();
+  await game.scenes.change(new GameplayScene(game, slotId));
+}
+
 /**
- * Phase 0 milestone scene: walk a character around a generated, chunk-streamed
- * map on PC or iPad, change race/colors, edit tiles, and have it all persist
- * through reloads via "seed + changes" saves.
+ * In-world play: walk the character around a generated, chunk-streamed map on
+ * PC or iPad. Everything persists through "seed + changes" saves. The world is
+ * still the Phase 0 test range until planets (Phase 2) exist.
  */
-export class TestRangeScene implements Scene, DevHooks {
-  readonly id = 'test-range';
+export class GameplayScene implements Scene, DevHooks {
+  readonly id = 'gameplay';
   buildMode = false;
 
   private world = new World();
@@ -42,25 +76,20 @@ export class TestRangeScene implements Scene, DevHooks {
   private sinceSave = 0;
   private playTime = 0;
   private offEvents: (() => void)[] = [];
+  /** Set once enter() completes; exit() only saves a fully loaded scene. */
+  private ready = false;
 
-  constructor(private game: Game) {}
+  constructor(
+    private game: Game,
+    readonly slotId: string,
+  ) {}
 
   async enter(): Promise<void> {
     const g = this.game;
-
-    // --- Save slot: continue if one exists, else start fresh.
-    if (!(await g.saves.load(SLOT_ID))) {
-      const human = g.content.get('race', 'human');
-      g.saves.newGame({
-        slotId: SLOT_ID,
-        name: 'Autosave',
-        gameVersion: GAME_VERSION,
-        contentPacks: this.game.contentReport.packs.map((p) => ({ id: p.id, version: p.version })),
-        player: { name: 'Stalker', raceId: human.id, colors: resolveColors(human), worldId: WORLD_ID, x: NaN, y: NaN, facing: 'down' },
-      });
-    }
+    if (!(await g.saves.load(this.slotId))) throw new Error(`Save "${this.slotId}" not found`);
     const save = g.saves.data;
     if (!g.content.has('race', save.player.raceId)) save.player.raceId = 'human'; // race removed from content
+    g.setGameplayInput(true);
 
     // --- World: regenerate from seed, then layer saved changes on top.
     const genDef = g.content.get('worldGen', WORLD_ID);
@@ -88,7 +117,7 @@ export class TestRangeScene implements Scene, DevHooks {
     this.world.onDestroy = (e) => this.world.get(e, View)?.destroy();
 
     // --- Player.
-    await prepareRaceArt(g.content, g.sheets, save.player.raceId);
+    await prepareCharacterArt(g.content, g.sheets, save.player.raceId, save.player.equipment);
     let { x, y } = save.player;
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
       const spawn = generator.spawnPoint(record.seed, params, this.map.widthTiles, this.map.heightTiles);
@@ -98,6 +127,7 @@ export class TestRangeScene implements Scene, DevHooks {
     this.playerEntity = spawnCharacter(this.world, g.content, g.sheets, {
       raceId: save.player.raceId,
       colors: save.player.colors,
+      equipment: save.player.equipment,
       x,
       y,
       facing: save.player.facing,
@@ -110,14 +140,17 @@ export class TestRangeScene implements Scene, DevHooks {
     this.offEvents.push(
       g.events.on('app:hidden', () => {
         void this.save();
-        if (g.scenes.current === this) void g.scenes.push(new PauseScene(g));
+        if (g.scenes.current === this) this.openPauseMenu();
       }),
     );
+    this.ready = true;
     await this.save();
   }
 
   async exit(): Promise<void> {
-    await this.save();
+    if (this.ready) await this.save();
+    this.ready = false;
+    this.game.setGameplayInput(false);
     for (const off of this.offEvents) off();
     this.dev?.destroy();
     this.tileRenderer?.destroy();
@@ -125,10 +158,16 @@ export class TestRangeScene implements Scene, DevHooks {
     this.world.flushDestroyed();
   }
 
+  /** True once the world and player exist (enter() is async; the loop may tick before it finishes). */
+  get isReady(): boolean {
+    return this.ready;
+  }
+
   update(dt: number): void {
+    if (!this.ready) return;
     const input = this.game.input;
     if (input.justPressed('pause')) {
-      void this.game.scenes.push(new PauseScene(this.game));
+      this.openPauseMenu();
       return;
     }
     this.world.update(dt);
@@ -140,6 +179,7 @@ export class TestRangeScene implements Scene, DevHooks {
   }
 
   render(alpha: number, frameDt: number): void {
+    if (!this.ready) return;
     const g = this.game;
     let px = 0;
     let py = 0;
@@ -182,22 +222,51 @@ export class TestRangeScene implements Scene, DevHooks {
     };
   }
 
-  async setAppearance(raceId: string, colors: ChannelColors): Promise<void> {
+  async setAppearance(raceId: string, colors: ChannelColors): Promise<string[]> {
     const g = this.game;
-    await prepareRaceArt(g.content, g.sheets, raceId);
-    setCharacterAppearance(this.world, g.content, g.sheets, this.playerEntity, raceId, colors);
-    const ch = this.world.req(this.playerEntity, Character);
-    g.saves.data.player.raceId = ch.raceId;
-    g.saves.data.player.colors = ch.colors;
+    await prepareCharacterArt(g.content, g.sheets, raceId, this.world.req(this.playerEntity, Equipment));
+    const removed = setCharacterAppearance(this.world, g.content, g.sheets, this.playerEntity, raceId, colors);
+    this.syncPlayerSave();
+    return removed.map((item) => g.content.tryGet('armor', item.defId)?.name ?? item.defId);
+  }
+
+  equipment(): EquipmentSave {
+    return this.world.req(this.playerEntity, Equipment);
+  }
+
+  async equip(slot: ArmorSlot, armorId: string | null): Promise<string | null> {
+    const g = this.game;
+    if (!armorId) {
+      unequipArmor(this.world, g.content, g.sheets, this.playerEntity, slot);
+    } else {
+      await prepareArmorArt(g.content, g.sheets, armorId);
+      const result = equipArmor(this.world, g.content, g.sheets, this.playerEntity, createItem(armorId));
+      if (!result.ok) return result.reason;
+    }
+    this.syncPlayerSave();
+    return null;
+  }
+
+  /** Dev: gives the character their race's starting kit again. */
+  async resetGear(): Promise<void> {
+    const g = this.game;
+    const raceId = this.world.req(this.playerEntity, Character).raceId;
+    for (const [slot, item] of Object.entries(startingEquipment(g.content, raceId))) {
+      await this.equip(slot as ArmorSlot, item.defId);
+    }
   }
 
   async saveNow(): Promise<void> {
     await this.save(true);
   }
 
+  /** Dev: throws away this world's seed and edits, then re-enters a freshly generated one. */
   async newWorld(): Promise<void> {
-    await this.game.saves.deleteSlot(SLOT_ID);
-    location.reload();
+    const g = this.game;
+    this.world.req(this.playerEntity, Transform).x = NaN; // respawn at the new world's spawn point
+    this.syncPlayerSave();
+    await g.saves.resetWorld(WORLD_ID);
+    await g.scenes.change(new GameplayScene(g, this.slotId));
   }
 
   info(): Record<string, string | number> {
@@ -228,15 +297,32 @@ export class TestRangeScene implements Scene, DevHooks {
     map.setTile(tx, ty, map.isSolid(tx, ty) ? BUILD_FLOOR : BUILD_WALL);
   }
 
+  private openPauseMenu(): void {
+    const g = this.game;
+    void g.scenes.push(new PauseScene(g, () => g.goToMainMenu()));
+  }
+
+  /** Copies the live player entity into the save data. */
+  private syncPlayerSave(): void {
+    const g = this.game;
+    if (!g.saves.isLoaded || !this.world.isAlive(this.playerEntity)) return;
+    const t = this.world.req(this.playerEntity, Transform);
+    const ch = this.world.req(this.playerEntity, Character);
+    Object.assign(g.saves.data.player, {
+      x: t.x,
+      y: t.y,
+      facing: ch.facing,
+      raceId: ch.raceId,
+      colors: ch.colors,
+      equipment: structuredClone(this.world.req(this.playerEntity, Equipment)),
+    });
+  }
+
   private async save(manual = false): Promise<void> {
     const g = this.game;
     if (!g.saves.isLoaded) return;
     this.sinceSave = 0;
-    if (this.world.isAlive(this.playerEntity)) {
-      const t = this.world.req(this.playerEntity, Transform);
-      const ch = this.world.req(this.playerEntity, Character);
-      Object.assign(g.saves.data.player, { x: t.x, y: t.y, facing: ch.facing, raceId: ch.raceId, colors: ch.colors });
-    }
+    this.syncPlayerSave();
     const played = this.playTime;
     this.playTime = 0;
     try {

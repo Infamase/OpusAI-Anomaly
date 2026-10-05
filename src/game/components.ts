@@ -2,6 +2,7 @@ import type { Direction } from '../core/math';
 import { defineComponent } from '../ecs/World';
 import type { ChannelColors } from '../render/palette';
 import type { CharacterView } from '../render/CharacterView';
+import type { EquipmentSave } from '../save/types';
 import type { StatBlock } from '../stats/Stats';
 
 /** Position of the entity's feet in world pixels. prev* is last tick's, for render interpolation. */
@@ -50,3 +51,6 @@ export const Aim = defineComponent<Aim>('Aim');
 
 /** Render-side handle. Lives in the ECS so destroying an entity can clean up its sprites. */
 export const View = defineComponent<CharacterView>('View');
+
+/** Worn armor by slot. Stat modifiers are tagged "item:<uid>" so they can be removed exactly. */
+export const Equipment = defineComponent<EquipmentSave>('Equipment');

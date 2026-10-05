@@ -4,9 +4,13 @@ A 2D pixel-art, top-down survival shooter in the spirit of S.T.A.L.K.E.R., set
 across procedurally generated planets, ships and space stations. It runs in the
 browser on **PC and iPad** (WebGPU with a WebGL fallback).
 
-> Status: **Phase 0 (Foundation) is complete.** A character can walk around a
-> generated, chunk-streamed test map using keyboard/mouse, gamepad or iPad
-> touch controls. Race, colors and map edits persist through reloads.
+> Status: **Phase 0 (Foundation) and Module 6 (paper-doll armor) are complete.**
+> The game opens on a main menu (New Game, Load Game, Import Save). New Game
+> leads to a character creator (name, race, color, starting gear). In game, each
+> race wears its own layered armor (helmet / top + gloves / pants + boots) with
+> stat bonuses, on a generated, chunk-streamed test map, using keyboard/mouse,
+> gamepad or iPad touch controls. Saves hold multiple characters and can be
+> moved between devices.
 
 ## Run it
 
@@ -17,9 +21,10 @@ npm test           # unit tests
 npm run build      # typecheck + production build into dist/
 ```
 
-**On an iPad:** run `npm run dev` on your PC and open the "Network" URL it prints
-(same Wi-Fi), or use the GitHub Pages build (see below). For fullscreen and
-reliable saves, use **Share → Add to Home Screen**.
+**On an iPad:** use the GitHub Pages build (see below), or run `npm run dev` on
+your PC and open the "Network" URL it prints (same Wi-Fi). The LAN URL is plain
+http, so the browser disables WebGPU and the game uses WebGL; Pages is https and
+can use WebGPU. For fullscreen and reliable saves, use **Share → Add to Home Screen**.
 
 URL flags: `?renderer=webgl` forces WebGL, `?debug=1` opens the dev panel.
 
@@ -35,9 +40,18 @@ URL flags: `?renderer=webgl` forces WebGL, `?debug=1` opens the dev panel.
 | Pause | Esc | Start | ❚❚ |
 | Dev panel | ` or F3 | Select | DEV |
 
-The **dev panel** switches race (Human / Lizardman / Sergal), color, zoom and
-renderer. It also has a build mode (E/USE toggles a wall in front of you, to
-test map saves) and can save, export, import, or start a new world.
+The **dev panel** (testing scaffolding until inventory exists) can equip any
+armor that fits your race, switch race/color, zoom, renderer, toggle a build
+mode (E/USE toggles a wall in front of you, to test map saves), save, export,
+and regenerate the world.
+
+## Saves across devices
+
+Every save slot can be **exported** from *Load Game → Export*. On iPad this
+opens the share sheet (AirDrop, Save to Files…), and on PC the file downloads.
+On the other device, use **Import Save** on the main menu and pick the
+`.sfa.json` file. If that save is already there, you choose whether to replace
+the copy on this device or keep both.
 
 ## Project layout
 
@@ -60,7 +74,7 @@ tests/               vitest unit tests
 | Phase | Modules | Status |
 | --- | --- | --- |
 | 0 Foundation | Core, Renderer, Input, ECS/Content/Stats, Save | ✅ |
-| 1 Vertical slice | Paper-doll armor, world & collision, combat, inventory, AI & factions, HUD & character creator | next |
+| 1 Vertical slice | ✅ Paper-doll armor + character creator + menus · combat · inventory · AI & factions · HUD | in progress |
 | 2 Worlds | Planet generation, station/ship chunk generation, alien fauna, anomalies & artifacts | |
 | 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, audio & polish | |
 

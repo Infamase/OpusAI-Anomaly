@@ -1,0 +1,173 @@
+[
+  {
+    "type": "armor",
+    "id": "sergal_stalker_hood",
+    "name": "Stalker Hood",
+    "description": "Weathered canvas hood. Keeps the dust and drizzle out. Roomy at the shoulders, with ear sleeves and a tail gap.",
+    "slot": "head",
+    "fitsRace": "sergal",
+    "placeholder": {
+      "style": "hood"
+    },
+    "dye": "#5d6340",
+    "weight": 0.6,
+    "value": 150,
+    "modifiers": [
+      {
+        "stat": "radiation_resist",
+        "op": "flat",
+        "value": 0.05
+      },
+      {
+        "stat": "chemical_resist",
+        "op": "flat",
+        "value": 0.05
+      }
+    ]
+  },
+  {
+    "type": "armor",
+    "id": "sergal_stalker_jacket",
+    "name": "Stalker Jacket",
+    "description": "Leather jacket with sewn-in kevlar panels and a small pack. Roomy at the shoulders, with ear sleeves and a tail gap.",
+    "slot": "torso",
+    "fitsRace": "sergal",
+    "placeholder": {
+      "style": "jacket"
+    },
+    "dye": "#6b5236",
+    "weight": 3.5,
+    "value": 600,
+    "modifiers": [
+      {
+        "stat": "ballistic_resist",
+        "op": "flat",
+        "value": 0.1
+      },
+      {
+        "stat": "rupture_resist",
+        "op": "flat",
+        "value": 0.15
+      },
+      {
+        "stat": "carry_weight",
+        "op": "flat",
+        "value": 5
+      }
+    ]
+  },
+  {
+    "type": "armor",
+    "id": "sergal_stalker_pants",
+    "name": "Stalker Pants",
+    "description": "Reinforced cargo pants and worn boots. Roomy at the shoulders, with ear sleeves and a tail gap.",
+    "slot": "legs",
+    "fitsRace": "sergal",
+    "placeholder": {
+      "style": "pants"
+    },
+    "dye": "#4a4f3a",
+    "weight": 1.5,
+    "value": 250,
+    "modifiers": [
+      {
+        "stat": "rupture_resist",
+        "op": "flat",
+        "value": 0.05
+      }
+    ]
+  },
+  {
+    "type": "armor",
+    "id": "sergal_military_helmet",
+    "name": "Military Helmet",
+    "description": "Composite helmet with a sealed, tinted visor. Roomy at the shoulders, with ear sleeves and a tail gap.",
+    "slot": "head",
+    "fitsRace": "sergal",
+    "placeholder": {
+      "style": "helmet"
+    },
+    "dye": "#46523a",
+    "weight": 1.8,
+    "value": 1400,
+    "modifiers": [
+      {
+        "stat": "ballistic_resist",
+        "op": "flat",
+        "value": 0.1
+      },
+      {
+        "stat": "psi_resist",
+        "op": "flat",
+        "value": 0.05
+      },
+      {
+        "stat": "move_speed",
+        "op": "percent",
+        "value": -0.02
+      }
+    ]
+  },
+  {
+    "type": "armor",
+    "id": "sergal_military_vest",
+    "name": "Military Plate Vest",
+    "description": "Ceramic plate carrier with shoulder and forearm guards. Roomy at the shoulders, with ear sleeves and a tail gap.",
+    "slot": "torso",
+    "fitsRace": "sergal",
+    "placeholder": {
+      "style": "plate_vest"
+    },
+    "dye": "#46523a",
+    "weight": 9,
+    "value": 3200,
+    "modifiers": [
+      {
+        "stat": "ballistic_resist",
+        "op": "flat",
+        "value": 0.3
+      },
+      {
+        "stat": "rupture_resist",
+        "op": "flat",
+        "value": 0.2
+      },
+      {
+        "stat": "move_speed",
+        "op": "percent",
+        "value": -0.06
+      }
+    ]
+  },
+  {
+    "type": "armor",
+    "id": "sergal_military_legs",
+    "name": "Military Leg Plates",
+    "description": "Armored trousers with knee guards and steel-capped boots. Roomy at the shoulders, with ear sleeves and a tail gap.",
+    "slot": "legs",
+    "fitsRace": "sergal",
+    "placeholder": {
+      "style": "plate_legs"
+    },
+    "dye": "#46523a",
+    "weight": 4,
+    "value": 1500,
+    "modifiers": [
+      {
+        "stat": "ballistic_resist",
+        "op": "flat",
+        "value": 0.1
+      },
+      {
+        "stat": "rupture_resist",
+        "op": "flat",
+        "value": 0.1
+      },
+      {
+        "stat": "move_speed",
+        "op": "percent",
+        "value": -0.03
+      }
+    ]
+  }
+]

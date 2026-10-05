@@ -57,7 +57,7 @@ or NPC's chosen color. Shadows shift toward blue and highlights toward yellow.
 | Channel     | Shade 0 (shadow) | Shade 1   | Shade 2 (base) | Shade 3 (highlight) | Used for                 |
 | ----------- | ---------------- | --------- | -------------- | ------------------- | ------------------------ |
 | `primary`   | `#400040`        | `#800080` | `#c000c0`      | `#ff00ff`           | Hair / scales / fur      |
-| `secondary` | `#004040`        | `#008080` | `#00c0c0`      | `#00ffff`           | Reserved (markings, eyes)|
+| `secondary` | `#004040`        | `#008080` | `#00c0c0`      | `#00ffff`           | Body: unused for now. **Armor: the dyeable fabric/plating** |
 
 Rules:
 - Never use these 8 colors anywhere else in the art.
@@ -87,7 +87,14 @@ ears, digitigrade legs). An armor sheet:
 - must not draw pixels for parts it doesn't cover.
 
 Leave a gap for the tail in `legs` sheets for lizardman and sergal. The tail is
-part of the body layer.
+part of the body layer. In the `up` (back) view the tail hangs *in front* of
+the legs and lower back, so torso and legs gear must leave those pixels empty
+there, or the tail disappears under the armor.
+
+Paint the main fabric or plating of armor in the **secondary** key colors. The
+armor's `dye` setting recolors those regions, so one sheet can serve as an
+olive military vest and a black mercenary vest. Fixed parts (straps, metal
+buckles, visor glass) use normal colors.
 
 In the side view, the arm nearer the camera and the gear on it belong in
 `torso`. The far arm is drawn darker in `body`.

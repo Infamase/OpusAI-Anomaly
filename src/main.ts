@@ -1,6 +1,6 @@
 import './style.css';
 import { Game } from './core/Game';
-import { TestRangeScene } from './game/scenes/TestRangeScene';
+import { MainMenuScene } from './game/scenes/MainMenuScene';
 
 const root = document.getElementById('app')!;
 const loading = document.getElementById('loading')!;
@@ -9,8 +9,8 @@ const loadingText = loading.querySelector('.loading-text')!;
 async function main(): Promise<void> {
   const game = new Game(root);
   await game.boot((msg) => (loadingText.textContent = msg));
-  loadingText.textContent = 'Generating world…';
-  await game.scenes.change(new TestRangeScene(game));
+  game.goToMainMenu = () => game.scenes.change(new MainMenuScene(game));
+  await game.goToMainMenu();
   game.start();
   loading.remove();
   // Handy for poking at things from the browser console during development.

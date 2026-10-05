@@ -5,7 +5,7 @@ import type { ChannelColors } from '../render/palette';
  * Bump when the save format changes, and add a step to migrations.ts that
  * upgrades the previous version. Old saves keep loading forever.
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 export interface SaveMeta {
   slotId: string;
@@ -18,6 +18,19 @@ export interface SaveMeta {
   contentPacks: { id: string; version: string }[];
 }
 
+/** One concrete item the player owns. Defs are content; instances are save data. */
+export interface ItemInstance {
+  /** Unique per item, used as the stat-modifier source ("item:<uid>"). */
+  uid: string;
+  /** Content id of the item's definition. */
+  defId: string;
+  /** 0..1 durability (used by combat later). */
+  condition: number;
+}
+
+export type EquipmentSlot = 'head' | 'torso' | 'legs';
+export type EquipmentSave = Partial<Record<EquipmentSlot, ItemInstance>>;
+
 export interface PlayerSave {
   name: string;
   raceId: string;
@@ -26,6 +39,7 @@ export interface PlayerSave {
   x: number;
   y: number;
   facing: Direction;
+  equipment: EquipmentSave;
 }
 
 /**

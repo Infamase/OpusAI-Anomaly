@@ -1,0 +1,9 @@
+[
+  { "type": "stat", "id": "ballistic_resist", "name": "Bullet Resistance", "description": "Fraction of bullet damage absorbed.", "default": 0, "min": 0, "max": 0.9, "format": "percent" },
+  { "type": "stat", "id": "rupture_resist", "name": "Rupture Resistance", "description": "Protection from claws, bites and blades.", "default": 0, "min": 0, "max": 0.9, "format": "percent" },
+  { "type": "stat", "id": "thermal_resist", "name": "Thermal Resistance", "default": 0, "min": 0, "max": 0.9, "format": "percent" },
+  { "type": "stat", "id": "chemical_resist", "name": "Chemical Resistance", "default": 0, "min": 0, "max": 0.9, "format": "percent" },
+  { "type": "stat", "id": "electric_resist", "name": "Electrical Resistance", "default": 0, "min": 0, "max": 0.9, "format": "percent" },
+  { "type": "stat", "id": "radiation_resist", "name": "Radiation Resistance", "default": 0, "min": 0, "max": 0.9, "format": "percent" },
+  { "type": "stat", "id": "psi_resist", "name": "Psi Resistance", "default": 0, "min": 0, "max": 0.9, "format": "percent" }
+]

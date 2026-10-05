@@ -30,6 +30,8 @@ const schema = v.object({
   baseStats: v.record(v.number()),
   /** Armor is only wearable when its fitsRace tag matches this. */
   armorTag: v.id(),
+  /** Armor ids worn by a newly created character of this race. */
+  startingEquipment: v.optional(v.array(v.id()), []),
   /** Collision box at the feet, in pixels. */
   hitbox: v.object({ w: v.number({ min: 1 }), h: v.number({ min: 1 }) }),
 });
@@ -44,5 +46,14 @@ export const raceType: ContentTypeSpec<'race'> = {
     for (const stat of Object.keys(def.baseStats)) ctx.ref('stat', stat, `baseStats.${stat}`);
     const channels = def.colorChannels.map((c) => c.channel);
     if (new Set(channels).size !== channels.length) ctx.error('colorChannels lists a channel twice');
+    const slots = new Set<string>();
+    for (const id of def.startingEquipment) {
+      ctx.ref('armor', id, 'startingEquipment');
+      const armor = ctx.registry.tryGet('armor', id);
+      if (!armor) continue;
+      if (armor.fitsRace !== def.armorTag) ctx.error(`starting armor "${id}" fits "${armor.fitsRace}", not "${def.armorTag}"`);
+      if (slots.has(armor.slot)) ctx.error(`startingEquipment has two "${armor.slot}" pieces`);
+      slots.add(armor.slot);
+    }
   },
 };

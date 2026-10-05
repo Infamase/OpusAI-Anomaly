@@ -3,6 +3,7 @@ import type { SpriteLayoutDef } from '../content/types';
 import { layoutRow, layoutSheetSize } from '../content/types/spriteLayout';
 import { buildSwapMap, recolorPixels, swapCacheKey, type ChannelColors } from './palette';
 import { PixelCanvas } from './PixelCanvas';
+import { generateArmorSheet, isArmorStyleForSlot, type ArmorSlot } from './placeholder/armor';
 import { generateCharacterSheet, isPlaceholderRace } from './placeholder/characters';
 
 /** A sliced, recolored sheet ready to draw. */
@@ -32,6 +33,7 @@ export class SpriteSheet {
 export class SpriteSheetCache {
   private sources = new Map<string, PixelCanvas>();
   private sheets = new Map<string, SpriteSheet>();
+  private recolored = new Map<string, PixelCanvas>();
 
   /** Loads a sheet's pixels. Must be awaited before get() for PNG sheets. */
   async prepare(src: string, layout: SpriteLayoutDef): Promise<void> {
@@ -40,16 +42,25 @@ export class SpriteSheetCache {
     this.sources.set(key, await loadPixels(src, layout));
   }
 
+  /** Recolored pixels of a prepared sheet (for DOM portraits). Cached. */
+  pixels(src: string, layout: SpriteLayoutDef, colors: ChannelColors): PixelCanvas {
+    const key = swapCacheKey(`${src}@${layout.id}`, colors);
+    const cached = this.recolored.get(key);
+    if (cached) return cached;
+    const pixels = this.sources.get(`${src}@${layout.id}`);
+    if (!pixels) throw new Error(`Sprite sheet "${src}" was not prepared`);
+    const copy = new PixelCanvas(pixels.width, pixels.height);
+    copy.data.set(pixels.data);
+    recolorPixels(copy.data, buildSwapMap(colors));
+    this.recolored.set(key, copy);
+    return copy;
+  }
+
   get(src: string, layout: SpriteLayoutDef, colors: ChannelColors): SpriteSheet {
     const key = swapCacheKey(`${src}@${layout.id}`, colors);
     const cached = this.sheets.get(key);
     if (cached) return cached;
-    const pixels = this.sources.get(`${src}@${layout.id}`);
-    if (!pixels) throw new Error(`Sprite sheet "${src}" was not prepared`);
-
-    const copy = new PixelCanvas(pixels.width, pixels.height);
-    copy.data.set(pixels.data);
-    recolorPixels(copy.data, buildSwapMap(colors));
+    const copy = this.pixels(src, layout, colors);
     const base = Texture.from(copy.toCanvas(), true);
     const size = layout.frameSize;
     const rows = layout.animations.length * layout.directions.length;
@@ -72,7 +83,19 @@ export class SpriteSheetCache {
   }
 }
 
+/** Placeholder armor art id: fitted to a placeholder body race, for one slot and style. */
+export function placeholderArmorSrc(bodyRace: string, slot: ArmorSlot, style: string): string {
+  return `placeholder:armor:${bodyRace}:${slot}:${style}`;
+}
+
 async function loadPixels(src: string, layout: SpriteLayoutDef): Promise<PixelCanvas> {
+  if (src.startsWith('placeholder:armor:')) {
+    const [race = '', slot = '', style = ''] = src.slice('placeholder:armor:'.length).split(':');
+    if (!isPlaceholderRace(race) || !(slot === 'head' || slot === 'torso' || slot === 'legs') || !isArmorStyleForSlot(slot, style)) {
+      throw new Error(`Bad placeholder armor sheet "${src}"`);
+    }
+    return generateArmorSheet(race, slot, style, layout);
+  }
   if (src.startsWith('placeholder:')) {
     const id = src.slice('placeholder:'.length);
     if (!isPlaceholderRace(id)) throw new Error(`No placeholder generator for "${id}"`);

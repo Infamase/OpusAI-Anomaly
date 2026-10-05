@@ -6,6 +6,14 @@ import type { RGB } from './palette';
  */
 export class PixelCanvas {
   readonly data: Uint8ClampedArray<ArrayBuffer>;
+  /**
+   * Optional per-pixel tag recording which body part last painted each pixel
+   * (see BodyPart in placeholder/characters.ts). Armor generation uses it to fit
+   * gear to any body shape.
+   */
+  regions: Uint8Array | null = null;
+  /** Tag written by set() while regions are enabled. */
+  region = 0;
 
   constructor(
     readonly width: number,
@@ -27,6 +35,25 @@ export class PixelCanvas {
     this.data[i + 1] = c[1];
     this.data[i + 2] = c[2];
     this.data[i + 3] = a;
+    if (this.regions) this.regions[i >> 2] = this.region;
+  }
+
+  enableRegions(): this {
+    this.regions = new Uint8Array(this.width * this.height);
+    return this;
+  }
+
+  regionAt(x: number, y: number): number {
+    if (!this.regions || !this.inBounds(x, y)) return 0;
+    return this.regions[y * this.width + x]!;
+  }
+
+  /** Re-tags already painted pixels in a rectangle without changing their color. */
+  tag(x: number, y: number, w: number, h: number, region: number): void {
+    if (!this.regions) return;
+    for (let yy = y; yy < y + h; yy++) {
+      for (let xx = x; xx < x + w; xx++) if (this.alpha(xx, yy) > 0) this.regions[yy * this.width + xx] = region;
+    }
   }
 
   alpha(x: number, y: number): number {

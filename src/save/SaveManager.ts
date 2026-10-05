@@ -1,7 +1,20 @@
 import type { SaveBackend } from './backends';
 import { migrateChunk, migrateSave } from './migrations';
-import { SAVE_VERSION, type ChunkDeltaRecord, type PlayerSave, type SaveData, type WorldRecord } from './types';
+import { SAVE_VERSION, type ChunkDeltaRecord, type PlayerSave, type SaveData, type SaveMeta, type WorldRecord } from './types';
 import { WorldDeltas } from './WorldDeltas';
+
+/** What the Load screen shows for one slot. `error` is set when the slot can't be read. */
+export interface SlotSummary {
+  meta: SaveMeta;
+  player: PlayerSave;
+  error?: string;
+}
+
+/** A parsed (not yet written) save file. */
+export interface ImportPreview {
+  data: SaveData;
+  chunks: ChunkDeltaRecord[];
+}
 
 export interface NewGameOptions {
   slotId: string;
@@ -34,6 +47,38 @@ export class SaveManager {
 
   async listSlots(): Promise<SaveData['meta'][]> {
     return (await this.backend.listSlots()).map((s) => s.meta).sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /** Every slot, newest first, upgraded to the current format for display. */
+  async listSummaries(): Promise<SlotSummary[]> {
+    const out: SlotSummary[] = [];
+    for (const raw of await this.backend.listSlots()) {
+      try {
+        const data = migrateSave<SaveData>(raw);
+        out.push({ meta: data.meta, player: data.player });
+      } catch (e) {
+        out.push({ meta: raw.meta, player: raw.player, error: (e as Error).message });
+      }
+    }
+    return out.sort((a, b) => b.meta.updatedAt - a.meta.updatedAt);
+  }
+
+  async slotExists(slotId: string): Promise<boolean> {
+    return (await this.backend.loadSlot(slotId)) !== undefined;
+  }
+
+  static newSlotId(): string {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    return `slot-${Date.now().toString(36)}-${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  /** Forgets a world's seed and changes; it regenerates fresh on the next visit. */
+  async resetWorld(worldId: string): Promise<void> {
+    delete this.data.worlds[worldId];
+    this.worlds.delete(worldId);
+    await this.backend.deleteWorldChunks(this.data.meta.slotId, worldId);
+    await this.save();
   }
 
   newGame(opts: NewGameOptions): SaveData {
@@ -149,13 +194,26 @@ export class SaveManager {
     return JSON.stringify({ format: 'sfa-save', data, chunks });
   }
 
+  /** Parses and upgrades a save file without writing it (to show its name / check for conflicts). */
+  previewImport(json: string): ImportPreview {
+    let parsed: { format?: string; data?: SaveData; chunks?: ChunkDeltaRecord[] };
+    try {
+      parsed = JSON.parse(json) as typeof parsed;
+    } catch {
+      throw new Error('That file is not a save file (it is not valid JSON).');
+    }
+    if (parsed?.format !== 'sfa-save' || !parsed.data || !Array.isArray(parsed.chunks)) {
+      throw new Error('That file is not a Stalker: Future Anomaly save.');
+    }
+    return { data: migrateSave<SaveData>(parsed.data), chunks: parsed.chunks };
+  }
+
+  /** Writes an exported save into storage (replacing `asSlotId` if it exists). Returns the slot id. */
   async importSlot(json: string, asSlotId?: string): Promise<string> {
-    const parsed = JSON.parse(json) as { format?: string; data: SaveData; chunks: ChunkDeltaRecord[] };
-    if (parsed.format !== 'sfa-save') throw new Error('Not a Stalker: Future Anomaly save file');
-    const data = migrateSave<SaveData>(parsed.data);
+    const { data, chunks: rawChunks } = this.previewImport(json);
     const slotId = asSlotId ?? data.meta.slotId;
     data.meta.slotId = slotId;
-    const chunks = parsed.chunks.map((c) => ({
+    const chunks = rawChunks.map((c) => ({
       ...c,
       slotId,
       delta: migrateChunk(c.delta, c.version),

@@ -15,6 +15,11 @@ export class KeyboardMouseSource implements InputSource {
   private mouseTapped = new Set<number>();
   private mouse: { x: number; y: number } | null = null;
   private keyToAction = new Map<string, ButtonAction>();
+  /**
+   * While true (in gameplay), bound keys are swallowed so Tab/Space/arrows don't
+   * move focus or scroll. Menus turn it off so normal keyboard navigation works.
+   */
+  capture = true;
   private cleanup: (() => void)[] = [];
 
   constructor(
@@ -28,7 +33,7 @@ export class KeyboardMouseSource implements InputSource {
 
     this.listen(window, 'keydown', (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
-      if (bound.has(e.code)) e.preventDefault(); // stop Tab focus-hopping, arrow scrolling, etc.
+      if (this.capture && bound.has(e.code)) e.preventDefault(); // stop Tab focus-hopping, arrow scrolling, etc.
       if (!e.repeat) this.tapped.add(e.code);
       this.held.add(e.code);
       this.touch();

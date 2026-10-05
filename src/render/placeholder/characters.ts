@@ -42,7 +42,23 @@ const TONGUE: RGB = [206, 58, 84];
 const AX = 24;
 const AY = 44;
 
-interface Pose {
+/** Region tags written while drawing a body (PixelCanvas.regions). */
+export const BodyPart = {
+  NONE: 0,
+  HEAD: 1,
+  EAR: 2,
+  EYE: 3,
+  TORSO: 4,
+  ARM: 5,
+  HAND: 6,
+  LEG: 7,
+  FOOT: 8,
+  TAIL: 9,
+  MOUTH: 10,
+} as const;
+const P = BodyPart;
+
+export interface Pose {
   bob: number;
   liftL: number;
   liftR: number;
@@ -52,7 +68,7 @@ interface Pose {
   tongue: boolean;
 }
 
-function poseFor(anim: string, frame: number): Pose {
+export function poseFor(anim: string, frame: number): Pose {
   if (anim === 'walk') {
     const f = frame % 6;
     return {
@@ -112,8 +128,10 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
         pc.vline(AX - 6, top + 4, 4, K[1]);
         pc.vline(AX + 5, top + 4, 4, K[0]);
         pc.rect(AX - 5, top + 4, 4, 1, K[2]);
+        pc.region = P.EYE;
         pc.rect(AX - 3, top + 7, 1, 2, DARK);
         pc.rect(AX + 2, top + 7, 1, 2, DARK);
+        pc.region = P.HEAD;
         pc.rect(AX - 1, top + 10, 2, 1, SKIN[0]);
         return;
       }
@@ -123,7 +141,9 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
       shaded(pc, AX - 5, top, 10, 4, KR);
       pc.rect(AX - 5, top + 4, 4, 5, K[1]);
       pc.hline(AX - 4, top, 8, K[3]);
+      pc.region = P.EYE;
       pc.rect(AX + 2, top + 7, 1, 2, DARK);
+      pc.region = P.HEAD;
       pc.set(AX + 3, top + 10, SKIN[0]);
     },
   },
@@ -147,14 +167,17 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
         shaded(pc, AX - 3, t + 8, 6, 3, KR);
         pc.set(AX - 2, t + 9, K[0]);
         pc.set(AX + 1, t + 9, K[0]);
+        pc.region = P.EYE;
         pc.set(AX - 5, t + 4, LIZARD_EYE);
         pc.set(AX - 5, t + 5, DARK);
         pc.set(AX + 4, t + 4, LIZARD_EYE);
         pc.set(AX + 4, t + 5, DARK);
+        pc.region = P.HEAD;
         pc.set(AX - 1, t - 1, K[1]);
         pc.set(AX, t - 1, K[1]);
         pc.vline(AX - 1, t, 3, K[0]);
         if (p.tongue) {
+          pc.region = P.MOUTH;
           pc.vline(AX - 1, t + 10, 2, TONGUE);
           pc.set(AX - 2, t + 12, TONGUE);
           pc.set(AX, t + 12, TONGUE);
@@ -165,11 +188,14 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
       shaded(pc, AX + 4, t + 4, 4, 5, KR);
       pc.vline(AX + 7, t + 5, 3, K[2]);
       pc.hline(AX + 3, t + 7, 5, K[0]);
+      pc.region = P.EYE;
       pc.set(AX + 1, t + 3, LIZARD_EYE);
       pc.set(AX + 2, t + 3, DARK);
+      pc.region = P.HEAD;
       pc.set(AX + 7, t + 5, K[0]);
       for (let i = 0; i < 4; i += 2) pc.set(AX - 3 + i, t - 1, K[1]);
       if (p.tongue) {
+        pc.region = P.MOUTH;
         pc.hline(AX + 8, t + 7, 3, TONGUE);
         pc.set(AX + 11, t + 6, TONGUE);
         pc.set(AX + 11, t + 8, TONGUE);
@@ -189,10 +215,12 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
     },
     head(pc, dir, top) {
       const ear = (x: number, dirX: 1 | -1) => {
+        pc.region = P.EAR;
         for (let r = 0; r < 6; r++) {
           const w = 3 - Math.floor(r / 2);
           for (let i = 0; i < w; i++) pc.set(x + i * dirX, top - 1 - r, r === 0 && i === 1 ? K[0] : K[2]);
         }
+        pc.region = P.HEAD;
       };
       if (dir === 'down' || dir === 'up') {
         for (let r = 0; r < 12; r++) {
@@ -205,10 +233,12 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
         ear(AX - 7, 1);
         ear(AX + 6, -1);
         if (dir === 'down') {
+          pc.region = P.EYE;
           pc.set(AX - 5, top + 4, SERGAL_EYE);
           pc.set(AX - 4, top + 5, SERGAL_EYE);
           pc.set(AX + 4, top + 4, SERGAL_EYE);
           pc.set(AX + 3, top + 5, SERGAL_EYE);
+          pc.region = P.HEAD;
           pc.hline(AX - 1, top + 11, 2, DARK);
           pc.rect(AX - 2, top + 7, 4, 3, K[3]);
         }
@@ -222,8 +252,10 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
         pc.set(AX + 2 + c, top + 8, K[3]);
       }
       pc.set(AX + 10, top + 7, DARK);
+      pc.region = P.EYE;
       pc.set(AX + 3, top + 4, SERGAL_EYE);
       pc.set(AX + 4, top + 4, SERGAL_EYE);
+      pc.region = P.EAR;
       for (let r = 0; r < 6; r++) {
         const w = Math.max(1, 3 - Math.floor(r / 2));
         const x = AX - 5 - Math.floor(r / 2);
@@ -231,6 +263,7 @@ const STYLES: Record<PlaceholderRace, RaceStyle> = {
         pc.set(x + w - 1, top - r, K[1]);
       }
       pc.set(AX - 4, top - 1, K[0]);
+      pc.region = P.HEAD;
     },
   },
 };
@@ -245,6 +278,7 @@ function disc(pc: PixelCanvas, cx: number, cy: number, r: number, c: RGB): void 
 function drawTail(pc: PixelCanvas, style: RaceStyle, dir: Direction, p: Pose): void {
   const tail = style.tail;
   if (!tail) return;
+  pc.region = P.TAIL;
   const fluffy = tail.thick >= 5;
   // Start and end points of the tail curve, per facing.
   let from: [number, number];
@@ -292,13 +326,16 @@ function drawLeg(pc: PixelCanvas, style: RaceStyle, x: number, lift: number, dar
   const top = AY - 10;
   const h = 10 - lift;
   const suit = dark ? ([SUIT[0], SUIT[0], SUIT[1]] as const) : SUIT;
+  pc.region = P.LEG;
   if (style.bareLegs) {
     shaded(pc, x, top, 4, 4, suit);
     const k = dark ? ([K[0], K[1], K[2]] as const) : KR;
     shaded(pc, x, top + 4, 4, h - 4, k);
     pc.hline(x - 1, top + h - 1, 5, k[0]);
+    pc.tag(x - 1, top + h - 2, 6, 2, P.FOOT);
   } else {
     shaded(pc, x, top, 4, h - 3, suit);
+    pc.region = P.FOOT;
     pc.rect(x, top + h - 3, 4, 3, dark ? BOOT[0] : BOOT[1]);
     pc.hline(x, top + h - 1, 4, BOOT[0]);
   }
@@ -306,8 +343,11 @@ function drawLeg(pc: PixelCanvas, style: RaceStyle, x: number, lift: number, dar
 
 function drawArm(pc: PixelCanvas, style: RaceStyle, x: number, top: number, len: number, dark: boolean): void {
   const ramp = dark ? ([style.arm[0], style.arm[0], style.arm[1]] as const) : style.arm;
+  pc.region = P.ARM;
   shaded(pc, x, top, 3, len - 2, ramp);
+  pc.region = P.HAND;
   pc.rect(x, top + len - 2, 3, 2, style.hand);
+  pc.region = P.ARM;
   if (style.arm !== SUIT) pc.hline(x, top, 3, SUIT[1]); // short sleeve
 }
 
@@ -318,6 +358,7 @@ function drawFrame(pc: PixelCanvas, race: PlaceholderRace, dir: Direction, p: Po
   const headTop = AY - 33 + p.bob;
 
   const torso = (x: number, w: number) => {
+    pc.region = P.TORSO;
     shaded(pc, x, torsoTop, w, 12, SUIT);
     pc.hline(x, AY - 12 + p.bob, w, BELT);
     if (dir === 'down') pc.rect(AX - 1, AY - 12 + p.bob, 2, 1, BUCKLE);
@@ -331,8 +372,10 @@ function drawFrame(pc: PixelCanvas, race: PlaceholderRace, dir: Direction, p: Po
     torso(AX - tw / 2, tw);
     drawArm(pc, s, AX - tw / 2 - 3, torsoTop + 1, 10 + p.swing, false);
     drawArm(pc, s, AX + tw / 2, torsoTop + 1, 10 - p.swing, false);
+    pc.region = P.HEAD;
     s.head(pc, dir, headTop, p);
     if (dir === 'up') drawTail(pc, s, dir, p);
+    pc.region = P.NONE;
     return;
   }
 
@@ -344,8 +387,22 @@ function drawFrame(pc: PixelCanvas, race: PlaceholderRace, dir: Direction, p: Po
   drawLeg(pc, s, AX - 1 + Math.round(p.stride / 2), p.stride > 0 ? 1 : 0, false);
   torso(AX - sideW / 2, sideW);
   drawArm(pc, s, AX - 1 + p.swing * 2, torsoTop + 1, 10, false);
+  pc.region = P.HEAD;
   s.head(pc, dir, headTop, p);
+  pc.region = P.NONE;
 }
+
+/**
+ * One 48x48 body frame with per-pixel body-part tags, before outlining. Only
+ * down / up / right are drawn; left is right mirrored at sheet assembly.
+ */
+export function drawBodyFrame(race: PlaceholderRace, dir: 'down' | 'up' | 'right', pose: Pose): PixelCanvas {
+  const pc = new PixelCanvas(48, 48).enableRegions();
+  drawFrame(pc, race, dir, pose);
+  return pc;
+}
+
+export { OUTLINE as PLACEHOLDER_OUTLINE };
 
 /** Draws one full sheet for `race` following `layout`. Left frames mirror right frames. */
 export function generateCharacterSheet(race: PlaceholderRace, layout: SpriteLayoutDef): PixelCanvas {
@@ -355,8 +412,7 @@ export function generateCharacterSheet(race: PlaceholderRace, layout: SpriteLayo
   layout.animations.forEach((anim, a) => {
     layout.directions.forEach((dir, d) => {
       for (let f = 0; f < anim.frames; f++) {
-        const frame = new PixelCanvas(48, 48);
-        drawFrame(frame, race, dir === 'left' ? 'right' : dir, poseFor(anim.id, f));
+        const frame = drawBodyFrame(race, dir === 'left' ? 'right' : dir, poseFor(anim.id, f));
         frame.outline(OUTLINE);
         // Center the 48px drawing in frames of other sizes.
         const off = (size - 48) / 2;

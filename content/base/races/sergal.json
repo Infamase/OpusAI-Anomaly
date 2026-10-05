@@ -10,10 +10,31 @@
       "channel": "primary",
       "label": "Fur",
       "default": "#e6e2da",
-      "presets": ["#e6e2da", "#9a9a9e", "#4a4a52", "#c9b48a", "#7d8fa8", "#a86a5a", "#2b2b30"]
+      "presets": [
+        "#e6e2da",
+        "#9a9a9e",
+        "#4a4a52",
+        "#c9b48a",
+        "#7d8fa8",
+        "#a86a5a",
+        "#2b2b30"
+      ]
     }
   ],
-  "baseStats": { "max_health": 115, "max_stamina": 90, "move_speed": 76, "carry_weight": 50 },
+  "baseStats": {
+    "max_health": 115,
+    "max_stamina": 90,
+    "move_speed": 76,
+    "carry_weight": 50
+  },
   "armorTag": "sergal",
-  "hitbox": { "w": 14, "h": 8 }
+  "startingEquipment": [
+    "sergal_stalker_hood",
+    "sergal_stalker_jacket",
+    "sergal_stalker_pants"
+  ],
+  "hitbox": {
+    "w": 14,
+    "h": 8
+  }
 }
