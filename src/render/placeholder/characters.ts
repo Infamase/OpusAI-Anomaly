@@ -65,12 +65,12 @@ const EYE_HUMAN: RGB = [52, 34, 38];
 const EYE_WHITE: RGB = [236, 226, 214];
 const EYE_SERGAL: RGB = [255, 112, 40];
 const EYE_SERGAL_DARK: RGB = [168, 28, 36];
+const EYE_SERGAL_HI: RGB = [255, 214, 90];
 const EYE_LIZARD: RGB = [250, 196, 40];
 const EYE_LIZARD_HI: RGB = [255, 238, 150];
 const PUPIL: RGB = [36, 14, 20];
 const TONGUE: RGB = [220, 64, 92];
 const TONGUE_DARK: RGB = [150, 30, 60];
-const TOOTH: RGB = [250, 246, 236];
 
 /** Head / tail variations baked into pieces. */
 interface Pose {
@@ -261,6 +261,11 @@ function armShapes(b: Build, a: Arm): Shape[] {
     cap(a.elbow, a.hand, b.foreArm.r0, b.foreArm.r1, { region: P.ARM }),
     ell(v(a.hand.x, a.hand.y + b.hand * 0.6), b.hand * 0.9, b.hand * 1.1, { region: P.HAND }),
   ];
+}
+
+/** A convex quadrilateral (corners in order) as two triangles. */
+function quad(a: V, b: V, c: V, d: V, extra: { region?: number; dome?: number } = {}): Shape[] {
+  return [tri(a, b, c, { dome: 0.6, ...extra }), tri(a, c, d, { dome: 0.6, ...extra })];
 }
 
 /** A tapering chain of capsules through `pts` (tails, tufts). */
@@ -573,28 +578,23 @@ function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
       tri(v(28.8, hy + 5.4), v(30.6, hy + 9), v(24.4, hy + 11.4)),
       tri(v(29.6, hy + 8.2), v(31.6, hy + 11.2), v(26.6, hy + 13.4)),
     ]);
-    // Skull, then the long, flat upper snout (a flatter part of its own, so its top
-    // catches the light): a tall wedge with a gently sloping top.
-    const skull = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(30.4, hy - 0.8), 3.9, 3.3)]);
-    const h = rig.add({ region: P.SNOUT, ramp: KEY, relief: 0.55, line: false }, [
-      tri(v(29.8, hy - 3.6), v(41.6, hy - 0.4), v(30.4, hy + 3)),
-      tri(v(30.4, hy + 3), v(41.6, hy - 0.4), v(41.6, hy + 2.6)),
-      tri(v(41.4, hy - 0.4), v(44, hy + 1.2), v(41.4, hy + 2.6)),
-    ]);
-    // The front of the snout and its underside are pale; the bridge stays fur-colored.
-    rig.decal(PALE, [tri(v(35.6, hy + 0.2), v(44.4, hy + 1), v(32, hy + 3.4)), ell(v(41.8, hy + 1.2), 2.4, 1.6)], { parts: [h, skull] });
-    // Slender pale lower jaw under the snout; its top edge is the mouth line.
-    rig.add({ region: P.SNOUT, ramp: PALE, line: false, shadow: false, relief: 0.45 }, [tri(v(30.4, hy + 2.2), v(31.4, hy + 6.8), v(42, hy + 2.8), { dome: 0.5 })]);
-    rig.markLine(v(31.4, hy + 2.6), v(41.4, hy + 2.6), 0);
-    rig.dot(31.8, hy + 3.6, MOUTH_IN[2], P.MOUTH);
-    rig.dot(38, hy + 3.4, TOOTH, P.MOUTH);
-    rig.dot(35, hy + 3.4, TOOTH, P.MOUTH);
-    // Eye high and back on the snout, under a heavy brow.
-    rig.markLine(v(32.2, hy - 2.8), v(36.2, hy - 1.6), 0);
-    rig.dot(33.6, hy - 1.4, EYE_SERGAL, P.EYE);
-    rig.dot(34.6, hy - 1, EYE_SERGAL, P.EYE);
-    rig.dot(35.4, hy - 1, EYE_SERGAL_DARK, P.EYE);
-    rig.dot(43.6, hy + 0.6, PUPIL, P.SNOUT); // nose
+    // Skull, then the snout: a long, nearly rectangular block with a flat top and a
+    // squared-off front end (its own flatter part, so the top catches the light).
+    const skull = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(30.2, hy - 1), 3.8, 3.4)]);
+    const h = rig.add({ region: P.SNOUT, ramp: KEY, relief: 0.5, line: false }, quad(v(30.8, hy - 2.8), v(42.8, hy - 1.8), v(42.8, hy + 1.4), v(30.8, hy + 2)));
+    // Almost all of it is pale; blue stays on the skull and the brow above the eye.
+    rig.decal(PALE, [...quad(v(32.6, hy - 1.6), v(43.2, hy - 2.2), v(43.2, hy + 2), v(30.6, hy + 2.4)), ell(v(31.2, hy + 1.2), 1.8, 1.4)], { parts: [h, skull] });
+    // Lower jaw: a shorter flat-ended block below; its top edge is the mouth line.
+    rig.add({ region: P.SNOUT, ramp: PALE, line: false, shadow: false, relief: 0.45 }, quad(v(31.2, hy + 1.6), v(41.4, hy + 1.6), v(41.4, hy + 3.4), v(31.6, hy + 5.4)));
+    rig.markLine(v(31.8, hy + 2.6), v(41.2, hy + 1.8), 0);
+    rig.dot(32.2, hy + 3.4, MOUTH_IN[3], P.MOUTH);
+    rig.dot(33.2, hy + 3.2, MOUTH_IN[3], P.MOUTH);
+    // Eye high and back on the snout, under a fur-colored brow.
+    rig.markLine(v(32.8, hy - 2.6), v(36, hy - 2.2), 0);
+    rig.dot(34, hy - 1.4, EYE_SERGAL_DARK, P.EYE);
+    rig.dot(35, hy - 1.4, EYE_SERGAL, P.EYE);
+    rig.dot(35, hy - 0.4, EYE_SERGAL_HI, P.EYE);
+    rig.dot(42.4, hy - 1.2, PUPIL, P.SNOUT); // nose at the top front corner
     // Near ear on top, with a pale inner edge.
     rig.add({ region: P.EAR, ramp: KEY }, [tri(v(28.2, hy - 2.2), v(31, hy - 3.2), v(25.4 - twitch, hy - 11.4))]);
     rig.decal(PALE, [tri(v(28.8, hy - 2.8), v(30, hy - 3.2), v(26.4 - twitch, hy - 8.6))], { regions: [P.EAR] });
@@ -617,27 +617,27 @@ function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
     tri(v(AX + 3, hy + 4.4), v(AX + 6, hy + 9.4), v(AX + 1, hy + 7)),
   ]);
   if (front) {
-    // Head-on, the long muzzle points at the viewer: a broad brow with the eyes at its
-    // corners, the snout narrowing down to the nose, and the lower jaw showing on both
-    // sides of it (drawn first, so the overlap draws the mouth lines).
-    rig.add({ region: P.SNOUT, ramp: PALE, relief: 0.5 }, [tri(v(AX - 4.6, hy + 1.4), v(AX + 4.6, hy + 1.4), v(AX, hy + 8.6), { dome: 0.6 })]);
-    const h = rig.add({ region: P.HEAD, ramp: KEY }, [
-      ell(v(AX, hy - 1), 5.2, 3.6),
-      tri(v(AX - 3.8, hy), v(AX + 3.8, hy), v(AX, hy + 7.4), { region: P.SNOUT, dome: 0.8 }),
-    ]);
-    // Pale muzzle below the eyes, as in the reference.
-    rig.decal(PALE, [tri(v(AX - 3.9, hy + 0.6), v(AX + 3.9, hy + 0.6), v(AX, hy + 7.8))], { parts: [h] });
+    // Head-on: a broad blue brow coming down in a V between the eyes, pale around
+    // the eyes, and a broad, flat-bottomed pale muzzle below with the jaw under it.
+    rig.add({ region: P.SNOUT, ramp: PALE, relief: 0.3 }, quad(v(AX - 2.6, hy + 4.4), v(AX + 2.6, hy + 4.4), v(AX + 2, hy + 6.6), v(AX - 2, hy + 6.6)));
+    const h = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 1.2), 5.2, 3.8)]);
+    const m = rig.add({ region: P.SNOUT, ramp: PALE, relief: 0.5, line: false }, quad(v(AX - 3.9, hy + 0.4), v(AX + 3.9, hy + 0.4), v(AX + 3.4, hy + 5.4), v(AX - 3.4, hy + 5.4)));
+    // Pale around the eyes; the blue V of the brow points down to the muzzle.
+    rig.decal(PALE, [ell(v(AX - 3.4, hy + 0.2), 2.2, 2), ell(v(AX + 3.4, hy + 0.2), 2.2, 2)], { parts: [h] });
+    rig.decal(KEY, [tri(v(AX - 2, hy - 1), v(AX + 2, hy - 1), v(AX, hy + 1.8))], { parts: [h, m] });
     for (const sx of [-1, 1]) {
-      // Angled eyes at the corners of the brow, under a heavy brow line.
-      rig.markLine(v(AX + sx * 1, hy - 1.2), v(AX + sx * 4.6, hy - 2.2), 0);
-      rig.dot(AX + sx * 3.4, hy - 0.8, EYE_SERGAL, P.EYE);
-      rig.dot(AX + sx * 2.4, hy - 0.6, EYE_SERGAL, P.EYE);
-      rig.dot(AX + sx * 3.4, hy - 1.4, EYE_SERGAL_DARK, P.EYE);
-      // Mouth line down each side of the muzzle, with a fang near the corner.
-      rig.markLine(v(AX + sx * 3.9, hy + 1.8), v(AX + sx * 1, hy + 7), 0);
-      rig.dot(AX + sx * 3.2, hy + 3.2, TOOTH, P.MOUTH);
+      // Angled eyes under a heavy brow line sloping down to the middle.
+      rig.markLine(v(AX + sx * 1.4, hy - 1), v(AX + sx * 4.6, hy - 2.2), 0);
+      rig.dot(AX + sx * 2.6, hy - 0.2, EYE_SERGAL_DARK, P.EYE);
+      rig.dot(AX + sx * 3.6, hy - 0.2, EYE_SERGAL, P.EYE);
+      rig.dot(AX + sx * 3.6, hy + 0.8, EYE_SERGAL_HI, P.EYE);
     }
-    rig.dot(AX, hy + 7, PUPIL, P.SNOUT); // nose
+    // Wide mouth across the bottom of the muzzle, corners turned up; nose just under the brow's V.
+    rig.markLine(v(AX - 3.2, hy + 3.6), v(AX - 1.8, hy + 4.4), 0);
+    rig.markLine(v(AX - 1.8, hy + 4.4), v(AX + 1.8, hy + 4.4), 0);
+    rig.markLine(v(AX + 1.8, hy + 4.4), v(AX + 3.2, hy + 3.6), 0);
+    rig.dot(AX - 0.5, hy + 2.2, KEY[0], P.SNOUT);
+    rig.dot(AX + 0.5, hy + 2.2, KEY[0], P.SNOUT);
     return;
   }
   rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.6), 5, 4), ell(v(AX, hy + 2.4), 3.8, 2.8)]);
