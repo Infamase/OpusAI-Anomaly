@@ -6,6 +6,7 @@
     "description": "Weathered canvas hood. Keeps the dust and drizzle out. Roomy at the shoulders, with ear sleeves and a tail gap.",
     "slot": "head",
     "fitsRace": "sergal",
+    "set": "stalker",
     "placeholder": {
       "style": "hood"
     },
@@ -32,6 +33,7 @@
     "description": "Leather jacket with sewn-in kevlar panels and a small pack. Roomy at the shoulders, with ear sleeves and a tail gap.",
     "slot": "torso",
     "fitsRace": "sergal",
+    "set": "stalker",
     "placeholder": {
       "style": "jacket"
     },
@@ -63,6 +65,7 @@
     "description": "Reinforced cargo pants and worn boots. Roomy at the shoulders, with ear sleeves and a tail gap.",
     "slot": "legs",
     "fitsRace": "sergal",
+    "set": "stalker",
     "placeholder": {
       "style": "pants"
     },
@@ -84,6 +87,7 @@
     "description": "Composite helmet with a sealed, tinted visor. Roomy at the shoulders, with ear sleeves and a tail gap.",
     "slot": "head",
     "fitsRace": "sergal",
+    "set": "military",
     "placeholder": {
       "style": "helmet"
     },
@@ -115,6 +119,7 @@
     "description": "Ceramic plate carrier with shoulder and forearm guards. Roomy at the shoulders, with ear sleeves and a tail gap.",
     "slot": "torso",
     "fitsRace": "sergal",
+    "set": "military",
     "placeholder": {
       "style": "plate_vest"
     },
@@ -146,6 +151,7 @@
     "description": "Armored trousers with knee guards and steel-capped boots. Roomy at the shoulders, with ear sleeves and a tail gap.",
     "slot": "legs",
     "fitsRace": "sergal",
+    "set": "military",
     "placeholder": {
       "style": "plate_legs"
     },

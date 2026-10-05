@@ -1,7 +1,7 @@
 import { fbm2D, deriveSeed, Rng } from '../../core/rng';
 import { parseOrThrow, v } from '../../content/schema';
 import type { TileSet } from './TileSet';
-import { registerGenerator, type WorldGenerator, type WorldObjectSpawn } from './generators';
+import { registerGenerator, type CampSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
 
 /**
  * Phase 0 test map: noise terrain with rock outcrops and a small metal outpost
@@ -23,7 +23,23 @@ const paramsSchema = v.object({
     width: v.number({ int: true, min: 8 }),
     height: v.number({ int: true, min: 8 }),
   }),
+  camps: v.optional(
+    v.array(
+      v.object({
+        id: v.id(),
+        faction: v.id(),
+        templates: v.array(v.id(), { min: 1 }),
+        behavior: v.literal('guard', 'patrol'),
+        /** "outpost" = inside the outpost; "far" = somewhere open, well away from it. */
+        at: v.literal('outpost', 'far'),
+        radius: v.number({ min: 1 }),
+      }),
+    ),
+    [],
+  ),
 });
+
+type CampParams = { id: string; faction: string; templates: string[]; behavior: 'guard' | 'patrol'; at: 'outpost' | 'far'; radius: number };
 
 interface Params {
   ground: number;
@@ -33,6 +49,7 @@ interface Params {
   rockThreshold: number;
   border: number;
   outpost: { floor: number; grate: number; wall: number; hazard: number; width: number; height: number };
+  camps: CampParams[];
 }
 
 function outpostRect(p: Params, W: number, H: number) {
@@ -88,6 +105,7 @@ export const testRangeGenerator: WorldGenerator<Params> = {
         wall: tiles.index(r.outpost.wall),
         hazard: tiles.index(r.outpost.hazard),
       },
+      camps: r.camps,
     };
   },
 
@@ -132,6 +150,58 @@ export const testRangeGenerator: WorldGenerator<Params> = {
       }
     }
     return out;
+  },
+
+  population(seed, params, W, H, walkable) {
+    const T = 32;
+    const o = outpostRect(params, W, H);
+    const ocx = o.x + o.w / 2;
+    const ocy = o.y + o.h / 2;
+    const rng = new Rng(deriveSeed(seed, 'camps'));
+    const taken: { x: number; y: number }[] = [{ x: ocx, y: ocy }];
+    /** A walkable tile at a distance band from the outpost, away from other camps. */
+    const openSpot = (minD: number, maxD: number, spacing: number): { x: number; y: number } => {
+      for (let i = 0; i < 400; i++) {
+        const a = rng.range(0, Math.PI * 2);
+        const d = rng.range(minD, maxD);
+        const tx = Math.round(ocx + Math.cos(a) * d);
+        const ty = Math.round(ocy + Math.sin(a) * d);
+        if (tx < 4 || ty < 4 || tx >= W - 4 || ty >= H - 4) continue;
+        let clear = true;
+        for (let dy = -1; dy <= 1 && clear; dy++) for (let dx = -1; dx <= 1 && clear; dx++) clear = walkable(tx + dx, ty + dy);
+        if (!clear || taken.some((p) => Math.hypot(p.x - tx, p.y - ty) < spacing)) continue;
+        taken.push({ x: tx, y: ty });
+        return { x: tx, y: ty };
+      }
+      return { x: ocx, y: o.y + o.h + 3 };
+    };
+    return params.camps.map((c): CampSpawn => {
+      const home = c.at === 'outpost' ? { x: ocx, y: ocy + 1 } : openSpot(22, 45, 14);
+      const waypoints =
+        c.behavior === 'patrol'
+          ? [0, 1, 2, 3].map((i) => {
+              // A loose loop around the outpost, one waypoint per quadrant.
+              const a = (i / 4) * Math.PI * 2 + rng.range(-0.4, 0.4);
+              for (let tries = 0; tries < 60; tries++) {
+                const d = rng.range(16, 30);
+                const tx = Math.round(ocx + Math.cos(a) * d);
+                const ty = Math.round(ocy + Math.sin(a) * d);
+                if (tx > 3 && ty > 3 && tx < W - 3 && ty < H - 3 && walkable(tx, ty)) return { x: (tx + 0.5) * T, y: (ty + 0.5) * T };
+              }
+              return { x: (home.x + 0.5) * T, y: (home.y + 0.5) * T };
+            })
+          : [];
+      return {
+        id: c.id,
+        faction: c.faction,
+        templates: c.templates,
+        behavior: c.behavior,
+        x: (home.x + 0.5) * T,
+        y: (home.y + 0.5) * T,
+        radius: c.radius * T,
+        waypoints,
+      };
+    });
   },
 
   spawnPoint(_seed, params, W, H) {

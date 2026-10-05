@@ -754,6 +754,44 @@ body {
   opacity: 0;
 }
 
+/* ---------- World labels (barks, name tags) ---------- */
+.world-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.world-bark,
+.world-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  will-change: transform;
+}
+.world-bark {
+  padding: 2px 7px;
+  background: rgba(10, 12, 15, 0.82);
+  border-left: 2px solid var(--accent);
+  color: #eee6cc;
+  font-size: 12px;
+  margin-top: -6px;
+  transition: opacity 0.2s;
+}
+.world-tag {
+  text-align: center;
+  text-shadow: 0 1px 0 #000, 0 0 4px #000;
+  margin-top: 6px;
+}
+.world-tag-name {
+  font-size: 13px;
+  font-weight: bold;
+}
+.world-tag-sub {
+  font-size: 11px;
+  color: #b8b2a0;
+}
+
 /* ---------- Inventory ---------- */
 .inv-overlay {
   position: absolute;

@@ -18,8 +18,12 @@ export interface DevHooks {
   giveWeapon(id: string): void;
   godMode: boolean;
   heal(): void;
-  spawnBandit(): Promise<void>;
-  clearBandits(): void;
+  listNpcTemplates(): { id: string; name: string; faction: string }[];
+  /** Spawns a small squad from an NPC template near the player. */
+  spawnSquad(templateId: string, count: number): Promise<void>;
+  clearNpcs(): void;
+  /** Resets the player's reputation with every faction to 0. */
+  resetReputation(): void;
   buildMode: boolean;
   saveNow(): Promise<void>;
   newWorld(): Promise<void>;
@@ -130,15 +134,24 @@ export class DevTools {
     };
     const godLabel = el('label', 'row');
     godLabel.append(god, el('span', 'grow', 'God mode (take no damage)'));
+    const npcSelect = el('select');
+    npcSelect.append(new Option('Spawn squad…', ''));
+    for (const t of hooks.listNpcTemplates()) npcSelect.append(new Option(`${t.name} ×3 (${t.faction})`, t.id));
+    npcSelect.onchange = () => {
+      if (npcSelect.value) void hooks.spawnSquad(npcSelect.value, 3);
+      npcSelect.value = '';
+      npcSelect.blur();
+    };
     const combatRow = el('div', 'row');
-    const spawn = el('button', '', 'Spawn bandit');
-    spawn.onclick = () => void hooks.spawnBandit();
-    const clear = el('button', '', 'Clear bandits');
-    clear.onclick = () => hooks.clearBandits();
+    const clear = el('button', '', 'Clear NPCs');
+    clear.onclick = () => hooks.clearNpcs();
+    const rep = el('button', '', 'Reset rep');
+    rep.title = 'Forget every reputation change (factions go back to their default attitude)';
+    rep.onclick = () => hooks.resetReputation();
     const heal = el('button', '', 'Heal');
     heal.onclick = () => hooks.heal();
-    combatRow.append(spawn, clear, heal);
-    combat.append(weaponSelect, godLabel, combatRow);
+    combatRow.append(clear, rep, heal);
+    combat.append(weaponSelect, npcSelect, godLabel, combatRow);
 
     const colorRow = el('label', 'row');
     colorRow.append(this.colorLabel, this.colorInput);

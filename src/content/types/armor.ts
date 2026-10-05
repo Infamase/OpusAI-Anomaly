@@ -27,6 +27,8 @@ const schema = v.object({
   slot: v.literal(...ARMOR_SLOTS),
   /** Must equal a race's armorTag to be wearable by that race. */
   fitsRace: v.id(),
+  /** Gear family ("stalker", "military"...) so NPC templates can ask for a look without listing items. */
+  set: v.optional(v.id()),
   spriteLayout: v.optional(v.id(), 'humanoid48'),
   /** PNG under public/ (same layout as the body). Omit to use placeholder art. */
   sheet: v.optional(v.string({ nonEmpty: true })),

@@ -24,8 +24,9 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 5 Save | `src/save/` | `SaveManager`, IndexedDB/memory backends, versioned migrations, per-world `WorldDeltas` |
 | Game | `src/game/` | Components, systems, character factory, world generators, `TileMap`, scenes |
 | 6 Armor | `src/game/equipment.ts`, `src/render/placeholder/armor.ts` | Paper-doll armor, race fit, condition-scaled protection |
-| 8 Combat | `src/game/combat.ts`, `src/game/systems/{Weapon,Projectile,Vitals,ShooterAI}System.ts` | Weapons, projectiles, damage vs resistances, bleeding, stamina, temporary bandit AI |
+| 8 Combat | `src/game/combat.ts`, `src/game/systems/{Weapon,Projectile,Vitals}System.ts` | Weapons, projectiles, damage vs resistances, bleeding, stamina |
 | 9 Inventory | `src/game/items.ts`, `inventoryActions.ts`, `loot.ts`, `consumables.ts`, `scenes/InventoryScene.ts` | Backpack, weight limit, equip/use/drop, crates and bodies, consumables, item icons |
+| 10 AI & factions | `src/game/factions.ts`, `npcs.ts`, `population.ts`, `src/game/ai/` | Faction relations & reputation, NPC templates, camps, NPC brains, A* pathfinding, bodies that persist |
 
 ### Frame flow
 
@@ -34,7 +35,7 @@ requestAnimationFrame
  └─ FixedStepper: 0..5 sim steps of 1/60 s
      ├─ InputManager.update()        poll devices → actions
      └─ SceneManager.update(dt)      top scene (and those below, if it doesn't block)
-          └─ World.update(dt)        PlayerControl → ShooterAI → Weapons → Movement →
+          └─ World.update(dt)        PlayerControl → NpcBrain → Weapons → Movement →
                                      Projectiles → Vitals → Encumbrance → Animation
  └─ SceneManager.render(alpha)       interpolate positions, set frames, camera, stream chunks
  └─ GameRenderer.render()
@@ -92,8 +93,7 @@ over the canvas and draw animated characters with `CharacterPreview`.
   hits that get through cause bleeding.
 - **Feedback** goes through `CombatEvents` (shot, hit, impact, death, ...) to
   effects, the HUD and the camera. Sound will hook in here too.
-- `ShooterAISystem` is a **temporary** test opponent; Module 10 replaces it with
-  real AI and factions.
+- Projectiles never hit their owner or anyone with the same `Faction` id.
 
 ## Inventory (Module 9)
 
@@ -107,12 +107,52 @@ over the canvas and draw animated characters with `CharacterPreview`.
   with stable ids. A crate's contents are rolled from its `lootTable` with a seed
   derived from the world seed and the crate id, so they're identical every visit
   until changed. After that, they're saved as a chunk entity record. Bodies of
-  killed NPCs become containers holding their gear (worn down) plus pocket loot.
+  killed NPCs become containers holding everything they owned (see Module 10).
 - **Ground items** are chunk entity records (`kind: "item"`) and spawn and
   despawn with their chunk, like crates.
 - **UI:** `InventoryScene` (paper doll, backpack, container, details with
   equipped-item comparison; drag & drop). Item icons are generated from the same
   art the game draws (`ItemIcons`).
+
+## AI & factions (Module 10)
+
+- **Factions** (`content/*/factions/`) list attitudes to other factions
+  (`hostile` / `neutral` / `friendly`, else `defaultAttitude`), callsigns and
+  barks (short spoken lines per situation: greet, contact, hurt, reload,
+  retreat, angry, search). Two factions are hostile if *either* side says so.
+- **The player** has `Faction` id `"player"`. `Relations` (`src/game/factions.ts`)
+  treats them like their affiliation (Loners for now), shifted by personal
+  reputation per faction (saved in `save.flags.standing`): hitting or killing
+  members of a faction that isn't already hostile costs reputation; at -40 it
+  turns hostile. NPCs also hold **grudges**: whoever attacks an NPC becomes
+  hostile to its whole squad, whatever the factions say.
+- **NPC templates** (`content/*/npcs/`) describe a kind of NPC: faction, skill
+  range, allowed races, armor sets (armor items carry a `set`), weapons, spare
+  magazines, carried items and an optional `pockets` loot table.
+  `generateFromTemplate` turns one into a concrete NPC with real gear and ammo.
+- **Camps** come from the world generator (`WorldGenerator.population`): an id,
+  faction, a template per member, guard or patrol, and a home/route. Members get
+  stable ids (`<camp>:<n>`) and seeds derived from the world seed, so the same
+  people come back every visit. `Population` (`src/game/population.ts`) spawns
+  them and skips the dead (saved as `removed` ids under the `population` delta
+  key).
+- **Bodies** are world entity records (`kind: "body"`) with the look, name and
+  the items still on the body, so a half-looted corpse stays half-looted.
+- **Brains** (`NpcBrainSystem`) are a small state machine:
+  `idle`/`patrol` → `investigate` (heard a shot) → `combat` → `retreat` (hide and
+  heal). Perception: a 150° view cone (~380 px), a close "feel" radius, line of
+  sight through tiles, and an awareness meter that fills faster for skilled NPCs
+  and noisy targets. Shots are heard ~560 px away. Squads alert each other.
+  In combat NPCs keep a weapon-appropriate range, strafe, hide while reloading,
+  fire in bursts with skill/range/movement-based aim error, switch to the
+  sidearm when out of ammo, and never fire through a non-hostile in the way.
+  Brains only write intents (velocity, aim, `Combatant` flags), exactly like the
+  player's controls, so combat rules are shared.
+- **Pathfinding** (`src/game/ai/pathfinding.ts`): A* on the tile grid, 8
+  directions without corner cutting, bounded node budget, then string-pulled
+  into straight walkable segments.
+- **On screen:** `WorldLabels` (DOM) shows barks over heads and a name tag
+  (name, faction, rank, attitude) for the NPC under the cursor.
 
 ## Extension points
 
@@ -136,6 +176,13 @@ Weapons use `placeholder.style` (`pistol`, `smg`, `rifle`, `shotgun`, `sniper`)
 or a `sprite` PNG pointing right with `grip` and `muzzle` pixel coordinates.
 Every item id must be unique across all item types (the loader checks). A new
 item *kind* means adding it to `ITEM_CONTENT_TYPES` in `src/content/items.ts`.
+
+### Add a faction, NPC type or camp
+1. Faction: add an entry to `content/base/factions/` (relations, names, barks).
+2. NPC type: add an `npcTemplate` to `content/base/npcs/` (armor sets come from
+   armor items' `set` field).
+3. Camp: list it in the world's params (`camps` in `content/base/worlds/test_range.json`);
+   planet generators will place camps the same way via `population()`.
 
 ### Add a stat
 Add an entry to `content/base/stats/core.json`. Races set it via `baseStats`.
@@ -184,8 +231,9 @@ IndexedDB "stalker-future-anomaly"
 - Autosaves happen every 30 s, when the app is hidden/closed (`visibilitychange`/`pagehide`), and on manual save. Only chunks that changed are written.
 - Undoing a change (back to the generated tile) deletes the record, so saves stay small.
 - Chunk records also hold **world entity records** `{id, kind, x, y, data}`:
-  dropped items (`kind: "item"`) and the contents of containers the player has
-  touched (`kind: "container"`).
+  dropped items (`kind: "item"`), the contents of containers the player has
+  touched (`kind: "container"`) and NPC bodies (`kind: "body"`). The special
+  delta key `population` lists generated NPCs who died.
 - **Format changes:** bump `SAVE_VERSION` and add a step in `src/save/migrations.ts`.
   Current format is **v3** (v2 added `player.equipment`; v3 added weapon slots,
   `player.inventory`, `activeWeapon`, `health`).

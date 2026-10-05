@@ -29,6 +29,22 @@ export interface WorldObjectSpawn {
   lootTable: string;
 }
 
+/** A group of NPCs living in the world (a camp guarding a spot, or a patrol). */
+export interface CampSpawn {
+  /** Stable id; members are `<id>:<index>`, so deaths can be saved per member. */
+  id: string;
+  faction: string;
+  /** One NPC per entry (npcTemplate ids). */
+  templates: string[];
+  behavior: 'guard' | 'patrol';
+  /** Home position and wander radius, world pixels. */
+  x: number;
+  y: number;
+  radius: number;
+  /** Patrol route (world pixels), looped. */
+  waypoints: { x: number; y: number }[];
+}
+
 export interface WorldGenerator<P = unknown> {
   readonly id: string;
   /**
@@ -42,6 +58,8 @@ export interface WorldGenerator<P = unknown> {
   generateChunk(ctx: ChunkGenContext<P>, out: Uint16Array): void;
   /** Objects in one chunk. Must be deterministic like generateChunk. */
   objects?(ctx: ChunkGenContext<P>, tiles: Uint16Array): WorldObjectSpawn[];
+  /** NPC camps and patrols for the whole world. Deterministic from the seed. */
+  population?(seed: number, params: P, widthTiles: number, heightTiles: number, walkable: (tx: number, ty: number) => boolean): CampSpawn[];
   /** Where the player appears on arrival, in tile coordinates. */
   spawnPoint(seed: number, params: P, widthTiles: number, heightTiles: number): { x: number; y: number };
 }

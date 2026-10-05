@@ -1,0 +1,44 @@
+[
+  {
+    "type": "faction", "id": "loners", "name": "Loners", "color": "#c8b46a",
+    "description": "Independent stalkers. Loose brotherhood of scavengers, guides and treasure hunters.",
+    "relations": { "bandits": "hostile", "military": "neutral" },
+    "names": ["Wolf", "Fox", "Grey", "Hermit", "Sly", "Tolik", "Shustryi", "Owl", "Petro", "Kettle", "Nimble", "Fang", "Dusty", "Rook"],
+    "barks": {
+      "greet": ["Good hunting, stalker.", "Watch yourself out there.", "Quiet day. Too quiet.", "Got any spare bandages?"],
+      "contact": ["Contact!", "Bandits!", "Hostiles, heads up!"],
+      "hurt": ["I'm hit!", "Argh!"],
+      "reload": ["Reloading!", "Cover me!"],
+      "retreat": ["Falling back!"],
+      "angry": ["Hey! Watch your fire!", "What the hell, stalker?!"]
+    }
+  },
+  {
+    "type": "faction", "id": "bandits", "name": "Bandits", "color": "#c85a3a",
+    "description": "Thugs and racketeers preying on stalkers.",
+    "defaultAttitude": "hostile",
+    "relations": {},
+    "names": ["Kolyan", "Shnyr", "Bully", "Vovan", "Gnat", "Scar", "Lyokha", "Rat", "Borov", "Stitch", "Crooked", "Zhora"],
+    "barks": {
+      "contact": ["Get him!", "Fresh meat!", "Over there, boys!"],
+      "hurt": ["Aah, you scum!", "I'm bleeding!"],
+      "reload": ["Reloading, cover me!"],
+      "retreat": ["Not worth it, run!"],
+      "search": ["Where'd he go?", "Come out, little stalker..."]
+    }
+  },
+  {
+    "type": "faction", "id": "military", "name": "Military", "color": "#6a8a5a",
+    "description": "Sector garrison. Tolerates stalkers who keep their distance; shoots bandits on sight.",
+    "relations": { "bandits": "hostile", "loners": "neutral" },
+    "names": ["Pvt. Orlov", "Pvt. Kuzin", "Sgt. Babenko", "Cpl. Lisin", "Pvt. Gromov", "Sgt. Petrenko", "Pvt. Zaitsev"],
+    "barks": {
+      "greet": ["Move along, stalker.", "Keep your weapon lowered."],
+      "contact": ["Contact front!", "Engaging!", "Hostiles sighted!"],
+      "hurt": ["Man down!", "I'm hit!"],
+      "reload": ["Changing mag!"],
+      "retreat": ["Pull back!"],
+      "angry": ["Hold your fire, you idiot!", "That's your last warning!"]
+    }
+  }
+]

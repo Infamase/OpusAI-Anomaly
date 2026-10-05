@@ -18,21 +18,25 @@ import type { EquipmentSave, ItemInstance } from '../../save/types';
 import { chunkKey, type WorldDeltas } from '../../save/WorldDeltas';
 import { DevTools, type DevHooks } from '../../ui/DevTools';
 import { Hud, type HudState } from '../../ui/Hud';
+import { WorldLabels } from '../../ui/WorldLabels';
+import { NpcBrainSystem, type BarkKind } from '../ai/NpcBrainSystem';
 import { addCombatComponents, prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
 import { CHEST_HEIGHT, currentSpread } from '../combat';
 import type { CombatEvents } from '../combatEvents';
 import {
   Aim,
+  Brain,
   Character,
   Combatant,
   Container,
   Equipment,
+  Faction,
   Health,
   Inventory,
+  Npc,
   PlayerControlled,
   Projectile,
   PropView as PropViewC,
-  ShooterAI,
   Stamina,
   Stats,
   Transform,
@@ -57,13 +61,13 @@ import {
   unequipArmor,
   type ArmorSlot,
 } from '../equipment';
+import { defaultStanding, PLAYER_FACTION, Relations, type PlayerStanding } from '../factions';
 import { addItem, countItem, countOf, createLoadedWeapon } from '../items';
-import { generateStalker } from '../npcs';
+import { Population } from '../population';
 import { AnimationSystem } from '../systems/AnimationSystem';
 import { MovementSystem } from '../systems/MovementSystem';
 import { PlayerControlSystem } from '../systems/PlayerControlSystem';
 import { ProjectileSystem } from '../systems/ProjectileSystem';
-import { ShooterAISystem } from '../systems/ShooterAISystem';
 import { VitalsSystem } from '../systems/VitalsSystem';
 import { WeaponSystem } from '../systems/WeaponSystem';
 import { getGenerator } from '../world/generators';
@@ -79,8 +83,17 @@ const WORLD_ID = START_WORLD_ID;
 const AUTOSAVE_SEC = 30;
 const BUILD_WALL = 'metal_wall';
 const BUILD_FLOOR = 'dirt';
-/** Test bandits spawned on arrival (temporary until Module 10 populates the world). */
-const BANDITS_ON_ENTER = 3;
+/** Lines used when a faction has none of its own for a situation. */
+const GENERIC_BARKS: Record<BarkKind, string[]> = {
+  greet: ['Hey.', 'Good hunting.'],
+  contact: ['Contact!', 'Hostiles!'],
+  hurt: ['Argh!', "I'm hit!"],
+  reload: ['Reloading!'],
+  retreat: ['Falling back!'],
+  angry: ['Watch your fire!', 'Hey!'],
+  search: ['Where did they go?', 'Check over there.'],
+};
+const ATTITUDE_COLOR = { hostile: '#e0573f', neutral: '#d9c47a', friendly: '#7fcf6a' } as const;
 
 export interface NewCharacter {
   name: string;
@@ -116,8 +129,8 @@ export async function startNewGame(game: Game, who: NewCharacter): Promise<void>
 }
 
 /**
- * In-world play: a character on a generated, chunk-streamed map, with combat
- * against test bandits. Everything persists through "seed + changes" saves.
+ * In-world play: a character on a generated, chunk-streamed map, populated by
+ * faction camps. Everything persists through "seed + changes" saves.
  * The world is still the Phase 0 test range until planets (Phase 2) exist.
  */
 export class GameplayScene implements Scene, DevHooks, InventoryHost {
@@ -132,6 +145,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
   private playerEntity: Entity = 0;
   private dev: DevTools | null = null;
   private hud: Hud | null = null;
+  private labels: WorldLabels | null = null;
+  private relations!: Relations;
+  private population: Population | null = null;
+  private devSquads = 0;
   private fx = new CombatFx();
   private crosshair = new Crosshair();
   /** Which weapon each character view currently shows, to know when to swap textures. */
@@ -139,7 +156,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
   private sinceSave = 0;
   private playTime = 0;
   private offEvents: (() => void)[] = [];
-  private banditRng = new Rng(Date.now() >>> 0);
+  private rng = new Rng(Date.now() >>> 0);
   /** World objects (crates, dropped items) spawned per visible chunk. */
   private chunkObjects = new Map<string, Entity[]>();
   private crateTextures: Partial<Record<'supply' | 'military', Texture>> = {};
@@ -168,6 +185,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     const save = g.saves.data;
     if (!g.content.has('race', save.player.raceId)) save.player.raceId = 'human'; // race removed from content
     g.setGameplayInput(true);
+    const standing = (save.flags.standing ??= defaultStanding()) as PlayerStanding;
+    this.relations = new Relations(g.content, standing);
+    this.relations.onAttitudeChange = (faction, attitude) => {
+      const name = g.content.tryGet('faction', faction)?.name ?? faction;
+      this.message(attitude === 'hostile' ? `${name} now consider you an enemy.` : `${name} now regard you as ${attitude}.`);
+    };
 
     // --- World: regenerate from seed, then layer saved changes on top.
     const genDef = g.content.get('worldGen', WORLD_ID);
@@ -193,7 +216,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     const map = () => this.map;
     this.world
       .addSystem(new PlayerControlSystem(g.input, g.camera, () => g.renderer.pixelRatio))
-      .addSystem(new ShooterAISystem(g.content, map))
+      .addSystem(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)))
       .addSystem(new WeaponSystem(g.content, map, this.combatEvents))
       .addSystem(new MovementSystem(map))
       .addSystem(new ProjectileSystem(g.content, map, this.combatEvents))
@@ -230,7 +253,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     });
     this.world.add(this.playerEntity, PlayerControlled, true);
     addCombatComponents(this.world, this.playerEntity, {
-      faction: 'player',
+      faction: PLAYER_FACTION,
       active: save.player.activeWeapon,
       inventory: save.player.inventory,
       hp: save.player.health,
@@ -239,9 +262,16 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     refreshEncumbrance(this.world, g.content, this.playerEntity);
     g.camera.snapTo({ x, y: y - CHEST_HEIGHT });
 
-    for (let i = 0; i < BANDITS_ON_ENTER; i++) await this.spawnBandit();
+    // --- People: the world's camps (minus the dead) and the bodies they left.
+    this.population = new Population(this.world, g.content, g.sheets, this.deltas, this.map, (e) =>
+      g.renderer.entities.addChild(this.world.req(e, View).root),
+    );
+    await this.population.restoreBodies();
+    const camps = generator.population?.(record.seed, params, this.map.widthTiles, this.map.heightTiles, (tx, ty) => !this.map!.isSolid(tx, ty));
+    if (camps) await this.population.spawnCamps(camps, record.seed);
 
     this.hud = new Hud(g.root);
+    this.labels = new WorldLabels(g.root);
     this.dev = new DevTools(g, this);
     this.offEvents.push(
       g.events.on('app:hidden', () => {
@@ -262,6 +292,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     this.combatEvents.clear();
     this.dev?.destroy();
     this.hud?.destroy();
+    this.labels?.destroy();
     this.tileRenderer?.destroy();
     this.fx.destroy();
     this.crosshair.g.destroy();
@@ -337,6 +368,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
     this.hud?.prompt(this.focus !== null && this.game.scenes.current === this ? this.promptFor(this.focus) : null);
     this.hud?.update(this.hudState(), frameDt);
+    this.updateLabels(frameDt, alpha);
     this.dev?.update(performance.now());
   }
 
@@ -361,17 +393,21 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     });
     ev.on('death', (d) => {
       this.world.get(d.entity, View)?.setDead(true);
+      this.labels?.forget(d.entity);
       if (d.entity === this.playerEntity) this.onPlayerDeath(d.killer);
-      else this.makeBodyLootable(d.entity);
+      else this.population?.onNpcDeath(d.entity);
     });
   }
 
   private onPlayerDeath(killer: Entity | null): void {
     const g = this.game;
-    const by = killer !== null ? this.world.get(killer, Equipment) : undefined;
-    const weaponId = killer !== null ? by?.[this.world.get(killer, Combatant)?.active ?? 'primary']?.defId : undefined;
+    const alive = killer !== null && this.world.isAlive(killer);
+    const by = alive ? this.world.get(killer, Equipment) : undefined;
+    const weaponId = alive ? by?.[this.world.get(killer, Combatant)?.active ?? 'primary']?.defId : undefined;
+    const npc = alive ? this.world.get(killer, Npc) : undefined;
+    const who = npc ? `${npc.name} (${g.content.tryGet('npcTemplate', npc.templateId)?.name ?? 'stalker'})` : 'a stalker';
     const cause =
-      killer === null ? 'You bled out.' : `Killed by a bandit${weaponId ? ` with ${withArticle(g.content.tryGet('weapon', weaponId)?.name ?? weaponId)}` : ''}.`;
+      killer === null ? 'You bled out.' : `Killed by ${who}${weaponId ? ` with ${withArticle(g.content.tryGet('weapon', weaponId)?.name ?? weaponId)}` : ''}.`;
     // No save here: dying sends you back to your last save.
     void g.scenes.push(new DeathScene(g, cause, () => g.scenes.change(new GameplayScene(g, this.slotId))));
   }
@@ -467,41 +503,63 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     };
   }
 
-  /** Spawns a hostile test Stalker somewhere 9–20 tiles from the player. */
-  async spawnBandit(): Promise<void> {
-    const g = this.game;
-    const map = this.map;
-    if (!map) return;
-    const look = generateStalker(g.content, this.banditRng);
-    await prepareCharacterArt(g.content, g.sheets, look.raceId, look.equipment);
+  // ---- NPC labels & barks ------------------------------------------------------
+
+  /** An NPC says something fitting for its faction. */
+  private bark(e: Entity, kind: BarkKind): void {
+    const faction = this.game.content.tryGet('faction', this.world.get(e, Faction)?.id ?? '');
+    const lines = faction?.barks[kind]?.length ? faction.barks[kind] : GENERIC_BARKS[kind];
+    if (!lines.length) return;
+    // Only bother showing lines said near the player.
+    const t = this.world.req(e, Transform);
     const pt = this.world.req(this.playerEntity, Transform);
-    for (let attempt = 0; attempt < 40; attempt++) {
-      const ang = this.banditRng.range(0, Math.PI * 2);
-      const dist = this.banditRng.range(9, 20) * TILE_PX;
-      const x = pt.x + Math.cos(ang) * dist;
-      const y = pt.y + Math.sin(ang) * dist;
-      const tx = Math.floor(x / TILE_PX);
-      const ty = Math.floor(y / TILE_PX);
-      if (map.isSolid(tx, ty) || map.isSolid(tx, ty - 1)) continue;
-      const e = spawnCharacter(this.world, g.content, g.sheets, { ...look, x, y, facing: 'down' });
-      addCombatComponents(this.world, e, { faction: 'bandit', infiniteAmmo: true });
-      this.world.add(e, ShooterAI, {
-        target: null,
-        lastSeenX: x,
-        lastSeenY: y,
-        sinceSeen: 99,
-        scanTimer: this.banditRng.range(0, 0.25),
-        reaction: 0,
-        burstTimer: 0,
-        firing: false,
-        strafeDir: 1,
-        strafeTimer: 0,
-        homeX: x,
-        homeY: y,
-      });
-      g.renderer.entities.addChild(this.world.req(e, View).root);
-      return;
+    if (Math.hypot(t.x - pt.x, t.y - pt.y) > 520) return;
+    this.labels?.say(e, this.rng.pick(lines), faction?.color ?? '#ccc');
+  }
+
+  /** Name tag for the NPC under the cursor, and positions for floating text. */
+  private updateLabels(dt: number, alpha: number): void {
+    const g = this.game;
+    const labels = this.labels;
+    if (!labels) return;
+    const px = g.renderer.pixelRatio;
+    const project = (e: Entity) => {
+      if (!this.world.isAlive(e)) return null;
+      const t = this.world.get(e, Transform);
+      if (!t) return null;
+      const x = lerp(t.prevX, t.x, alpha);
+      const y = lerp(t.prevY, t.y, alpha);
+      const head = g.camera.worldToScreen(x, y - 46);
+      const feet = g.camera.worldToScreen(x, y + 2);
+      return { x: head.x / px, head: head.y / px, feet: feet.y / px };
+    };
+    let hovered: Entity | null = null;
+    const aim = g.input.aim;
+    if (g.scenes.current === this && aim.kind === 'point') {
+      const w = g.camera.screenToWorld(aim.screen.x * px, aim.screen.y * px);
+      let best = Infinity;
+      for (const e of this.world.query(Npc, Transform, Health)) {
+        if (this.world.req(e, Health).dead) continue;
+        const t = this.world.req(e, Transform);
+        // Roughly the character's sprite box.
+        if (Math.abs(w.x - t.x) > 14 || w.y < t.y - 48 || w.y > t.y + 6) continue;
+        const d = Math.hypot(w.x - t.x, w.y - (t.y - 20));
+        if (d < best) {
+          best = d;
+          hovered = e;
+        }
+      }
     }
+    if (hovered === null) labels.target(null);
+    else {
+      const npc = this.world.req(hovered, Npc);
+      const fid = this.world.get(hovered, Faction)?.id ?? '';
+      const faction = g.content.tryGet('faction', fid);
+      const attitude = this.relations.attitude(this.world, hovered, this.playerEntity);
+      const rank = g.content.tryGet('npcTemplate', npc.templateId)?.name;
+      labels.target(hovered, npc.name, `${faction?.name ?? fid}${rank ? ` · ${rank}` : ''} · ${attitude}`, ATTITUDE_COLOR[attitude]);
+    }
+    labels.update(dt, project);
   }
 
   // ---- world objects & looting ----------------------------------------------
@@ -611,27 +669,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     void g.scenes.push(new InventoryScene(g, this, e));
   }
 
-  /** Dead NPCs become searchable: their worn gear and weapons (worn down) plus pocket loot. */
-  private makeBodyLootable(e: Entity): void {
-    const g = this.game;
-    const eq = this.world.get(e, Equipment);
-    if (!eq) return;
-    const items: ItemInstance[] = [];
-    for (const it of Object.values(eq)) {
-      if (!it) continue;
-      it.condition = Math.round(it.condition * this.banditRng.range(0.35, 0.85) * 100) / 100;
-      items.push(it);
-    }
-    for (const it of rollLoot(g.content, 'bandit_pockets', this.banditRng)) addItem(g.content, items, it);
-    this.world.add(e, Container, { id: `body:${e}`, label: 'body', kind: 'body', chunkKey: null, lootTable: null, items });
-  }
-
   // ---- InventoryHost -------------------------------------------------------
 
   dropItem(item: ItemInstance): void {
     const t = this.world.req(this.playerEntity, Transform);
-    const x = t.x + this.banditRng.range(-10, 10);
-    const y = t.y + this.banditRng.range(2, 10);
+    const x = t.x + this.rng.range(-10, 10);
+    const y = t.y + this.rng.range(2, 10);
     const S = this.map?.chunkSize ?? 16;
     const key = chunkKey(Math.floor(x / TILE_PX / S), Math.floor(y / TILE_PX / S));
     this.deltas?.putEntity(key, { id: item.uid, kind: 'item', x, y, data: item });
@@ -655,6 +698,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
         for (const [slot, it] of Object.entries(eq)) if (it && !c.items.includes(it)) delete eq[slot as keyof typeof eq];
         refreshArmorLayers(this.world, this.game.content, this.game.sheets, e);
       }
+      this.population?.saveBody(e);
     }
   }
 
@@ -769,8 +813,38 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     h.bleed = 0;
   }
 
-  clearBandits(): void {
-    for (const e of this.world.query(ShooterAI)) this.world.destroy(e);
+  listNpcTemplates(): { id: string; name: string; faction: string }[] {
+    return this.game.content.all('npcTemplate').map((t) => ({ id: t.id, name: t.name, faction: t.faction }));
+  }
+
+  /** Dev: a squad from one template, 7–11 tiles from the player, guarding where it lands. */
+  async spawnSquad(templateId: string, count: number): Promise<void> {
+    const pop = this.population;
+    if (!pop) return;
+    const pt = this.world.req(this.playerEntity, Transform);
+    const a = this.rng.range(0, Math.PI * 2);
+    const d = this.rng.range(7, 11) * TILE_PX;
+    const center = pop.spotNear(pt.x + Math.cos(a) * d, pt.y + Math.sin(a) * d, TILE_PX * 2, this.rng);
+    if (!center) return;
+    const squad = `dev${++this.devSquads}-${Date.now().toString(36)}`;
+    for (let i = 0; i < count; i++) {
+      const spot = pop.spotNear(center.x, center.y, TILE_PX * 2, this.rng) ?? center;
+      await pop.spawnNpc({ id: `${squad}:${i}`, campId: squad, templateId, ...spot, homeX: center.x, homeY: center.y, behavior: 'guard', radius: TILE_PX * 3, rng: this.rng });
+    }
+  }
+
+  clearNpcs(): void {
+    for (const e of this.world.query(Npc, Health)) {
+      if (this.world.req(e, Health).dead) continue;
+      this.labels?.forget(e);
+      this.world.destroy(e);
+    }
+  }
+
+  resetReputation(): void {
+    this.relations.standing.reputation = {};
+    for (const e of this.world.query(Npc)) this.world.req(e, Npc).grudges.clear();
+    this.message('Reputation reset.');
   }
 
   async saveNow(): Promise<void> {
@@ -788,15 +862,29 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
 
   info(): Record<string, string | number> {
     const p = this.player();
-    let bandits = 0;
-    for (const e of this.world.query(ShooterAI)) if (!this.world.get(e, Health)?.dead) bandits++;
+    let alive = 0;
+    let bodies = 0;
+    let fighting = 0;
+    for (const e of this.world.query(Npc, Health)) {
+      if (this.world.req(e, Health).dead) bodies++;
+      else {
+        alive++;
+        if (this.world.get(e, Brain)?.state === 'combat') fighting++;
+      }
+    }
+    const st = this.relations.standing;
+    const rep = this.game.content
+      .all('faction')
+      .map((f) => `${f.id} ${st.reputation[f.id] ?? 0} (${this.relations.playerAttitude(f.id)[0]})`)
+      .join(', ');
     return {
       Seed: this.map?.seed ?? '—',
       Tile: p ? `${p.tile.x}, ${p.tile.y}` : '—',
       'Chunks (data/drawn)': `${this.map?.loadedChunkCount ?? 0} / ${this.tileRenderer?.viewCount ?? 0}`,
       'Changed chunks': this.deltas?.changedChunkCount ?? 0,
       Entities: this.world.entityCount,
-      'Bandits alive': bandits,
+      'NPCs (alive/fighting/dead)': `${alive} / ${fighting} / ${bodies}`,
+      Reputation: rep,
       Sheets: this.game.sheets.cachedCount,
     };
   }

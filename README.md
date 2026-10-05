@@ -5,10 +5,12 @@ across procedurally generated planets, ships and space stations. It runs in the
 browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamepad.
 
 > **Status:** Phase 0 (foundation), Module 6 (armor + character creator + menus),
-> Module 8 (combat) and Module 9 (inventory) are done. You can make a character,
-> fight test bandits on a generated map with five weapons and six ammo types,
-> loot crates and bodies, manage a weight-limited backpack, patch yourself up,
-> and save, load, and move saves between PCs.
+> Module 8 (combat), Module 9 (inventory) and Module 10 (AI & factions) are done.
+> You can make a character and start at a Loner outpost on a generated map,
+> with a bandit den and an army patrol out in the field. NPCs spot, hear and
+> hunt each other (and you), take cover, reload, heal and call out to their
+> squad. Dead NPCs stay dead and their bodies keep their loot. Five weapons,
+> six ammo types, a weight-limited backpack, saves you can move between PCs.
 
 ## Run it
 
@@ -43,8 +45,12 @@ containers, drag outside the window to drop on the ground, Shift-click to move
 items straight into or out of a container. Hovering an item compares it with
 what you have equipped.
 
+Point at an NPC to see its name, faction and how it regards you (red hostile,
+yellow neutral, green friendly). Shooting a faction you aren't at war with
+costs reputation; enough of it and they turn on you.
+
 The **dev panel** is testing scaffolding: give weapons, god mode, heal,
-spawn/clear bandits, swap armor, change race/color, zoom, renderer, build mode
+spawn squads of any NPC type, clear NPCs, reset reputation, swap armor, change race/color, zoom, renderer, build mode
 (E toggles walls), save/export, regenerate the world.
 
 ## Saves across PCs
@@ -56,7 +62,7 @@ whether to replace it or keep both.
 ## Project layout
 
 ```
-content/base/        game data: races, stats, tiles, armor, weapons, ammo, consumables, loot tables, worlds
+content/base/        game data: races, stats, tiles, armor, weapons, ammo, consumables, loot tables, factions, NPC templates, worlds
 docs/                ARCHITECTURE.md (how it fits together, how to extend) · SPRITE_SPEC.md (art contract)
 public/              static files (icons, manifest; sprite PNGs go in public/sprites/)
 src/core/            game loop, scenes, events, RNG, settings
@@ -65,7 +71,7 @@ src/input/           keyboard/mouse, gamepad → actions
 src/ecs/ src/stats/  entity-component-system, stat & modifier system
 src/content/         content registry, schemas, pack loader, item catalog
 src/save/            IndexedDB saves, migrations, world deltas
-src/game/            components, systems (weapons, projectiles, vitals, AI...), items, scenes
+src/game/            components, systems (weapons, projectiles, vitals...), AI (brains, pathfinding), factions, items, scenes
 src/ui/              HUD, dev panel, DOM helpers
 tests/               vitest unit tests
 ```
@@ -75,7 +81,7 @@ tests/               vitest unit tests
 | Phase | Modules | Status |
 | --- | --- | --- |
 | 0 Foundation | Core, renderer, input, ECS/content/stats, saves | ✅ |
-| 1 Vertical slice | ✅ Armor + creator + menus · ✅ combat · ✅ inventory · AI & factions · HUD polish | in progress |
+| 1 Vertical slice | ✅ Armor + creator + menus · ✅ combat · ✅ inventory · ✅ AI & factions · art overhaul · HUD polish & sound | in progress |
 | 2 Worlds | Planet generation, station/ship chunk generation, alien fauna, anomalies & artifacts | |
 | 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, audio & polish | |
 

@@ -121,7 +121,7 @@ export const newCombatant = (active: WeaponSlotId | null): Combatant => ({
 /** Carried items that aren't equipped. */
 export const Inventory = defineComponent<ItemInstance[]>('Inventory');
 
-/** Who this entity sides with. Module 10 adds a relationship table; for now different factions are hostile. */
+/** Who this entity sides with (faction content id, or "player"). Attitudes come from game/factions.ts. */
 export const Faction = defineComponent<{ id: string }>('Faction');
 
 export interface Projectile {
@@ -136,23 +136,6 @@ export interface Projectile {
   range: number;
 }
 export const Projectile = defineComponent<Projectile>('Projectile');
-
-/** Temporary "hold position and shoot" brain for test bandits; replaced by Module 10's AI. */
-export interface ShooterAI {
-  target: number | null;
-  lastSeenX: number;
-  lastSeenY: number;
-  sinceSeen: number;
-  scanTimer: number;
-  reaction: number;
-  burstTimer: number;
-  firing: boolean;
-  strafeDir: 1 | -1;
-  strafeTimer: number;
-  homeX: number;
-  homeY: number;
-}
-export const ShooterAI = defineComponent<ShooterAI>('ShooterAI');
 
 // ---- Inventory (Module 9) ----------------------------------------------------
 
@@ -189,3 +172,95 @@ export const Container = defineComponent<Container>('Container');
 
 /** A static prop sprite (items on the ground, crates). */
 export const PropView = defineComponent<import('../render/PropView').PropView>('PropView');
+
+// ---- AI & factions (Module 10) ----------------------------------------------
+
+/** Who an NPC is. `id` is stable (`<campId>:<index>`) so its death can be saved. */
+export interface Npc {
+  id: string;
+  campId: string;
+  templateId: string;
+  name: string;
+  /** 0..1: accuracy, reaction time, tactics. */
+  skill: number;
+  /** Entities that attacked this NPC (or its squad): treated as hostile regardless of faction. */
+  grudges: Set<number>;
+}
+export const Npc = defineComponent<Npc>('Npc');
+
+export type BrainState = 'idle' | 'patrol' | 'investigate' | 'combat' | 'retreat';
+
+/** NPC decision-making state (see game/ai/NpcBrainSystem.ts). Not saved: NPCs restart at their camp. */
+export interface Brain {
+  state: BrainState;
+  stateTime: number;
+  behavior: 'guard' | 'patrol';
+  homeX: number;
+  homeY: number;
+  radius: number;
+  waypoints: { x: number; y: number }[];
+  waypointIndex: number;
+  /** Current hostile being fought. */
+  target: number | null;
+  targetVisible: boolean;
+  lastSeenX: number;
+  lastSeenY: number;
+  sinceSeen: number;
+  /** Spotting meter for the best not-yet-noticed hostile (0..1). */
+  awareness: number;
+  candidate: number | null;
+  /** Point to investigate (noise, squad alert). */
+  interestX: number;
+  interestY: number;
+  /** Movement goal and the path to it. */
+  goal: { x: number; y: number } | null;
+  path: { x: number; y: number }[];
+  repathIn: number;
+  stuckFor: number;
+  /** Combat pacing. */
+  thinkIn: number;
+  reaction: number;
+  burstLeft: number;
+  pauseLeft: number;
+  strafeDir: 1 | -1;
+  /** Seconds until the next idle wander / patrol stop ends. */
+  waitLeft: number;
+  barkCooldown: number;
+  /** Faces this point when standing still (talking to the player, looking around). */
+  lookAt: { x: number; y: number } | null;
+}
+export const Brain = defineComponent<Brain>('Brain');
+
+export function newBrain(behavior: 'guard' | 'patrol', x: number, y: number, radius: number, waypoints: { x: number; y: number }[]): Brain {
+  return {
+    state: behavior === 'patrol' ? 'patrol' : 'idle',
+    stateTime: 0,
+    behavior,
+    homeX: x,
+    homeY: y,
+    radius,
+    waypoints,
+    waypointIndex: 0,
+    target: null,
+    targetVisible: false,
+    lastSeenX: x,
+    lastSeenY: y,
+    sinceSeen: 99,
+    awareness: 0,
+    candidate: null,
+    interestX: x,
+    interestY: y,
+    goal: null,
+    path: [],
+    repathIn: 0,
+    stuckFor: 0,
+    thinkIn: Math.random() * 0.25,
+    reaction: 0,
+    burstLeft: 0,
+    pauseLeft: 0,
+    strafeDir: 1,
+    waitLeft: Math.random() * 3,
+    barkCooldown: Math.random() * 4,
+    lookAt: null,
+  };
+}
