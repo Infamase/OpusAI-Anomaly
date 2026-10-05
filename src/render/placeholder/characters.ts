@@ -578,23 +578,21 @@ function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
       tri(v(28.8, hy + 5.4), v(30.6, hy + 9), v(24.4, hy + 11.4)),
       tri(v(29.6, hy + 8.2), v(31.6, hy + 11.2), v(26.6, hy + 13.4)),
     ]);
-    // Skull, then the snout: a long, nearly rectangular block with a flat top and a
-    // squared-off front end (its own flatter part, so the top catches the light).
-    const skull = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(30.2, hy - 1), 3.8, 3.4)]);
-    const h = rig.add({ region: P.SNOUT, ramp: KEY, relief: 0.5, line: false }, quad(v(30.8, hy - 2.8), v(42.8, hy - 1.8), v(42.8, hy + 1.4), v(30.8, hy + 2)));
-    // Almost all of it is pale; blue stays on the skull and the brow above the eye.
-    rig.decal(PALE, [...quad(v(32.6, hy - 1.6), v(43.2, hy - 2.2), v(43.2, hy + 2), v(30.6, hy + 2.4)), ell(v(31.2, hy + 1.2), 1.8, 1.4)], { parts: [h, skull] });
-    // Lower jaw: a shorter flat-ended block below; its top edge is the mouth line.
-    rig.add({ region: P.SNOUT, ramp: PALE, line: false, shadow: false, relief: 0.45 }, quad(v(31.2, hy + 1.6), v(41.4, hy + 1.6), v(41.4, hy + 3.4), v(31.6, hy + 5.4)));
-    rig.markLine(v(31.8, hy + 2.6), v(41.2, hy + 1.8), 0);
-    rig.dot(32.2, hy + 3.4, MOUTH_IN[3], P.MOUTH);
-    rig.dot(33.2, hy + 3.2, MOUTH_IN[3], P.MOUTH);
-    // Eye high and back on the snout, under a fur-colored brow.
-    rig.markLine(v(32.8, hy - 2.6), v(36, hy - 2.2), 0);
-    rig.dot(34, hy - 1.4, EYE_SERGAL_DARK, P.EYE);
-    rig.dot(35, hy - 1.4, EYE_SERGAL, P.EYE);
-    rig.dot(35, hy - 0.4, EYE_SERGAL_HI, P.EYE);
-    rig.dot(42.4, hy - 1.2, PUPIL, P.SNOUT); // nose at the top front corner
+    // Proportions taken pixel-for-pixel from the reference (downsampled to this
+    // scale): a blue skull, and a long, slim white snout ~12px long and 3-4px deep
+    // with a flat vertical front. The jaw is shorter, so the front slants back
+    // toward the bottom; the mouth is open at the back and closes toward the front.
+    const skull = rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(30, hy - 2), 3.6, 3.2)]);
+    const h = rig.add({ region: P.SNOUT, ramp: KEY, relief: 0.4, line: false }, quad(v(30.8, hy - 2.4), v(43.4, hy - 1.4), v(43.4, hy + 1.6), v(31.6, hy + 1.6)));
+    rig.decal(PALE, [...quad(v(32.6, hy - 1.8), v(43.8, hy - 1.2), v(43.8, hy + 2), v(30.4, hy + 2)), ell(v(30.8, hy + 0.6), 1.6, 1.4)], { parts: [h, skull] });
+    // Open mouth at the back.
+    rig.add({ region: P.MOUTH, ramp: MOUTH_IN, line: false, shadow: false, relief: 0.3 }, [tri(v(30.6, hy + 1.2), v(36.4, hy + 1.8), v(31.4, hy + 3.6))]);
+    // Lower jaw: shorter than the snout, its front set back.
+    rig.add({ region: P.SNOUT, ramp: PALE, line: false, shadow: false, relief: 0.4 }, quad(v(32.6, hy + 2.2), v(41.8, hy + 1.8), v(41.4, hy + 3.2), v(33.2, hy + 3.8)));
+    rig.markLine(v(35.4, hy + 1.8), v(41.6, hy + 1.8), 0);
+    // Eye on top of the snout, about halfway along.
+    rig.dot(37, hy - 0.8, EYE_SERGAL_DARK, P.EYE);
+    rig.dot(38, hy - 0.8, EYE_SERGAL, P.EYE);
     // Near ear on top, with a pale inner edge.
     rig.add({ region: P.EAR, ramp: KEY }, [tri(v(28.2, hy - 2.2), v(31, hy - 3.2), v(25.4 - twitch, hy - 11.4))]);
     rig.decal(PALE, [tri(v(28.8, hy - 2.8), v(30, hy - 3.2), v(26.4 - twitch, hy - 8.6))], { regions: [P.EAR] });
@@ -632,12 +630,10 @@ function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
       rig.dot(AX + sx * 3.6, hy - 0.2, EYE_SERGAL, P.EYE);
       rig.dot(AX + sx * 3.6, hy + 0.8, EYE_SERGAL_HI, P.EYE);
     }
-    // Wide mouth across the bottom of the muzzle, corners turned up; nose just under the brow's V.
+    // Wide mouth across the bottom of the muzzle, corners turned up.
     rig.markLine(v(AX - 3.2, hy + 3.6), v(AX - 1.8, hy + 4.4), 0);
     rig.markLine(v(AX - 1.8, hy + 4.4), v(AX + 1.8, hy + 4.4), 0);
     rig.markLine(v(AX + 1.8, hy + 4.4), v(AX + 3.2, hy + 3.6), 0);
-    rig.dot(AX - 0.5, hy + 2.2, KEY[0], P.SNOUT);
-    rig.dot(AX + 0.5, hy + 2.2, KEY[0], P.SNOUT);
     return;
   }
   rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.6), 5, 4), ell(v(AX, hy + 2.4), 3.8, 2.8)]);
