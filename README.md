@@ -4,13 +4,21 @@ A 2D pixel-art, top-down survival shooter in the spirit of S.T.A.L.K.E.R., set
 across procedurally generated planets, ships and space stations. It runs in the
 browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamepad.
 
-> **Status:** Phase 0 (foundation), Module 6 (armor + character creator + menus),
-> Module 8 (combat), Module 9 (inventory) and Module 10 (AI & factions) are done.
+> **Status:** Phase 1 (the vertical slice) is complete: foundation, armor +
+> character creator + menus, combat, inventory, AI & factions, sound, and the
+> HUD.
 > You can make a character and start at a Loner outpost on a generated map,
 > with a bandit den and an army patrol out in the field. NPCs spot, hear and
 > hunt each other (and you), take cover, reload, heal and call out to their
 > squad. Dead NPCs stay dead and their bodies keep their loot. Five weapons,
 > six ammo types, a weight-limited backpack, saves you can move between PCs.
+>
+> **Sound:** every sound is synthesized from recipes in content files
+> (gunshots per weapon, footsteps per surface, impacts, pain and death per
+> race, reloads, radio chatter, UI, wind and the hum of the Zone), positioned
+> around you and muffled with distance. Any of them can be swapped for a
+> recording. **HUD:** minimap, damage direction, status effects, magazine pips,
+> kill feed, plus an Options screen for volumes and display.
 >
 > **Animation:** characters are Flash-style cutout puppets (separate torso,
 > head, arm and leg pieces) with procedural walk, sprint, aim, fire and reload:
@@ -24,6 +32,9 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 
 ## Run it
 
+**Step-by-step for Windows (double-click `play.bat`) and the web-link option:
+see [docs/RUNNING.md](docs/RUNNING.md).** For developers:
+
 ```bash
 npm install
 npm run dev        # http://localhost:5173
@@ -33,7 +44,8 @@ npm run build      # typecheck + production build into dist/
 
 Chrome or Edge give the best results (WebGPU). Other browsers fall back to WebGL
 automatically. URL flags: `?renderer=webgl` forces WebGL, `?debug=1` opens the
-dev panel.
+dev panel, `?mute=1` starts muted. Sound, zoom and renderer settings are under
+**Options** (title screen or pause menu).
 
 ## Controls
 
@@ -72,17 +84,18 @@ whether to replace it or keep both.
 ## Project layout
 
 ```
-content/base/        game data: races, stats, tiles, armor, weapons, ammo, consumables, loot tables, factions, NPC templates, worlds
-docs/                ARCHITECTURE.md (how it fits together, how to extend) · SPRITE_SPEC.md (art contract)
+content/base/        game data: races, stats, tiles, armor, weapons, ammo, consumables, loot tables, factions, NPC templates, sounds, worlds
+docs/                RUNNING.md (play it on your PC) · ARCHITECTURE.md (how it fits together, how to extend) · SPRITE_SPEC.md (art contract)
 public/              static files (icons, manifest; sprite PNGs go in public/sprites/)
 src/core/            game loop, scenes, events, RNG, settings
+src/audio/           sound synthesizer and WebAudio engine
 src/render/          PixiJS renderer, camera, tilemap, paper-doll, combat effects, icons, placeholder art
 src/input/           keyboard/mouse, gamepad → actions
 src/ecs/ src/stats/  entity-component-system, stat & modifier system
 src/content/         content registry, schemas, pack loader, item catalog
 src/save/            IndexedDB saves, migrations, world deltas
 src/game/            components, systems (weapons, projectiles, vitals...), AI (brains, pathfinding), factions, items, scenes
-src/ui/              HUD, dev panel, DOM helpers
+src/ui/              HUD, minimap, options, dev panel, DOM helpers
 tests/               vitest unit tests
 ```
 
@@ -91,14 +104,15 @@ tests/               vitest unit tests
 | Phase | Modules | Status |
 | --- | --- | --- |
 | 0 Foundation | Core, renderer, input, ECS/content/stats, saves | ✅ |
-| 1 Vertical slice | ✅ Armor + creator + menus · ✅ combat · ✅ inventory · ✅ AI & factions · ✅ art overhaul · HUD polish & sound | in progress |
+| 1 Vertical slice | Armor + creator + menus · combat · inventory · AI & factions · art overhaul · cutout animation · sound · HUD | ✅ |
 | 2 Worlds | Planet generation, station/ship chunk generation, alien fauna, anomalies & artifacts | |
-| 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, audio & polish | |
+| 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, music & polish | |
 
 ## Deploying to GitHub Pages
 
 `.github/workflows/deploy.yml` runs the tests, builds the game, and publishes
-`dist/` on every push to `main`. One-time setup: **Settings → Pages → Build and
+`dist/` on every push to `main` (the game is then at
+https://infamase.github.io/OpusAI-Anomaly/). One-time setup: **Settings → Pages → Build and
 deployment → Source: GitHub Actions**.
 
 ## Note on names

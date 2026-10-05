@@ -27,6 +27,8 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 8 Combat | `src/game/combat.ts`, `src/game/systems/{Weapon,Projectile,Vitals}System.ts` | Weapons, projectiles, damage vs resistances, bleeding, stamina |
 | 9 Inventory | `src/game/items.ts`, `inventoryActions.ts`, `loot.ts`, `consumables.ts`, `scenes/InventoryScene.ts` | Backpack, weight limit, equip/use/drop, crates and bodies, consumables, item icons |
 | 10 AI & factions | `src/game/factions.ts`, `npcs.ts`, `population.ts`, `src/game/ai/` | Faction relations & reputation, NPC templates, camps, NPC brains, A* pathfinding, bodies that persist |
+| 11 Sound | `src/audio/`, `src/game/GameAudio.ts`, `content/*/sounds/` | Synthesized (or recorded) sounds as content, WebAudio mixer with positional audio, gameplay and UI sounds, ambience |
+| 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
 
@@ -106,7 +108,7 @@ over the canvas and draw animated characters with `CharacterPreview`.
   `scalesWithCondition` shrink with wear (down to 30%). Ballistic and rupture
   hits that get through cause bleeding.
 - **Feedback** goes through `CombatEvents` (shot, hit, impact, death, ...) to
-  effects, the HUD and the camera. Sound will hook in here too.
+  effects, the HUD, the camera and sound.
 - Projectiles never hit their owner or anyone with the same `Faction` id.
 
 ## Inventory (Module 9)
@@ -168,6 +170,47 @@ over the canvas and draw animated characters with `CharacterPreview`.
 - **On screen:** `WorldLabels` (DOM) shows barks over heads and a name tag
   (name, faction, rank, attitude) for the NPC under the cursor.
 
+## Sound (Module 11)
+
+- **Sounds are content** (`content/*/sounds/*.json`). A `sound` def has either
+  a `synth` recipe or a `file` (a recording under `public/`), plus its mixer
+  `bus` (`sfx`, `ambient`, `voice`, `ui`), `volume`, `range` (px; 0 = not
+  positional), `maxVoices`, `minInterval`, `pitchJitter` and `variants`.
+- **Synth recipes** (`src/audio/synth.ts`) stack layers (sine, square, saw,
+  triangle, white/brown noise, crackle) with a pitch sweep, a sweeping filter,
+  attack/hold/decay and an optional wobble, then drive, echo and peak
+  normalization. `loop: true` renders a seamless loop for ambience. Each
+  variant is a different seed, so repeats don't sound identical. It is pure
+  code and unit-tested.
+- **Cues:** code names *moments* (`SOUND_CUES`: `shot`, `footstep`,
+  `hit_flesh`, `ui_click`, `ambient`, …) and a sound def claims one with
+  `"cue"`. More specific references win: a weapon's `sounds.shot`, a tile's
+  `sounds.step` / `sounds.impact`, a race's `sounds.hurt` / `sounds.death`, a
+  consumable's `sounds.use`, a faction's `sounds.bark`, a world's `ambient` loops.
+- **Playback** (`AudioEngine`): starts on the first click or key press
+  (browser rule), renders every buffer ahead of time, pans and attenuates
+  positional sounds around the player, muffles distant ones, limits voices per
+  sound and in total, runs through a limiter, ducks effects while paused or
+  dead, and suspends when the tab is hidden. Without WebAudio it's a no-op.
+- **Gameplay hookup** (`GameAudio`) listens to `CombatEvents` and gets
+  footsteps from the walk cycle (each time a foot plants), barks, pickups and
+  item use from the scenes. Volumes per bus live in the per-device settings.
+
+## HUD and options (Module 12)
+
+- `Hud` (DOM over the canvas, updated only when a value changes): health with
+  a damage trail, stamina, status effects (bleeding, healing, exhausted,
+  overloaded), armor wear, the quick-heal count, the weapon panel (magazine
+  pips, low/empty states, reload hint, holstered weapon), prompts with keycaps,
+  messages and the kill feed, red arcs pointing toward whoever hit you, and a
+  low-health vignette.
+- `Minimap`: one pixel per tile, scaled up crisp, north-up, redrawn 10 times a
+  second. Tile colors come from tile defs; walls read bright and trees dark.
+  People appear when close or in line of sight, colored by attitude; crates,
+  bodies and loose items are marked.
+- `OptionsPanel` (title screen and pause menu): volume per bus, mute, camera
+  zoom, renderer and the performance overlay, saved per device.
+
 ## Extension points
 
 ### Add a playable race
@@ -223,6 +266,14 @@ generated tile.
    references, and a `declare module '../Registry'` line to register its TypeScript type.
 2. One line in `src/content/types/index.ts`.
 3. Data files under `content/<pack>/`.
+
+### Add or replace a sound
+1. Add a def to `content/base/sounds/*.json` with a `synth` recipe (copy a
+   similar one) or `"file": "audio/<name>.ogg"` with the file in `public/audio/`.
+2. Point something at it (`"sounds": { "shot": "<id>" }` on a weapon, `step` on
+   a tile, …) or give it a `"cue"` to make it the default for that moment.
+3. To audition recipes, render them to WAV with `synthesize()` (see
+   `tests/audio.test.ts`).
 
 ### Content packs (expansions / mods)
 `content/<pack>/pack.json` declares `id`, `version`, `dependencies`. Packs load
