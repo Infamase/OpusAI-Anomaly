@@ -1,3 +1,4 @@
+import { CharacterView } from './CharacterView';
 import { autoDetectRenderer, Container, TextureSource, type Renderer } from 'pixi.js';
 
 export type BackendPreference = 'webgpu' | 'webgl';
@@ -39,6 +40,8 @@ export class GameRenderer {
   ) {
     this.world.addChild(this.ground, this.entities, this.overlay);
     this.stage.addChild(this.world, this.screen);
+    // Characters are posed into small render textures; they need the renderer for that.
+    CharacterView.gpu = pixi;
   }
 
   static async create(parent: HTMLElement, preference: BackendPreference = 'webgpu'): Promise<GameRenderer> {
@@ -109,6 +112,7 @@ export class GameRenderer {
   }
 
   render(): void {
+    CharacterView.flush();
     this.pixi.render({ container: this.stage });
   }
 

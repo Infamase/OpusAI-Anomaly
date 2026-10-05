@@ -8,8 +8,10 @@ import { getGenerator } from '../src/game/world/generators';
 import '../src/game/world/testRangeGenerator';
 import { TileMap } from '../src/game/world/TileMap';
 import { TileSet } from '../src/game/world/TileSet';
-import { hexToRgb, KEY_COLORS, rgbToHex } from '../src/render/palette';
-import { BodyPart, drawBodyFrame, poseFor } from '../src/render/placeholder/characters';
+import { hexToRgb, rgbToHex } from '../src/render/palette';
+import { generatePuppetAtlas, placeholderRig, PLACEHOLDER_RACES } from '../src/render/placeholder/characters';
+import { PixelCanvas } from '../src/render/PixelCanvas';
+import { composePuppet, restState, solvePose, type PartId, type PuppetPose, type PuppetRig } from '../src/render/puppet';
 import { generateProp, PROP_VARIANTS } from '../src/render/placeholder/props';
 import { cap, ell, Rig, v, type Ramp } from '../src/render/placeholder/rig';
 import { generateTile, TILE_SIZE, VARIANTS } from '../src/render/placeholder/tiles';
@@ -52,31 +54,92 @@ describe('rig rasterizer', () => {
   });
 });
 
-describe('generated character art', () => {
-  it('keeps feet on the anchor row and the figure realistically tall', () => {
-    for (const race of ['human', 'lizardman', 'sergal'] as const) {
-      const pc = drawBodyFrame(race, 'down', poseFor('idle', 0));
-      let top = 64;
+describe('cutout characters', () => {
+  const rifle = generateWeaponArt('rifle');
+  const gun = { grip: { x: rifle.grip[0], y: rifle.grip[1] }, muzzle: { x: rifle.muzzle[0], y: rifle.muzzle[1] } };
+  const sub = (a: { x: number; y: number }, b: { x: number; y: number }) => ({ x: a.x - b.x, y: a.y - b.y });
+  /** Where the far end of a limb piece ends up in a pose (character space). */
+  const limbEnd = (rig: PuppetRig, pose: PuppetPose, part: PartId, from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const b = pose.bones[part]!;
+    const d = sub(to, from);
+    return { x: b.x + d.x * Math.cos(b.angle) - d.y * Math.sin(b.angle), y: b.y + d.x * Math.sin(b.angle) + d.y * Math.cos(b.angle) };
+  };
+
+  it('stands on the anchor at a realistic height', () => {
+    for (const race of PLACEHOLDER_RACES) {
+      const rig = placeholderRig(race);
+      const out = new PixelCanvas(96, 96);
+      composePuppet({ rig, atlases: [generatePuppetAtlas(race)] }, solvePose(rig, restState('down')), out, 48, 80);
+      let top = 96;
       let bottom = 0;
-      for (let y = 0; y < 64; y++) {
-        for (let x = 0; x < 64; x++) {
-          if (!pc.alpha(x, y) || pc.regionAt(x, y) === BodyPart.TAIL) continue;
-          top = Math.min(top, y);
-          bottom = Math.max(bottom, y);
-        }
-      }
-      expect(bottom, race).toBeGreaterThanOrEqual(59);
-      expect(bottom, race).toBeLessThanOrEqual(61);
+      for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) if (out.alpha(x, y)) ((top = Math.min(top, y)), (bottom = Math.max(bottom, y)));
+      expect(bottom, race).toBeGreaterThanOrEqual(79);
+      expect(bottom, race).toBeLessThanOrEqual(82);
       expect(bottom - top, race).toBeGreaterThan(48);
     }
   });
 
-  it('uses the 5-tone key ramp for fur and scales', () => {
-    const keys = new Set(KEY_COLORS.primary);
-    const pc = drawBodyFrame('sergal', 'right', poseFor('walk', 2));
-    const used = new Set<string>();
-    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (pc.alpha(x, y) && keys.has(rgbToHex(pc.get(x, y)))) used.add(rgbToHex(pc.get(x, y)));
-    expect(used.size).toBeGreaterThanOrEqual(4);
+  it('puts the hands on the gun and points it along the aim', () => {
+    for (const race of PLACEHOLDER_RACES) {
+      const rig = placeholderRig(race);
+      for (const aim of [-0.8, 0, 0.6]) {
+        const pose = solvePose(rig, { ...restState('right'), aim, weapon: gun });
+        expect(pose.weapon!.angle).toBeCloseTo(aim, 5);
+        const r = rig.dirs.right;
+        // The near hand (B) holds the grip.
+        const hand = limbEnd(rig, pose, 'lowerArmB', r.elbow[1], r.hand[1]);
+        expect(Math.hypot(hand.x - pose.weapon!.x, hand.y - pose.weapon!.y), `${race} aim ${aim}`).toBeLessThan(1.5);
+      }
+    }
+  });
+
+  it('mirrors for facing left and aims the same direction on screen', () => {
+    const rig = placeholderRig('human');
+    const pose = solvePose(rig, { ...restState('left'), aim: Math.PI - 0.3, weapon: gun });
+    expect(pose.flip).toBe(true);
+    expect(pose.dir).toBe('right');
+    expect(pose.weapon!.angle).toBeCloseTo(0.3, 5); // drawn mirrored, so it points up-left on screen
+  });
+
+  it('walks with alternating legs and planted feet', () => {
+    const rig = placeholderRig('lizardman');
+    const r = rig.dirs.right;
+    const a = solvePose(rig, { ...restState('right'), moving: 1, phase: 0 });
+    const b = solvePose(rig, { ...restState('right'), moving: 1, phase: Math.PI });
+    expect(a.bones.upperLegA!.angle).not.toBeCloseTo(b.bones.upperLegA!.angle, 1);
+    expect(a.bones.upperLegA!.angle).toBeCloseTo(b.bones.upperLegB!.angle, 5);
+    // At phase 0 neither foot is lifted: both soles are on the ground.
+    for (const [k, i] of [
+      ['A', 0],
+      ['B', 1],
+    ] as const) {
+      const foot = limbEnd(rig, a, `lowerLeg${k}`, r.knee[i], r.foot[i]);
+      expect(Math.abs(foot.y - (r.foot[i].y - rig.anchor.y)), k).toBeLessThan(0.6);
+    }
+  });
+
+  it('leans into a sprint, and recoil pushes the gun back', () => {
+    const rig = placeholderRig('sergal');
+    const walk = solvePose(rig, { ...restState('right'), moving: 1 });
+    const sprint = solvePose(rig, { ...restState('right'), moving: 1, sprint: true });
+    expect(sprint.bones.torso!.angle).toBeGreaterThan(walk.bones.torso!.angle + 0.1);
+    const still = solvePose(rig, { ...restState('right'), aim: 0, weapon: gun });
+    const kicked = solvePose(rig, { ...restState('right'), aim: 0, weapon: gun, recoil: 1 });
+    expect(kicked.weapon!.x).toBeLessThan(still.weapon!.x);
+    expect(kicked.weapon!.angle).toBeLessThan(still.weapon!.angle); // muzzle climbs
+  });
+
+  it('draws the held weapon into the composed picture', () => {
+    const rig = placeholderRig('human');
+    const pose = solvePose(rig, { ...restState('right'), aim: 0, weapon: gun });
+    const withGun = new PixelCanvas(112, 96);
+    const without = new PixelCanvas(112, 96);
+    const atlases = [generatePuppetAtlas('human')];
+    composePuppet({ rig, atlases, weapon: { pixels: rifle.pixels, grip: gun.grip } }, pose, withGun, 56, 80);
+    composePuppet({ rig, atlases }, pose, without, 56, 80);
+    let extra = 0;
+    for (let i = 3; i < withGun.data.length; i += 4) if (withGun.data[i] && !without.data[i]) extra++;
+    expect(extra).toBeGreaterThan(30);
   });
 
   it('draws every weapon with its grip and muzzle inside the art', () => {

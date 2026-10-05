@@ -1,6 +1,7 @@
 import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
 import { DIRECTIONS } from '../../core/math';
+import { PUPPET_PARTS } from '../../render/puppet';
 
 declare module '../Registry' {
   interface ContentMap {
@@ -20,6 +21,11 @@ const schema = v.object({
   anchor: v.tuple2(v.number({ int: true }), v.number({ int: true })),
   /** Row order of facings. Rows are grouped per animation: row = animIndex * directions.length + dirIndex. */
   directions: v.array(v.literal(...DIRECTIONS), { min: 1 }),
+  /**
+   * Cutout layouts: the piece in each column (a row per direction). Must match
+   * PUPPET_PARTS (render/puppet.ts). See docs/SPRITE_SPEC.md.
+   */
+  parts: v.optional(v.array(v.literal(...PUPPET_PARTS))),
   animations: v.array(
     v.object({
       id: v.id(),
@@ -38,9 +44,12 @@ export const spriteLayoutType: ContentTypeSpec<'spriteLayout'> = {
   schema,
   crossCheck(def, ctx) {
     const [ax, ay] = def.anchor;
-    if (ax < 0 || ay < 0 || ax >= def.frameSize || ay >= def.frameSize) ctx.error('anchor lies outside the frame');
+    // Cutout layouts: the anchor is the feet of the bind-pose drawing, not a point in a cell.
+    if (!def.parts && (ax < 0 || ay < 0 || ax >= def.frameSize || ay >= def.frameSize)) ctx.error('anchor lies outside the frame');
     if (new Set(def.directions).size !== def.directions.length) ctx.error('duplicate direction');
     if (new Set(def.animations.map((a) => a.id)).size !== def.animations.length) ctx.error('duplicate animation id');
+    if (def.parts && def.parts.join() !== PUPPET_PARTS.join()) ctx.error(`parts must be exactly: ${PUPPET_PARTS.join(', ')}`);
+    if (def.parts && def.parts.length !== def.animations[0]!.frames) ctx.error('parts must list one piece per column');
   },
 };
 

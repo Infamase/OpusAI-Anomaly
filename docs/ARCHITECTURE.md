@@ -67,13 +67,21 @@ over the canvas and draw animated characters with `CharacterPreview`.
 - **Rendering:** `CharacterView` draws `body → legs → torso → head`, each its
   own sheet in the same layout. Armor is recolored by its `dye` through the
   secondary key colors.
-- **Generated characters** (`src/render/placeholder/characters.ts`) are built
-  from a posed skeleton (two-bone IK for legs, digitigrade legs for sergals and
-  lizardmen) out of round primitives in `rig.ts`, a small "2.5D" rasterizer:
-  each part is a height field, lit from the top-left, quantized onto a 5-tone
-  ramp, with colored outlines, contour lines where parts overlap and small cast
-  shadows. Props (trees, boulders) use the same rasterizer.
-- **Placeholder armor** (`src/render/placeholder/armor.ts`) is painted using the
+- **Cutout characters** (`src/render/puppet.ts`): bodies are rigid pieces
+  (torso, head, upper/lower arms, upper/lower legs, tail) posed at runtime.
+  `solvePose(rig, state)` is a pure function from what the character is doing
+  (moving, sprinting, aim angle, recoil, reload) to bone transforms: legs use
+  IK to plant the feet, arms use IK to hold the gun's grip and foregrip.
+  `CharacterView` draws the posed pieces (body + armor layers + gun) at 1x into
+  a slot of one shared render texture, redrawn in a single pass (≤30 Hz) only
+  when a pose changes; `composePuppet` does the same on the CPU for portraits,
+  item icons and tests.
+- **Generated characters** (`src/render/placeholder/characters.ts`) draw each
+  piece from a bind-pose skeleton (digitigrade legs for sergals and lizardmen)
+  out of round primitives in `rig.ts`, a small "2.5D" rasterizer: each part is
+  a height field, lit from the top-left, quantized onto a 5-tone ramp, with
+  colored outlines. Props (trees, boulders) use the same rasterizer.
+- **Placeholder armor** (`src/render/placeholder/armor.ts`) is painted piece by piece using the
   body-part tags the body generator records per pixel. One set of rules fits
   every body shape, and a tail drawn in front of the body is never covered.
 

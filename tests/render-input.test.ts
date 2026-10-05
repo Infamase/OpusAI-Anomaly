@@ -7,7 +7,8 @@ import type { InputSource, SourceState } from '../src/input/actions';
 import { applyDeadzone } from '../src/input/GamepadSource';
 import { InputManager } from '../src/input/InputManager';
 import { BASE_SHADE, buildRamp, buildSwapMap, hexToRgb, KEY_COLORS, recolorPixels, rgbToHex } from '../src/render/palette';
-import { generateCharacterSheet, PLACEHOLDER_RACES } from '../src/render/placeholder/characters';
+import { CELL, generatePuppetAtlas, PLACEHOLDER_RACES } from '../src/render/placeholder/characters';
+import { PUPPET_DIRS, PUPPET_PARTS } from '../src/render/puppet';
 
 describe('palette swapping', () => {
   it('builds a dark-to-light ramp around the base color', () => {
@@ -28,27 +29,33 @@ describe('palette swapping', () => {
   });
 });
 
-describe('placeholder character sheets', () => {
-  const reg = new ContentRegistry();
-  defineCoreContentTypes(reg);
-  loadContent(reg, bundledContentFiles);
-  const layout = reg.get('spriteLayout', 'humanoid64');
-
-  it.each(PLACEHOLDER_RACES)('%s fills every frame and uses recolorable key colors', (race) => {
-    const sheet = generateCharacterSheet(race, layout);
+describe('placeholder character pieces', () => {
+  it.each(PLACEHOLDER_RACES)('%s: every piece exists in every view and uses recolorable key colors', (race) => {
+    const atlas = generatePuppetAtlas(race);
+    expect([atlas.width, atlas.height]).toEqual([CELL * PUPPET_PARTS.length, CELL * PUPPET_DIRS.length]);
     const keys = new Set(KEY_COLORS.primary);
     let keyPixels = 0;
-    for (let i = 0; i < sheet.data.length; i += 4) {
-      if (sheet.data[i + 3] && keys.has(rgbToHex([sheet.data[i]!, sheet.data[i + 1]!, sheet.data[i + 2]!]))) keyPixels++;
+    for (let i = 0; i < atlas.data.length; i += 4) {
+      if (atlas.data[i + 3] && keys.has(rgbToHex([atlas.data[i]!, atlas.data[i + 1]!, atlas.data[i + 2]!]))) keyPixels++;
     }
     expect(keyPixels).toBeGreaterThan(100);
-    layout.animations.forEach((anim, a) =>
-      layout.directions.forEach((_dir, d) => {
-        for (let f = 0; f < anim.frames; f++) {
-          let opaque = 0;
-          const S = layout.frameSize;
-          for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (sheet.alpha(f * S + x, (a * 4 + d) * S + y)) opaque++;
-          expect(opaque, `${race} ${anim.id} dir${d} f${f}`).toBeGreaterThan(350);
+    PUPPET_DIRS.forEach((dir, row) =>
+      PUPPET_PARTS.forEach((part, col) => {
+        let opaque = 0;
+        for (let y = 0; y < CELL; y++) for (let x = 0; x < CELL; x++) if (atlas.alpha(col * CELL + x, row * CELL + y)) opaque++;
+        const optional = part === 'tail' || part === 'headAlt';
+        if (race === 'human' && optional) expect(opaque, `${race} ${dir} ${part}`).toBe(0);
+        else expect(opaque, `${race} ${dir} ${part}`).toBeGreaterThan(part === 'torso' ? 150 : part.startsWith('head') ? 80 : 25);
+        // Nothing touches the cell edges (it would mean the piece was clipped).
+        for (let i = 0; i < CELL; i++) {
+          for (const [x, y] of [
+            [i, 0],
+            [i, CELL - 1],
+            [0, i],
+            [CELL - 1, i],
+          ] as const) {
+            expect(atlas.alpha(col * CELL + x, row * CELL + y), `${race} ${dir} ${part} clipped at ${x},${y}`).toBe(0);
+          }
         }
       }),
     );

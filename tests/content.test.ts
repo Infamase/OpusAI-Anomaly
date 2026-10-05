@@ -4,6 +4,7 @@ import { loadContent, type RawContentFile } from '../src/content/loader';
 import { ContentRegistry } from '../src/content/Registry';
 import { defineCoreContentTypes } from '../src/content/types';
 import { layoutRow, layoutSheetSize } from '../src/content/types/spriteLayout';
+import { PUPPET_PARTS } from '../src/render/puppet';
 
 const fresh = () => {
   const r = new ContentRegistry();
@@ -21,14 +22,15 @@ describe('base content pack', () => {
     expect(reg.has('tile', 'void')).toBe(true);
   });
 
-  it('uses the 64px, 4-direction humanoid layout', () => {
+  it('uses the cutout piece layout', () => {
     const reg = fresh();
     loadContent(reg, bundledContentFiles);
-    const layout = reg.get('spriteLayout', 'humanoid64');
-    expect(layout.frameSize).toBe(64);
-    expect(layout.directions).toEqual(['down', 'left', 'right', 'up']);
-    expect(layoutRow(layout, 'walk', 'up')).toBe(7);
-    expect(layoutSheetSize(layout)).toEqual({ width: 6 * 64, height: 8 * 64 });
+    const layout = reg.get('spriteLayout', 'puppet');
+    expect(layout.frameSize).toBe(48);
+    expect(layout.directions).toEqual(['down', 'right', 'up']);
+    expect(layout.parts).toEqual([...PUPPET_PARTS]);
+    expect(layoutRow(layout, 'parts', 'up')).toBe(2);
+    expect(layoutSheetSize(layout)).toEqual({ width: 12 * 48, height: 3 * 48 });
   });
 });
 

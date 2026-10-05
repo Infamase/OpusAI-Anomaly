@@ -3,8 +3,9 @@ import type { SpriteLayoutDef } from '../content/types';
 import { layoutRow, layoutSheetSize } from '../content/types/spriteLayout';
 import { buildSwapMap, recolorPixels, swapCacheKey, type ChannelColors } from './palette';
 import { PixelCanvas } from './PixelCanvas';
-import { generateArmorSheet, isArmorStyleForSlot, type ArmorSlot } from './placeholder/armor';
-import { generateCharacterSheet, isPlaceholderRace } from './placeholder/characters';
+import type { PuppetRig } from './puppet';
+import { generateArmorAtlas, isArmorStyleForSlot, type ArmorSlot } from './placeholder/armor';
+import { generatePuppetAtlas, isPlaceholderRace, placeholderRig } from './placeholder/characters';
 
 /** A sliced, recolored sheet ready to draw. */
 export class SpriteSheet {
@@ -34,6 +35,7 @@ export class SpriteSheetCache {
   private sources = new Map<string, PixelCanvas>();
   private sheets = new Map<string, SpriteSheet>();
   private recolored = new Map<string, PixelCanvas>();
+  private rigs = new Map<string, PuppetRig>();
 
   /** Loads a sheet's pixels. Must be awaited before get() for PNG sheets. */
   async prepare(src: string, layout: SpriteLayoutDef): Promise<void> {
@@ -78,6 +80,22 @@ export class SpriteSheetCache {
     return sheet;
   }
 
+  /**
+   * The cutout rig (joints and pivots) for a body sheet. Generated races
+   * compute it; drawn PNG atlases will ship a rig JSON next to the image.
+   */
+  rig(src: string): PuppetRig | null {
+    if (!src.startsWith('placeholder:') || src.startsWith('placeholder:armor:')) return null;
+    const id = src.slice('placeholder:'.length);
+    if (!isPlaceholderRace(id)) return null;
+    let rig = this.rigs.get(id);
+    if (!rig) {
+      rig = placeholderRig(id);
+      this.rigs.set(id, rig);
+    }
+    return rig;
+  }
+
   get cachedCount(): number {
     return this.sheets.size;
   }
@@ -94,12 +112,12 @@ async function loadPixels(src: string, layout: SpriteLayoutDef): Promise<PixelCa
     if (!isPlaceholderRace(race) || !(slot === 'head' || slot === 'torso' || slot === 'legs') || !isArmorStyleForSlot(slot, style)) {
       throw new Error(`Bad placeholder armor sheet "${src}"`);
     }
-    return generateArmorSheet(race, slot, style, layout);
+    return generateArmorAtlas(race, slot, style);
   }
   if (src.startsWith('placeholder:')) {
     const id = src.slice('placeholder:'.length);
     if (!isPlaceholderRace(id)) throw new Error(`No placeholder generator for "${id}"`);
-    return generateCharacterSheet(id, layout);
+    return generatePuppetAtlas(id);
   }
   const res = await fetch(src);
   if (!res.ok) throw new Error(`Failed to load sprite sheet ${src}: ${res.status}`);

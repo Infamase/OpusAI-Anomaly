@@ -1,14 +1,15 @@
-import type { SpriteLayoutDef } from '../../content/types';
-import { layoutSheetSize } from '../../content/types/spriteLayout';
+import { PUPPET_DIRS, PUPPET_PARTS, type PartId } from '../puppet';
 import { KEY_COLORS, hexToRgb, rgbToHex } from '../palette';
 import { PixelCanvas } from '../PixelCanvas';
-import { BodyPart, FRAME, poseFor, rigBodyFrame, type PlaceholderRace } from './characters';
+import { ATLAS_HEIGHT, ATLAS_WIDTH, blitPiece, BodyPart, FRAME, rigPiece, type PlaceholderRace } from './characters';
 import type { Ramp } from './rig';
 
 /**
- * Generates placeholder armor sheets that fit each race's body exactly.
+ * Generates placeholder armor that fits each race's body exactly, as a piece
+ * atlas laid out like the body's (see render/puppet.ts): each body piece gets
+ * its own armor piece, so gear moves with the limb it's on.
  *
- * It draws the race's body for every frame, reads the per-pixel body-part tags
+ * It draws each body piece, reads the per-pixel body-part tags
  * (head, ears, eyes, snout, hair, neck, torso, arms, hands, hips, legs, feet,
  * tail) and paints gear onto those parts. The same few rules therefore fit
  * humans, snouted lizardmen and big-eared sergals. Gear reuses the body's
@@ -73,8 +74,9 @@ interface Body {
   span(y: number, ...parts: number[]): { l: number; r: number } | null;
 }
 
-function bodyOf(race: PlaceholderRace, dir: Dir, anim: string, frame: number): Body {
-  const rig = rigBodyFrame(race, dir, poseFor(anim, frame));
+function bodyOf(race: PlaceholderRace, dir: Dir, part: PartId): Body | null {
+  const rig = rigPiece(race, dir, part);
+  if (!rig) return null;
   const canvas = rig.finish();
   const tones = rig.tone!;
   const painted = (x: number, y: number) => x >= 0 && y >= 0 && x < S && y < S && rig.part[y * S + x]! >= 0;
@@ -387,66 +389,110 @@ function paintTorso(b: Body, mm: MatMap, style: ArmorStyle): void {
   for (let x = 0; x < S; x++) if (mm.get(x, armTop) === Mat.Metal) mm.set(x, armTop - 1, Mat.Metal);
 }
 
-function paintLegs(b: Body, mm: MatMap, style: ArmorStyle): void {
-  const legs = b.pixels(BodyPart.LEG, BodyPart.HIP);
-  for (const [x, y] of legs) mm.set(x, y, Mat.Dye);
-  const legRows = b.rows(BodyPart.LEG);
-  if (!legRows) return;
-  const len = legRows.bottom - legRows.top;
-  const kneeY = legRows.top + Math.round(len * 0.45);
-  // Boots: the feet and the lowest part of the leg.
-  const bootTop = legRows.bottom - Math.round(len * (b.race === 'human' ? 0.22 : 0.3));
-  for (const [x, y] of b.pixels(BodyPart.FOOT)) mm.set(x, y, style === 'plate_legs' ? Mat.Metal : Mat.Leather);
-  for (const [x, y] of b.pixels(BodyPart.LEG)) if (y >= bootTop) mm.set(x, y, Mat.Leather);
-  for (const [x, y] of b.pixels(BodyPart.LEG)) if (y === bootTop) mm.line(x, y, 4);
-  // Toes of digitigrade feet stay free (claws poke out of the wraps).
-  if (b.race !== 'human') for (const [x, y] of b.pixels(BodyPart.FOOT)) if (y >= 59) mm.set(x, y, Mat.None);
-  // Belt line.
-  const hip = b.rows(BodyPart.HIP);
-  if (hip) {
-    const sp = b.span(hip.top + 1, BodyPart.HIP);
-    if (sp) for (let x = sp.l; x <= sp.r; x++) mm.over(x, hip.top + 1, Mat.Strap);
-  }
-  // Knees: patches or plates.
-  for (const [x, y] of b.pixels(BodyPart.LEG)) {
-    if (y < kneeY - 1 || y > kneeY + 2) continue;
-    if (style === 'plate_legs') {
-      mm.set(x, y, Mat.Metal);
-    } else if (y === kneeY || y === kneeY + 1) {
-      mm.line(x, y, Math.max(1, b.tone(x, y) - 1));
+/** Sleeves, gloves and shoulder pads / bracers on an arm piece. */
+function paintArm(b: Body, mm: MatMap, style: ArmorStyle, lower: boolean): void {
+  const arm = b.pixels(BodyPart.ARM);
+  for (const [x, y] of arm) mm.set(x, y, Mat.Dye);
+  const rows = b.rows(BodyPart.ARM);
+  if (!rows) return;
+  if (!lower) {
+    if (style === 'plate_vest') {
+      // Shoulder pad: the top of the arm, standing a pixel proud.
+      for (const [x, y] of arm) {
+        if (y > rows.top + 4) continue;
+        mm.set(x, y, Mat.Metal);
+        if (!b.is(x - 1, y, BodyPart.ARM)) mm.set(x - 1, y, Mat.Metal);
+        if (!b.is(x + 1, y, BodyPart.ARM)) mm.set(x + 1, y, Mat.Metal);
+        if (y === rows.top) mm.set(x, y - 1, Mat.Metal);
+        if (y === rows.top + 4) mm.line(x, y, 1);
+      }
+    } else {
+      // Elbow patch at the bottom of the sleeve.
+      for (const [x, y] of arm) if (y >= rows.bottom - 2) mm.line(x, y, Math.max(1, b.tone(x, y) - 1));
     }
+    return;
   }
-  if (style === 'plate_legs') {
-    // Shin guards.
-    for (const [x, y] of b.pixels(BodyPart.LEG)) if (y > kneeY + 3 && y < bootTop - 1 && b.is(x - 1, y, BodyPart.LEG) && b.is(x + 1, y, BodyPart.LEG)) mm.set(x, y, Mat.Metal);
+  const hands = b.pixels(BodyPart.HAND);
+  for (const [x, y] of hands) mm.set(x, y, Mat.Leather);
+  const handTop = hands.length ? Math.min(...hands.map(([, y]) => y)) : rows.bottom;
+  for (const [x, y] of arm) {
+    if (style === 'plate_vest' && y >= handTop - 5 && y < handTop - 1) mm.set(x, y, Mat.Metal);
+    if (y === handTop - 1) mm.set(x, y, Mat.Strap);
   }
 }
 
-/** One armor frame for a race, facing down/up/right. Exposed for tests. */
-export function drawArmorFrame(race: PlaceholderRace, slot: ArmorSlot, style: ArmorStyle, dir: Dir, anim: string, frame: number): PixelCanvas {
-  const body = bodyOf(race, dir, anim, frame);
+/** Pants, knee patches / plates, and boots on a leg piece; the belt on the torso's hips. */
+function paintLegPiece(b: Body, mm: MatMap, style: ArmorStyle, part: PartId): void {
+  if (part === 'torso') {
+    for (const [x, y] of b.pixels(BodyPart.HIP)) mm.set(x, y, Mat.Dye);
+    const hip = b.rows(BodyPart.HIP);
+    if (hip) {
+      const sp = b.span(hip.top + 1, BodyPart.HIP);
+      if (sp) for (let x = sp.l; x <= sp.r; x++) mm.over(x, hip.top + 1, Mat.Strap);
+    }
+    return;
+  }
+  const leg = b.pixels(BodyPart.LEG);
+  for (const [x, y] of leg) mm.set(x, y, Mat.Dye);
+  const rows = b.rows(BodyPart.LEG, BodyPart.FOOT);
+  if (!rows) return;
+  if (part.startsWith('upper')) {
+    // The knee is at the bottom of the thigh piece.
+    for (const [x, y] of leg) {
+      if (y < rows.bottom - 4) continue;
+      if (style === 'plate_legs') mm.set(x, y, Mat.Metal);
+      else if (y >= rows.bottom - 3 && y <= rows.bottom - 2) mm.line(x, y, Math.max(1, b.tone(x, y) - 1));
+    }
+    return;
+  }
+  // Lower leg: boots (or wraps for digitigrade feet) over the bottom part.
+  const len = rows.bottom - rows.top;
+  const bootTop = rows.bottom - Math.round(len * (b.race === 'human' ? 0.45 : 0.55));
+  for (const [x, y] of b.pixels(BodyPart.FOOT)) mm.set(x, y, style === 'plate_legs' ? Mat.Metal : Mat.Leather);
+  for (const [x, y] of leg) if (y >= bootTop) mm.set(x, y, Mat.Leather);
+  for (const [x, y] of leg) if (y === bootTop) mm.line(x, y, 4);
+  // Toes of digitigrade feet stay free (claws poke out of the wraps).
+  if (b.race !== 'human') {
+    const footRows = b.rows(BodyPart.FOOT);
+    if (footRows) for (const [x, y] of b.pixels(BodyPart.FOOT)) if (y >= footRows.bottom - 1) mm.set(x, y, Mat.None);
+  }
+  if (style === 'plate_legs') {
+    // Shin guard.
+    for (const [x, y] of leg) if (y > rows.top + 2 && y < bootTop - 1 && b.is(x - 1, y, BodyPart.LEG) && b.is(x + 1, y, BodyPart.LEG)) mm.set(x, y, Mat.Metal);
+  }
+}
+
+/** Which body pieces each armor slot covers. */
+const SLOT_PARTS: Record<ArmorSlot, PartId[]> = {
+  head: ['head', 'headAlt'],
+  torso: ['torso', 'upperArmA', 'lowerArmA', 'upperArmB', 'lowerArmB'],
+  legs: ['torso', 'upperLegA', 'lowerLegA', 'upperLegB', 'lowerLegB'],
+};
+
+/** One armor piece for a race, facing down/up/right, in the 64px frame. Null if the slot doesn't cover the piece. Exposed for tests. */
+export function drawArmorPiece(race: PlaceholderRace, slot: ArmorSlot, style: ArmorStyle, dir: Dir, part: PartId): PixelCanvas | null {
+  if (!SLOT_PARTS[slot].includes(part)) return null;
+  const body = bodyOf(race, dir, part);
+  if (!body) return null;
   const mm = new MatMap();
   if (slot === 'head') paintHead(body, mm, style);
-  else if (slot === 'torso') paintTorso(body, mm, style);
-  else paintLegs(body, mm, style);
+  else if (slot === 'torso') {
+    if (part === 'torso') paintTorso(body, mm, style);
+    else paintArm(body, mm, style, part.startsWith('lower'));
+  } else paintLegPiece(body, mm, style, part);
   return mm.render(body);
 }
 
-export function generateArmorSheet(race: PlaceholderRace, slot: ArmorSlot, style: ArmorStyle, layout: SpriteLayoutDef): PixelCanvas {
-  const { width, height } = layoutSheetSize(layout);
-  const size = layout.frameSize;
-  const ox = layout.anchor[0] - 32;
-  const oy = layout.anchor[1] - 60;
-  const sheet = new PixelCanvas(width, height);
-  layout.animations.forEach((anim, a) => {
-    layout.directions.forEach((dir, d) => {
-      for (let f = 0; f < anim.frames; f++) {
-        const frame = drawArmorFrame(race, slot, style, dir === 'left' ? 'right' : dir, anim.id, f);
-        sheet.blit(frame, f * size + ox, (a * layout.directions.length + d) * size + oy, dir === 'left');
-      }
-    });
-  });
-  return sheet;
+/** A full armor atlas for one race, slot and style: same cells as the body atlas. */
+export function generateArmorAtlas(race: PlaceholderRace, slot: ArmorSlot, style: ArmorStyle): PixelCanvas {
+  const atlas = new PixelCanvas(ATLAS_WIDTH, ATLAS_HEIGHT);
+  for (const dir of PUPPET_DIRS) {
+    for (const part of PUPPET_PARTS) {
+      const piece = drawArmorPiece(race, slot, style, dir, part);
+      if (piece) blitPiece(atlas, piece, race, dir, part);
+    }
+  }
+  return atlas;
 }
 
 export function isArmorStyleForSlot(slot: ArmorSlot, style: string): style is ArmorStyle {

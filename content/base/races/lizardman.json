@@ -3,7 +3,7 @@
   "id": "lizardman",
   "name": "Lizardman",
   "description": "Quick and enduring, but lightly built. Tail and a habit of tasting the air.",
-  "spriteLayout": "humanoid64",
+  "spriteLayout": "puppet",
   "sheet": "placeholder:lizardman",
   "colorChannels": [
     {

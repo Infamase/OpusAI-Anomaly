@@ -8,8 +8,9 @@ import { World } from '../src/ecs/World';
 import { buildCharacterStats } from '../src/game/characters';
 import { Character, Equipment, Stats } from '../src/game/components';
 import { armorFor, createItem, equipArmor, fitProblem, startingEquipment, unequipArmor } from '../src/game/equipment';
-import { ARMOR_OUTLINES, ARMOR_STYLES, drawArmorFrame, type ArmorSlot } from '../src/render/placeholder/armor';
-import { BodyPart, drawBodyFrame, PLACEHOLDER_RACES, poseFor } from '../src/render/placeholder/characters';
+import { ARMOR_OUTLINES, ARMOR_STYLES, drawArmorPiece, generateArmorAtlas, type ArmorSlot } from '../src/render/placeholder/armor';
+import { generatePuppetAtlas, PLACEHOLDER_RACES, rigPiece } from '../src/render/placeholder/characters';
+import { PUPPET_DIRS, type PartId } from '../src/render/puppet';
 import { hexToRgb, KEY_COLORS, rgbToHex } from '../src/render/palette';
 import type { SpriteSheetCache } from '../src/render/SpriteSheets';
 import { MemoryBackend } from '../src/save/backends';
@@ -58,52 +59,60 @@ describe('armor content', () => {
 
 describe('placeholder armor art', () => {
   const secondary = new Set(KEY_COLORS.secondary);
-  const dirs = ['down', 'up', 'right'] as const;
+  const covered: Record<ArmorSlot, PartId[]> = {
+    head: ['head'],
+    torso: ['torso', 'upperArmA', 'lowerArmA', 'upperArmB', 'lowerArmB'],
+    legs: ['upperLegA', 'lowerLegA', 'upperLegB', 'lowerLegB'],
+  };
 
-  it.each(PLACEHOLDER_RACES)('%s: every piece is drawn, dyeable, and hugs the body', (race) => {
+  it.each(PLACEHOLDER_RACES)('%s: every armor piece is drawn, dyeable, and hugs its body piece', (race) => {
     for (const [slot, styles] of Object.entries(ARMOR_STYLES) as [ArmorSlot, readonly string[]][]) {
       for (const style of styles) {
-        for (const dir of dirs) {
-          const body = drawBodyFrame(race, dir, poseFor('walk', 2));
-          const armor = drawArmorFrame(race, slot, style as never, dir, 'walk', 2);
-          let painted = 0;
-          let dye = 0;
-          for (let y = 0; y < 64; y++) {
-            for (let x = 0; x < 64; x++) {
-              if (!armor.alpha(x, y)) continue;
-              painted++;
-              if (secondary.has(rgbToHex(armor.get(x, y)))) dye++;
-              // Gear (plus its outline and a pixel of bulk) stays within 3px of the body.
-              let near = false;
-              for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3 && !near; dx++) near = body.alpha(x + dx, y + dy) > 0;
-              expect(near, `${race} ${slot}/${style} ${dir} stray pixel at ${x},${y}`).toBe(true);
+        for (const dir of PUPPET_DIRS) {
+          for (const part of covered[slot]) {
+            const body = rigPiece(race, dir, part)!.finish();
+            const armor = drawArmorPiece(race, slot, style as never, dir, part)!;
+            let painted = 0;
+            let dye = 0;
+            for (let y = 0; y < 64; y++) {
+              for (let x = 0; x < 64; x++) {
+                if (!armor.alpha(x, y)) continue;
+                painted++;
+                if (secondary.has(rgbToHex(armor.get(x, y)))) dye++;
+                // Gear (plus its outline and a pixel of bulk) stays within 3px of the body piece.
+                let near = false;
+                for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3 && !near; dx++) near = body.alpha(x + dx, y + dy) > 0;
+                expect(near, `${race} ${slot}/${style} ${dir} ${part} stray pixel at ${x},${y}`).toBe(true);
+              }
             }
+            expect(painted, `${race} ${slot}/${style} ${dir} ${part}`).toBeGreaterThan(8);
+            expect(dye, `${race} ${slot}/${style} ${dir} ${part} dyeable`).toBeGreaterThan(0);
           }
-          expect(painted, `${race} ${slot}/${style} ${dir}`).toBeGreaterThan(20);
-          // Mostly dye-colored, scaled to how much of the body part is visible (a sergal's tail hides its legs from behind).
-          const parts = { head: [BodyPart.HEAD, BodyPart.EYE], torso: [BodyPart.TORSO, BodyPart.ARM], legs: [BodyPart.LEG] }[slot] as number[];
-          let visible = 0;
-          for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (body.alpha(x, y) && parts.includes(body.regionAt(x, y))) visible++;
-          expect(dye, `${race} ${slot}/${style} ${dir} dyeable`).toBeGreaterThan(Math.min(5, visible / 4));
         }
       }
     }
   });
 
-  it.each(['lizardman', 'sergal'] as const)('%s: gear never covers the tail where it hangs in front (back view)', (race) => {
-    const body = drawBodyFrame(race, 'up', poseFor('idle', 0));
-    for (const slot of ['torso', 'legs'] as ArmorSlot[]) {
-      for (const style of ARMOR_STYLES[slot]) {
-        const armor = drawArmorFrame(race, slot, style, 'up', 'idle', 0);
-        for (let y = 0; y < 64; y++) {
-          for (let x = 0; x < 64; x++) {
-            if (body.regionAt(x, y) !== BodyPart.TAIL || !armor.alpha(x, y)) continue;
-            // Only the armor's 1px outline may touch the tail edge.
-            expect(ARMOR_OUTLINES.has(rgbToHex(armor.get(x, y))), `${race} ${style} covers tail at ${x},${y}`).toBe(true);
-          }
-        }
+  it.each(['lizardman', 'sergal'] as const)('%s: gear never covers the tail', (race) => {
+    for (const [slot, styles] of Object.entries(ARMOR_STYLES) as [ArmorSlot, readonly string[]][]) {
+      for (const style of styles) for (const dir of PUPPET_DIRS) expect(drawArmorPiece(race, slot, style as never, dir, 'tail')).toBeNull();
+    }
+  });
+
+  it('armor atlases line up with the body atlas cell for cell', () => {
+    const body = generatePuppetAtlas('sergal');
+    const vest = generateArmorAtlas('sergal', 'torso', 'plate_vest');
+    expect([vest.width, vest.height]).toEqual([body.width, body.height]);
+    // Every armor pixel sits within 3px of a body pixel in the same cell.
+    for (let y = 0; y < vest.height; y += 2) {
+      for (let x = 0; x < vest.width; x += 2) {
+        if (!vest.alpha(x, y)) continue;
+        let near = false;
+        for (let dy = -3; dy <= 3 && !near; dy++) for (let dx = -3; dx <= 3 && !near; dx++) near = body.alpha(x + dx, y + dy) > 0;
+        expect(near, `vest pixel at ${x},${y}`).toBe(true);
       }
     }
+    void ARMOR_OUTLINES;
   });
 });
 

@@ -15,7 +15,7 @@ export class CharacterPreview {
   readonly view = new CharacterView();
   dir: Direction = 'down';
   anim = 'idle';
-  private time = 0;
+  private pending = 0;
   private raceId = '';
   private token = 0;
 
@@ -36,7 +36,7 @@ export class CharacterPreview {
     if (token !== this.token) return;
     const race = content.get('race', raceId);
     const layout = content.get('spriteLayout', race.spriteLayout);
-    this.view.setLayer('body', sheets.get(race.sheet, layout, resolveColors(race, colors)));
+    this.view.setLayer('body', sheets.get(race.sheet, layout, resolveColors(race, colors)), sheets.rig(race.sheet));
     for (const slot of ARMOR_SLOTS) {
       const def = gear[slot] && content.tryGet('armor', gear[slot]!.defId);
       this.view.setLayer(slot, def ? sheets.get(armorSheetSrc(content, def), layout, { secondary: def.dye }) : null);
@@ -52,15 +52,14 @@ export class CharacterPreview {
   }
 
   update(dt: number): void {
-    this.time += dt;
+    this.pending += dt;
   }
 
   render(): void {
     if (!this.raceId) return;
-    const { content } = this.game;
-    const layout = content.get('spriteLayout', content.get('race', this.raceId).spriteLayout);
-    const anim = layout.animations.find((a) => a.id === this.anim) ?? layout.animations[0]!;
-    this.view.setFrame(anim.id, this.dir, Math.floor(this.time * anim.fps));
+    const walking = this.anim === 'walk';
+    this.view.update(this.pending, { facing: this.dir, speed: walking ? 60 : 0, walkSpeed: 60, sprint: false, aim: null, reload: null });
+    this.pending = 0;
   }
 
   destroy(): void {

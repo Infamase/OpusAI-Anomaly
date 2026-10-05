@@ -29,7 +29,7 @@ const schema = v.object({
   fitsRace: v.id(),
   /** Gear family ("stalker", "military"...) so NPC templates can ask for a look without listing items. */
   set: v.optional(v.id()),
-  spriteLayout: v.optional(v.id(), 'humanoid64'),
+  spriteLayout: v.optional(v.id(), 'puppet'),
   /** PNG under public/ (same layout as the body). Omit to use placeholder art. */
   sheet: v.optional(v.string({ nonEmpty: true })),
   placeholder: v.optional(v.object({ style: v.literal(...ALL_ARMOR_STYLES) })),

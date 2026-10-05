@@ -6,7 +6,7 @@ import { deriveSeed, hashString, Rng } from '../../core/rng';
 import type { Scene } from '../../core/Scene';
 import { Texture } from 'pixi.js';
 import { World, type Entity } from '../../ecs/World';
-import type { CharacterView } from '../../render/CharacterView';
+import { CharacterView } from '../../render/CharacterView';
 import { CombatFx } from '../../render/CombatFx';
 import { PropView } from '../../render/PropView';
 import { drawCrate } from '../../render/placeholder/items';
@@ -337,10 +337,18 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       const y = lerp(t.prevY, t.y, alpha);
       view.setPosition(x, y);
       view.tick(frameDt);
-      const layout = g.content.get('spriteLayout', g.content.get('race', ch.raceId).spriteLayout);
-      const anim = layout.animations.find((a) => a.id === ch.anim) ?? layout.animations[0]!;
-      view.setFrame(anim.id, ch.facing, Math.floor(ch.animTime * anim.fps));
-      this.syncWeaponView(e, view, ch.facing);
+      this.syncWeaponView(e, view);
+      const vel = this.world.get(e, Velocity);
+      const aimDir = this.world.get(e, Aim)?.dir;
+      const c = this.world.get(e, Combatant);
+      view.update(frameDt, {
+        facing: ch.facing,
+        speed: vel ? Math.hypot(vel.x, vel.y) : 0,
+        walkSpeed: this.world.get(e, Stats)?.get('move_speed') ?? 70,
+        sprint: ch.sprinting,
+        aim: aimDir ? Math.atan2(aimDir.y, aimDir.x) : null,
+        reload: c && c.reloadLeft > 0 ? 1 - c.reloadLeft / Math.max(0.01, c.reloadTotal) : null,
+      });
       const h = this.world.get(e, Health);
       if (e === this.playerEntity) {
         px = x;
@@ -379,6 +387,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     const cam = this.game.camera;
     ev.on('shot', (s) => {
       this.fx.muzzle(s.x, s.y, s.angle);
+      this.world.get(s.shooter, View)?.fire();
       if (s.shooter === this.playerEntity) cam.kick(-Math.cos(s.angle) * s.recoil, -Math.sin(s.angle) * s.recoil);
     });
     ev.on('impact', (i) => this.fx.sparks(i.x, i.y, i.angle));
@@ -412,20 +421,16 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     void g.scenes.push(new DeathScene(g, cause, () => g.scenes.change(new GameplayScene(g, this.slotId))));
   }
 
-  /** Swaps the held-weapon texture when the active weapon changes, and points it along the aim. */
-  private syncWeaponView(e: Entity, view: CharacterView, facing: string): void {
+  /** Swaps the held-weapon texture when the active weapon changes. */
+  private syncWeaponView(e: Entity, view: CharacterView): void {
     const c = this.world.get(e, Combatant);
     const item = c?.active ? this.world.get(e, Equipment)?.[c.active] : undefined;
     const id = item?.defId ?? null;
     if (this.shownWeapon.get(e) !== id) {
       this.shownWeapon.set(e, id);
       const art = id ? this.game.weaponArt.get(id) : undefined;
-      view.setWeapon(art?.texture ?? null, art?.grip);
+      view.setWeapon(art?.texture ?? null, art?.grip, art?.muzzle);
     }
-    const dir = this.world.get(e, Aim)?.dir ?? directionVector(facing as 'down');
-    const sprinting = this.world.get(e, Character)?.sprinting;
-    // While sprinting the gun is lowered toward the ground.
-    view.setAim(sprinting ? Math.PI / 2 - Math.sign(dir.x || 1) * 0.6 : Math.atan2(dir.y, dir.x), facing);
   }
 
   private renderCrosshair(dt: number, px: number, py: number): void {
@@ -886,6 +891,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       'NPCs (alive/fighting/dead)': `${alive} / ${fighting} / ${bodies}`,
       Reputation: rep,
       Sheets: this.game.sheets.cachedCount,
+      'Puppet redraws': CharacterView.redraws,
     };
   }
 

@@ -1,20 +1,19 @@
-import type { Direction } from '../../core/math';
-import type { SpriteLayoutDef } from '../../content/types';
-import { layoutSheetSize } from '../../content/types/spriteLayout';
+import { PUPPET_DIRS, PUPPET_PARTS, type PartId, type PuppetDir, type PuppetRig, type Pt } from '../puppet';
 import { KEY_COLORS, hexToRgb, type RGB } from '../palette';
 import { PixelCanvas } from '../PixelCanvas';
 import { cap, ell, Rig, tri, v, type Ramp, type Shape, type V } from './rig';
 
 /**
- * Generates the 64x64 character sheets in code, so the game has finished-looking
- * characters without hand-drawn sheets. Output follows docs/SPRITE_SPEC.md
- * exactly (layout, anchor, key colors), so drawn PNGs can replace any race with
- * no code changes.
+ * Generates each race's cutout pieces in code (see render/puppet.ts): torso,
+ * head (+ an idle variant), tail, upper arm + shoulder, lower arm + hand,
+ * upper leg + knee, lower leg + foot, for the front, side and back views.
+ * Output follows docs/SPRITE_SPEC.md, so drawn PNG atlases can replace any race.
  *
  * Style target: the project's reference sheets (lean, realistic proportions,
  * colored outlines, soft 4-tone shading lit from the top-left, digitigrade
- * legs for sergals and lizardmen). Bodies are built from a posed skeleton with
- * the clay-like rasterizer in rig.ts, which keeps walk cycles consistent.
+ * legs for sergals and lizardmen). Every piece is drawn on its own from a
+ * bind-pose skeleton with the clay-like rasterizer in rig.ts, so it is whole
+ * (rounded at the joints) and can rotate without opening gaps.
  *
  * Fur / scales / hair are painted in the primary KEY colors; the palette swapper
  * turns them into the chosen color.
@@ -22,9 +21,11 @@ import { cap, ell, Rig, tri, v, type Ramp, type Shape, type V } from './rig';
 export const PLACEHOLDER_RACES = ['human', 'lizardman', 'sergal'] as const;
 export type PlaceholderRace = (typeof PLACEHOLDER_RACES)[number];
 
+/** Pieces are drawn in a 64x64 frame, then cut into atlas cells of this size. */
 export const FRAME = 64;
+export const CELL = 48;
 const AX = 32;
-/** Feet rest on this row (the layout anchor's y). */
+/** Feet rest on this row. */
 const GROUND = 60;
 
 /** Region tags written while drawing a body (PixelCanvas.regions). Armor is fitted from these. */
@@ -71,29 +72,13 @@ const TONGUE: RGB = [220, 64, 92];
 const TONGUE_DARK: RGB = [150, 30, 60];
 const TOOTH: RGB = [250, 246, 236];
 
-// ---- poses ---------------------------------------------------------------------------
-
-export interface Pose {
-  walk: boolean;
-  /** Walk phase in radians; leg A leads at 0. */
-  phase: number;
-  /** 0..1 chest rise while idle. */
-  breath: number;
-  /** -1..1 tail sway. */
+/** Head / tail variations baked into pieces. */
+interface Pose {
   sway: number;
   tongue: boolean;
   earTwitch: boolean;
 }
-
-export function poseFor(anim: string, frame: number): Pose {
-  if (anim === 'walk') {
-    const f = frame % 6;
-    return { walk: true, phase: (f / 6) * Math.PI * 2, breath: 0, sway: Math.sin((f / 6) * Math.PI * 2), tongue: false, earTwitch: false };
-  }
-  // idle (and fallback for animations this generator doesn't know yet)
-  const f = frame % 4;
-  return { walk: false, phase: 0, breath: [0, 0.5, 1, 0.5][f]!, sway: [-1, 0, 1, 0][f]!, tongue: f === 2, earTwitch: f === 3 };
-}
+const REST: Pose = { sway: 0, tongue: false, earTwitch: false };
 
 // ---- body plans ------------------------------------------------------------------------
 
@@ -290,107 +275,126 @@ function chain(pts: V[], r0: number, r1: number, region: number, z = 0): Shape[]
   return out;
 }
 
-function flipX(p: V): V {
-  return v(AX * 2 - p.x, p.y);
-}
-
 type Dir = 'down' | 'up' | 'right';
 
-// ---- the figure ----------------------------------------------------------------------
+// ---- bind skeleton & pieces ----------------------------------------------------------------
 
-function drawFigure(rig: Rig, race: PlaceholderRace, dir: Dir, p: Pose): void {
+/** The bind pose: limbs straight and a little apart, so every piece can be drawn whole. */
+interface Skeleton {
+  hip: V;
+  legs: [Leg, Leg];
+  arms: [Arm, Arm];
+  neck: V;
+  tail: V | null;
+}
+
+function bindSkeleton(race: PlaceholderRace, dir: Dir): Skeleton {
   const b = BUILDS[race];
-  // Walk: body bobs, legs alternate (A = screen-left in front view, far leg in side view).
-  const swingA = p.walk ? Math.cos(p.phase) : 0;
-  const swingB = -swingA;
-  const liftA = p.walk ? Math.max(0, -Math.sin(p.phase)) : 0;
-  const liftB = p.walk ? Math.max(0, Math.sin(p.phase)) : 0;
-  const bob = p.walk ? 0.8 - 0.8 * Math.abs(Math.sin(p.phase)) - 0.3 : 0;
-  const rise = p.breath * 0.45;
-  const y = (n: number) => n + bob;
-
-  if (dir === 'right') return drawSide(rig, race, b, p, { swingA, swingB, liftA, liftB, bob, rise });
-
-  const front = dir === 'down';
-  const hipL = v(AX - b.hipX, y(b.hipY));
-  const hipR = v(AX + b.hipX, y(b.hipY));
-  const legL = frontLeg(b, hipL, (front ? liftA : liftB) * 3.2, -1);
-  const legR = frontLeg(b, hipR, (front ? liftB : liftA) * 3.2, 1);
-  const shY = y(b.shoulderY) - rise;
-  const armFor = (sx: number, swing: number): Arm => {
-    const shoulder = v(AX + sx * b.shoulderX, shY);
-    const elbow = v(shoulder.x + sx * 1.2, shoulder.y + b.upperArm.len);
-    const hand = v(elbow.x + sx * 0.3, elbow.y + b.foreArm.len - Math.abs(swing) * 1.2 + swing * 1.2);
-    return { shoulder, elbow, hand };
+  const tailRoot = race === 'human' ? null : tailPoints(race, dir, 0, 0)[0]!;
+  if (dir === 'right') {
+    const hip = v(AX - 0.5, b.hipY);
+    const legs: [Leg, Leg] = [sideLeg(b, v(hip.x + 0.6, hip.y), 0, 0), sideLeg(b, v(hip.x - 0.2, hip.y), 0, 0)];
+    const arm = (dx: number): Arm => {
+      const shoulder = v(AX - 0.6 + dx, b.shoulderY);
+      const elbow = v(shoulder.x - 0.4, shoulder.y + b.upperArm.len);
+      return { shoulder, elbow, hand: v(elbow.x + 1.4, elbow.y + b.foreArm.len) };
+    };
+    const lean = race === 'human' ? 0 : 0.6;
+    return { hip, legs, arms: [arm(0.8), arm(-0.4)], neck: v(AX + 0.6 + lean, b.neck.top + 1.5), tail: tailRoot };
+  }
+  const hip = v(AX, b.hipY);
+  const legs: [Leg, Leg] = [frontLeg(b, v(AX - b.hipX, b.hipY), 0, -1), frontLeg(b, v(AX + b.hipX, b.hipY), 0, 1)];
+  const arm = (sx: number): Arm => {
+    const shoulder = v(AX + sx * b.shoulderX, b.shoulderY);
+    const elbow = v(shoulder.x + sx * 1.6, shoulder.y + b.upperArm.len);
+    return { shoulder, elbow, hand: v(elbow.x + sx * 0.5, elbow.y + b.foreArm.len) };
   };
-  const armL = armFor(-1, front ? swingB : swingA);
-  const armR = armFor(1, front ? swingA : swingB);
-
-  if (front) tail(rig, race, 'down', p, bob);
-  rig.add({ region: P.LEG, ramp: b.hide }, legShapes(b, legL, false));
-  rig.add({ region: P.LEG, ramp: b.hide }, legShapes(b, legR, false));
-  const torso = rig.add({ region: P.TORSO, ramp: b.hide }, [
-    cap(v(AX, y(b.neck.top)), v(AX, y(b.neck.bottom)), b.neck.r, b.neck.r + 0.6, { region: P.NECK }),
-    // Trapezius: slopes from the neck down to the shoulders.
-    cap(v(AX - 1.5, y(b.neck.bottom) - 0.8), v(AX - b.shoulderX + 1.2, shY + 0.6), 2.2, 2.4, { region: P.TORSO, z: -0.6 }),
-    cap(v(AX + 1.5, y(b.neck.bottom) - 0.8), v(AX + b.shoulderX - 1.2, shY + 0.6), 2.2, 2.4, { region: P.TORSO, z: -0.6 }),
-    ell(v(AX, y(b.chest.y) - rise * 0.5), b.chest.rx + rise * 0.15, b.chest.ry, { region: P.TORSO }),
-    ell(v(AX, y(b.belly.y)), b.belly.rx, b.belly.ry, { region: P.TORSO, z: -0.5 }),
-    ell(v(AX, y(b.pelvis.y)), b.pelvis.rx, b.pelvis.ry, { region: P.HIP }),
-  ]);
-  bodyMarkings(rig, race, dir, b, torso, bob);
-  rig.add({ region: P.ARM, ramp: b.hide }, armShapes(b, armL));
-  rig.add({ region: P.ARM, ramp: b.hide }, armShapes(b, armR));
-  armMarkings(rig, race, dir, [armL, armR]);
-  if (front) muscleLines(rig, b, bob, rise);
-  head(rig, race, dir, b, p, bob);
-  if (!front) tail(rig, race, 'up', p, bob);
-  feetDetails(rig, race, [legL, legR], false);
+  return { hip, legs, arms: [arm(-1), arm(1)], neck: v(AX, b.neck.top + 1.5), tail: tailRoot };
 }
 
-interface Gait {
-  swingA: number;
-  swingB: number;
-  liftA: number;
-  liftB: number;
-  bob: number;
-  rise: number;
-}
+/** Center of the hand (where a gun grip sits). */
+const handCenter = (b: Build, a: Arm): V => v(a.hand.x, a.hand.y + b.hand * 0.6);
 
-function drawSide(rig: Rig, race: PlaceholderRace, b: Build, p: Pose, g: Gait): void {
-  const y = (n: number) => n + g.bob;
-  const hip = v(AX - 0.5, y(b.hipY));
-  const stride = 5.2;
-  const far = sideLeg(b, v(hip.x + 0.6, hip.y), g.swingA * stride, g.liftA * 3);
-  const near = sideLeg(b, v(hip.x - 0.2, hip.y), g.swingB * stride, g.liftB * 3);
-  const sh = v(AX - 0.6, y(b.shoulderY) - g.rise);
-  const armFor = (swing: number, dx: number): Arm => {
-    const shoulder = v(sh.x + dx, sh.y);
-    const elbow = v(shoulder.x + swing * 2.6 - 0.4, shoulder.y + b.upperArm.len - Math.abs(swing) * 0.3);
-    const hand = v(elbow.x + swing * 3.4 + 1.4, elbow.y + b.foreArm.len - Math.abs(swing) * 0.9);
-    return { shoulder, elbow, hand };
-  };
-  // Arms swing opposite to the leg on the same side.
-  const farArm = armFor(-g.swingA, 0.8);
-  const nearArm = armFor(-g.swingB, -0.4);
-
-  rig.add({ region: P.ARM, ramp: b.hide, toneShift: -1 }, armShapes(b, farArm));
-  tail(rig, race, 'right', p, g.bob);
-  rig.add({ region: P.LEG, ramp: b.hide, toneShift: -1 }, legShapes(b, far, true));
-  const lean = race === 'human' ? 0 : 0.6; // beast-folk carry their chest a bit forward
-  const torso = rig.add({ region: P.TORSO, ramp: b.hide }, [
-    cap(v(AX + 0.4 + lean, y(b.neck.top)), v(AX - 0.2, y(b.neck.bottom)), b.neck.r, b.neck.r + 0.5, { region: P.NECK }),
-    ell(v(AX + 0.6 + lean, y(b.chest.y) - g.rise * 0.5), b.chest.side + g.rise * 0.2, b.chest.ry, { region: P.TORSO }),
-    ell(v(AX + 0.4, y(b.belly.y)), b.belly.side, b.belly.ry, { region: P.TORSO, z: -0.4 }),
-    ell(v(AX - 0.6, y(b.pelvis.y)), b.pelvis.side, b.pelvis.ry, { region: P.HIP }),
-  ]);
-  rig.add({ region: P.LEG, ramp: b.hide }, legShapes(b, near, true));
-  bodyMarkings(rig, race, 'right', b, torso, g.bob);
-  legMarkings(rig, race, near);
-  rig.add({ region: P.ARM, ramp: b.hide }, armShapes(b, nearArm));
-  armMarkings(rig, race, 'right', [nearArm]);
-  head(rig, race, 'right', b, p, g.bob);
-  feetDetails(rig, race, [far, near], true);
+/** Draws one piece of the bind pose into `rig`. Returns false if the race has no such piece. */
+function drawPiece(rig: Rig, race: PlaceholderRace, dir: Dir, part: PartId): boolean {
+  const b = BUILDS[race];
+  const sk = bindSkeleton(race, dir);
+  const side = dir === 'right';
+  const k = part.endsWith('A') ? 0 : 1;
+  // In the side view the A limbs are the far ones: a shade darker.
+  const far = side && k === 0 ? -1 : 0;
+  switch (part) {
+    case 'torso': {
+      const torso = side
+        ? rig.add({ region: P.TORSO, ramp: b.hide }, [
+            cap(v(AX + 0.4 + (race === 'human' ? 0 : 0.6), b.neck.top), v(AX - 0.2, b.neck.bottom), b.neck.r, b.neck.r + 0.5, { region: P.NECK }),
+            ell(v(AX + 0.6 + (race === 'human' ? 0 : 0.6), b.chest.y), b.chest.side, b.chest.ry, { region: P.TORSO }),
+            ell(v(AX + 0.4, b.belly.y), b.belly.side, b.belly.ry, { region: P.TORSO, z: -0.4 }),
+            ell(v(AX - 0.6, b.pelvis.y), b.pelvis.side, b.pelvis.ry, { region: P.HIP }),
+          ])
+        : rig.add({ region: P.TORSO, ramp: b.hide }, [
+            cap(v(AX, b.neck.top), v(AX, b.neck.bottom), b.neck.r, b.neck.r + 0.6, { region: P.NECK }),
+            // Trapezius: slopes from the neck down to the shoulders.
+            cap(v(AX - 1.5, b.neck.bottom - 0.8), v(AX - b.shoulderX + 1.2, b.shoulderY + 0.6), 2.2, 2.4, { region: P.TORSO, z: -0.6 }),
+            cap(v(AX + 1.5, b.neck.bottom - 0.8), v(AX + b.shoulderX - 1.2, b.shoulderY + 0.6), 2.2, 2.4, { region: P.TORSO, z: -0.6 }),
+            ell(v(AX, b.chest.y), b.chest.rx, b.chest.ry, { region: P.TORSO }),
+            ell(v(AX, b.belly.y), b.belly.rx, b.belly.ry, { region: P.TORSO, z: -0.5 }),
+            ell(v(AX, b.pelvis.y), b.pelvis.rx, b.pelvis.ry, { region: P.HIP }),
+          ]);
+      bodyMarkings(rig, race, dir, b, torso, 0);
+      if (dir === 'down') muscleLines(rig, b, 0, 0);
+      return true;
+    }
+    case 'head':
+    case 'headAlt':
+      if (part === 'headAlt' && race === 'human') return false;
+      head(rig, race, dir, b, part === 'headAlt' ? { sway: 0, tongue: race === 'lizardman', earTwitch: race === 'sergal' } : REST, 0);
+      return true;
+    case 'tail':
+      if (race === 'human') return false;
+      tail(rig, race, dir, REST, 0);
+      return true;
+    case 'upperArmA':
+    case 'upperArmB': {
+      const a = sk.arms[k];
+      rig.add({ region: P.ARM, ramp: b.hide, toneShift: far }, [
+        ell(v(a.shoulder.x, a.shoulder.y + 1), b.delt * 0.85, b.delt, { region: P.ARM, z: 0.2 }),
+        cap(a.shoulder, a.elbow, b.upperArm.r0, b.upperArm.r1 + 0.2, { region: P.ARM }),
+      ]);
+      return true;
+    }
+    case 'lowerArmA':
+    case 'lowerArmB': {
+      const a = sk.arms[k];
+      rig.add({ region: P.ARM, ramp: b.hide, toneShift: far }, [
+        ell(a.elbow, b.upperArm.r1 + 0.1, b.upperArm.r1 + 0.1, { region: P.ARM }),
+        cap(a.elbow, a.hand, b.foreArm.r0, b.foreArm.r1, { region: P.ARM }),
+        ell(v(a.hand.x, a.hand.y + b.hand * 0.6), b.hand * 0.9, b.hand * 1.1, { region: P.HAND }),
+      ]);
+      if (race === 'sergal' && dir !== 'up') rig.decal(PALE, [cap(a.elbow, a.hand, 2.6, 2.8)], { regions: [P.ARM, P.HAND] });
+      return true;
+    }
+    case 'upperLegA':
+    case 'upperLegB': {
+      const l = sk.legs[k];
+      const leg = rig.add({ region: P.LEG, ramp: b.hide, toneShift: far }, [
+        cap(l.hip, l.knee, b.thigh.r0, b.thigh.r1 + 0.2, { region: P.LEG }),
+        ell(l.knee, b.thigh.r1 + 0.3, b.thigh.r1 + 0.3, { region: P.LEG }),
+      ]);
+      bodyMarkings(rig, race, dir, b, leg, 0);
+      return true;
+    }
+    case 'lowerLegA':
+    case 'lowerLegB': {
+      const l = sk.legs[k];
+      const shapes = legShapes(b, l, side).slice(1); // everything below the thigh
+      shapes.unshift(ell(l.knee, b.shin.r0 + 0.1, b.shin.r0 + 0.1, { region: P.LEG }));
+      rig.add({ region: P.LEG, ramp: b.hide, toneShift: far }, shapes);
+      if (race === 'sergal' && dir !== 'up') legMarkings(rig, race, l);
+      feetDetails(rig, race, [l], side);
+      return true;
+    }
+  }
 }
 
 // ---- race details ----------------------------------------------------------------------
@@ -464,25 +468,28 @@ function feetDetails(rig: Rig, race: PlaceholderRace, legs: Leg[], side: boolean
   }
 }
 
-function tail(rig: Rig, race: PlaceholderRace, dir: Dir, p: Pose, bob: number): void {
-  if (race === 'human') return;
-  const s = p.sway;
+function tailPoints(race: PlaceholderRace, dir: Dir, s: number, bob: number): V[] {
   const y = (n: number) => n + bob;
   if (race === 'sergal') {
     // Long and slender, curling at the ground into a fluffy pale tip.
-    let pts: V[];
-    if (dir === 'right') pts = [v(28.5, y(37.5)), v(24, y(40.5)), v(19.5, y(45)), v(16.5 + s * 0.5, 50.5), v(16 + s, 55), v(18.5 + s, 57.4), v(22 + s, 57.2)];
-    else if (dir === 'down') pts = [v(35, y(37)), v(40, y(41)), v(44, y(46.5)), v(46 + s * 0.5, 52), v(45.5 + s, 56.6), v(42.5 + s, 58.2), v(39.5 + s, 57.4)];
-    else pts = [v(32, y(38)), v(32.5, y(44)), v(34 + s * 0.6, 50), v(37 + s, 55), v(41 + s, 57.6), v(44.5 + s, 57)];
+    if (dir === 'right') return [v(28.5, y(37.5)), v(24, y(40.5)), v(19.5, y(45)), v(16.5 + s * 0.5, 50.5), v(16 + s, 55), v(18.5 + s, 57.4), v(22 + s, 57.2)];
+    if (dir === 'down') return [v(35, y(37)), v(40, y(41)), v(44, y(46.5)), v(46 + s * 0.5, 52), v(45.5 + s, 56.6), v(42.5 + s, 58.2), v(39.5 + s, 57.4)];
+    return [v(32, y(38)), v(32.5, y(44)), v(34 + s * 0.6, 50), v(37 + s, 55), v(41 + s, 57.6), v(44.5 + s, 57)];
+  }
+  // Lizardman: thick, heavy, tapering to a point on the ground.
+  if (dir === 'right') return [v(28.5, y(36.5)), v(23, y(41)), v(17.5, y(46.5)), v(12.5 + s * 0.4, 52), v(8 + s, 56.4), v(3.5 + s, 58.6)];
+  if (dir === 'down') return [v(35, y(37.5)), v(39.5, y(43)), v(43, y(49)), v(45.5 + s * 0.5, 54.5), v(47.5 + s, 58.6)];
+  return [v(32, y(37.5)), v(32.2, y(44)), v(31.5 + s * 0.4, 50), v(29 + s, 55.4), v(24.5 + s, 58.6), v(20 + s, 59.4)];
+}
+
+function tail(rig: Rig, race: PlaceholderRace, dir: Dir, p: Pose, bob: number): void {
+  if (race === 'human') return;
+  const pts = tailPoints(race, dir, p.sway, bob);
+  if (race === 'sergal') {
     const part = rig.add({ region: P.TAIL, ramp: KEY }, [...chain(pts, 2.1, 2.9, P.TAIL), ell(pts[pts.length - 2]!, 3, 2.6, { region: P.TAIL, z: 0.4 })]);
     rig.decal(PALE, [...chain(pts.slice(3), 3.2, 3.4, P.TAIL)], { parts: [part] });
     return;
   }
-  // Lizardman: thick, heavy, tapering to a point on the ground.
-  let pts: V[];
-  if (dir === 'right') pts = [v(28.5, y(36.5)), v(23, y(41)), v(17.5, y(46.5)), v(12.5 + s * 0.4, 52), v(8 + s, 56.4), v(3.5 + s, 58.6)];
-  else if (dir === 'down') pts = [v(35, y(37.5)), v(39.5, y(43)), v(43, y(49)), v(45.5 + s * 0.5, 54.5), v(47.5 + s, 58.6)];
-  else pts = [v(32, y(37.5)), v(32.2, y(44)), v(31.5 + s * 0.4, 50), v(29 + s, 55.4), v(24.5 + s, 58.6), v(20 + s, 59.4)];
   const part = rig.add({ region: P.TAIL, ramp: KEY }, chain(pts, 3.8, 0.8, P.TAIL));
   if (dir === 'right') rig.decal(BELLY, chain(pts.map((q) => v(q.x + 0.6, q.y + 2.6)), 1.6, 0.4, P.TAIL), { parts: [part] });
 }
@@ -667,39 +674,117 @@ function lizardHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
 
 // ---- public API ---------------------------------------------------------------------
 
-/** A rig with one body frame drawn (before finishing), for armor fitting. */
-export function rigBodyFrame(race: PlaceholderRace, dir: Dir, pose: Pose): Rig {
+/** Where each piece's pivot sits inside its atlas cell (pieces hang down / up from it). */
+function pivotCell(part: PartId, dir: Dir): Pt {
+  switch (part) {
+    case 'torso':
+      return { x: 24, y: 40 };
+    case 'head':
+    case 'headAlt':
+      return { x: 24, y: 34 };
+    case 'tail':
+      return dir === 'right' ? { x: 40, y: 8 } : dir === 'down' ? { x: 10, y: 8 } : { x: 18, y: 8 };
+    default:
+      return { x: 24, y: 8 };
+  }
+}
+
+/** The joint a piece hangs from, in the bind pose (frame space). */
+function pieceJoint(race: PlaceholderRace, dir: Dir, part: PartId): V {
+  const sk = bindSkeleton(race, dir);
+  const k = part.endsWith('A') ? 0 : 1;
+  switch (part) {
+    case 'torso':
+      return sk.hip;
+    case 'head':
+    case 'headAlt':
+      return sk.neck;
+    case 'tail':
+      return sk.tail ?? sk.hip;
+    case 'upperArmA':
+    case 'upperArmB':
+      return sk.arms[k].shoulder;
+    case 'lowerArmA':
+    case 'lowerArmB':
+      return sk.arms[k].elbow;
+    case 'upperLegA':
+    case 'upperLegB':
+      return sk.legs[k].hip;
+    default:
+      return sk.legs[k].knee;
+  }
+}
+
+/** How a piece drawn in the 64px frame maps into its atlas cell: cell = frame - offset. */
+export function pieceWindow(race: PlaceholderRace, dir: Dir, part: PartId): { ox: number; oy: number; joint: Pt; pivot: Pt } {
+  const joint = pieceJoint(race, dir, part);
+  const pc = pivotCell(part, dir);
+  const ox = Math.round(joint.x) - pc.x;
+  const oy = Math.round(joint.y) - pc.y;
+  return { ox, oy, joint, pivot: { x: joint.x - ox, y: joint.y - oy } };
+}
+
+/** One piece in the bind pose, before finishing (for armor fitting), or null if the race lacks it. */
+export function rigPiece(race: PlaceholderRace, dir: Dir, part: PartId): Rig | null {
   const rig = new Rig(FRAME, FRAME);
-  drawFigure(rig, race, dir, pose);
-  return rig;
+  return drawPiece(rig, race, dir, part) ? rig : null;
 }
 
-/**
- * One 64x64 body frame with per-pixel body-part tags, finished (lit and
- * outlined). Only down / up / right are drawn; left is right mirrored at sheet
- * assembly.
- */
-export function drawBodyFrame(race: PlaceholderRace, dir: Dir, pose: Pose): PixelCanvas {
-  return rigBodyFrame(race, dir, pose).finish();
+/** Copies a 64px piece drawing into its cell of an atlas. */
+export function blitPiece(atlas: PixelCanvas, piece: PixelCanvas, race: PlaceholderRace, dir: Dir, part: PartId): void {
+  const { ox, oy } = pieceWindow(race, dir, part);
+  const col = PUPPET_PARTS.indexOf(part);
+  const row = PUPPET_DIRS.indexOf(dir);
+  for (let y = 0; y < FRAME; y++) {
+    for (let x = 0; x < FRAME; x++) {
+      const a = piece.alpha(x, y);
+      if (!a) continue;
+      const cx = x - ox;
+      const cy = y - oy;
+      if (cx < 0 || cy < 0 || cx >= CELL || cy >= CELL) continue;
+      atlas.region = piece.regionAt(x, y);
+      atlas.set(col * CELL + cx, row * CELL + cy, piece.get(x, y), a);
+    }
+  }
 }
 
-/** Draws one full sheet for `race` following `layout`. Left frames mirror right frames. */
-export function generateCharacterSheet(race: PlaceholderRace, layout: SpriteLayoutDef): PixelCanvas {
-  const { width, height } = layoutSheetSize(layout);
-  const size = layout.frameSize;
-  const sheet = new PixelCanvas(width, height);
-  layout.animations.forEach((anim, a) => {
-    layout.directions.forEach((dir, d) => {
-      for (let f = 0; f < anim.frames; f++) {
-        const frame = drawBodyFrame(race, dir === 'left' ? 'right' : dir, poseFor(anim.id, f));
-        // Center the drawing in frames of other sizes (anchor stays put).
-        const ox = layout.anchor[0] - AX;
-        const oy = layout.anchor[1] - GROUND;
-        sheet.blit(frame, f * size + ox, (a * layout.directions.length + d) * size + oy, dir === 'left');
-      }
-    });
-  });
-  return sheet;
+/** The atlas size for one race: a row per facing, a column per piece. */
+export const ATLAS_WIDTH = CELL * PUPPET_PARTS.length;
+export const ATLAS_HEIGHT = CELL * PUPPET_DIRS.length;
+
+/** The rig (joints and pivots) for a race's generated pieces. */
+export function placeholderRig(race: PlaceholderRace): PuppetRig {
+  const b = BUILDS[race];
+  const dirs = {} as PuppetRig['dirs'];
+  for (const dir of PUPPET_DIRS) {
+    const sk = bindSkeleton(race, dir);
+    const parts: PuppetRig['dirs'][PuppetDir]['parts'] = {};
+    for (const part of PUPPET_PARTS) {
+      if ((part === 'tail' || part === 'headAlt') && race === 'human') continue;
+      const w = pieceWindow(race, dir, part);
+      parts[part] = { joint: w.joint, pivot: w.pivot };
+    }
+    dirs[dir] = {
+      parts,
+      elbow: [sk.arms[0].elbow, sk.arms[1].elbow],
+      hand: [handCenter(b, sk.arms[0]), handCenter(b, sk.arms[1])],
+      knee: [sk.legs[0].knee, sk.legs[1].knee],
+      foot: [sk.legs[0].ball, sk.legs[1].ball],
+    };
+  }
+  return { cell: CELL, anchor: { x: AX, y: GROUND }, dirs, digitigrade: !!b.meta };
+}
+
+/** Draws a race's full piece atlas (body layer). Region tags are kept for tests and armor. */
+export function generatePuppetAtlas(race: PlaceholderRace): PixelCanvas {
+  const atlas = new PixelCanvas(ATLAS_WIDTH, ATLAS_HEIGHT).enableRegions();
+  for (const dir of PUPPET_DIRS) {
+    for (const part of PUPPET_PARTS) {
+      const rig = rigPiece(race, dir, part);
+      if (rig) blitPiece(atlas, rig.finish(), race, dir, part);
+    }
+  }
+  return atlas;
 }
 
 /** Generic dark outline for small generated art (items, weapons). */
@@ -709,5 +794,3 @@ export function isPlaceholderRace(id: string): id is PlaceholderRace {
   return (PLACEHOLDER_RACES as readonly string[]).includes(id);
 }
 
-export type { Direction };
-void flipX;

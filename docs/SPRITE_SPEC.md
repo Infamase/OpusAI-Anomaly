@@ -1,8 +1,9 @@
-# Sprite Specification — Characters (64px, 4 directions)
+# Sprite Specification — Characters (cutout pieces, 3 views)
 
-This is the contract between artists and the engine. Any sheet that follows it
-drops into the game with **no code changes**: put the PNG in `public/sprites/`
-and point the race (or, later, armor) definition's `sheet` field at it.
+This is the contract between artists and the engine. Characters are **cutout
+puppets**, like old Flash games: each body is a set of separate pieces that the
+engine rotates around their joints to animate walking, sprinting, aiming and
+firing. Artists draw each piece once per view; there are no animation frames.
 
 The generated art in `src/render/placeholder/characters.ts` follows this exact
 spec. Replace it one race at a time.
@@ -24,51 +25,72 @@ Target look (from the project's reference sheets):
 - Markings (pale bellies, muzzles, forearms) are separate fixed colors, not
   recolored.
 
-## Frame grid
+## Pieces
 
-| Property     | Value                                                          |
-| ------------ | -------------------------------------------------------------- |
-| Frame size   | **64 × 64 px**                                                 |
-| Directions   | **4**, row order: `down`, `left`, `right`, `up`                |
-| Anchor       | **(32, 60)**: the point between the feet, on the ground        |
-| View         | Top-down 3/4, characters drawn upright (front/side/back)       |
-| Format       | PNG, RGBA, no color profile (or sRGB), no premultiplied alpha  |
+| Piece                    | Contains                                  | Pivot (joint it hangs from) |
+| ------------------------ | ----------------------------------------- | --------------------------- |
+| `torso`                  | neck, chest, belly, hips                  | center of the hips          |
+| `head`                   | head, hair / mane / crest, ears, snout    | base of the skull (neck)    |
+| `headAlt`                | the head with an idle detail (lizardman tongue flick, sergal ear twitch); optional | same as `head` |
+| `tail`                   | the whole tail (optional)                 | where it leaves the pelvis  |
+| `upperArmA` / `upperArmB` | shoulder (deltoid) + upper arm           | shoulder                    |
+| `lowerArmA` / `lowerArmB` | elbow + forearm + hand                   | elbow                       |
+| `upperLegA` / `upperLegB` | thigh + knee                             | hip joint                   |
+| `lowerLegA` / `lowerLegB` | shin (+ metatarsus for digitigrade) + foot | knee                      |
 
-The anchor is the spot that sits on the character's world position. Keep the
-feet on row 60 in every frame, or the character will appear to bob or slide.
+**A / B** are the two sides: screen-left / screen-right in the front and back
+views, **far / near** in the side view. Draw far pieces a shade darker.
 
-`left` and `right` are separate rows. The engine never flips one to make the
-other, because gear can be asymmetric (a shoulder pad on one side, a holster on
-one hip). (The generated placeholders happen to mirror `right` for `left`.)
+Rules for pieces:
+- Draw each piece **whole**, as if nothing overlapped it: an arm doesn't stop
+  where the chest would cover it. Rotating pieces must never open gaps.
+- Round off both ends at the joints (a knee is round on the thigh *and* the
+  shin piece), so the joint looks solid at any angle.
+- Outline every piece on its own (colored outline, see Style).
+- Pose: the **bind pose** is standing, limbs straight down and slightly apart
+  (front/back: arms a little out from the body). The engine's rotations are
+  relative to it.
 
-The held weapon pivots at chest height, **26 px above the anchor**
-(`CHEST_HEIGHT` in `src/game/combat.ts`). Bullets hit anything inside a box
-about 50 px tall above the feet.
+## Atlas layout
 
-## Sheet layout
+One PNG per race (and per armor piece set), layout `puppet`
+(`content/base/sprites/puppet.json`):
 
-Each animation takes 4 rows, one per direction. Columns are frames.
+| Property   | Value                                                         |
+| ---------- | ------------------------------------------------------------- |
+| Cell size  | **48 × 48 px**                                                |
+| Rows       | **3** views: `down` (front), `right` (side), `up` (back). `left` is `right` mirrored by the engine |
+| Columns    | **12** pieces in this order: torso, head, headAlt, tail, upperArmA, lowerArmA, upperArmB, lowerArmB, upperLegA, lowerLegA, upperLegB, lowerLegB |
+| Sheet size | **576 × 144 px**                                              |
+| Format     | PNG, RGBA, no color profile (or sRGB), no premultiplied alpha |
 
-```
-row = animationIndex * 4 + directionIndex
-col = frameIndex
-```
+Leave a missing piece's cell empty (humans have no tail). Keep pieces at least
+1 px away from their cell edges.
 
-Current layout `humanoid64` (`content/base/sprites/humanoid64.json`):
+Each piece's pivot is a point in its cell, and the bind-pose position of every
+joint is part of the race's **rig** (`PuppetRig` in `src/render/puppet.ts`):
+piece pivots, plus elbow, hand-center (grip), knee and foot-contact positions.
+Generated races compute their rig; drawn atlases will ship a rig JSON next to
+the PNG.
 
-| Rows | Animation | Frames | FPS | Notes                                                |
-| ---- | --------- | ------ | --- | ---------------------------------------------------- |
-| 0–3  | `idle`    | 4      | 5   | Breathing. Lizardman: tongue flick on frame 2. Sergal: ear twitch on frame 3. Tails sway |
-| 4–7  | `walk`    | 6      | 10  | Also used, sped up, for sprinting until `run` exists |
+The character stands on its feet point (the rig `anchor`). The held weapon
+pivots **31 px above the feet** (`CHEST_HEIGHT` in `src/game/combat.ts`), and
+the hands are posed onto its grip and foregrip with IK. Bullets hit anything
+inside a box about 50 px tall above the feet.
 
-Sheet size = (most frames in any animation × 64) by (animations × 4 × 64).
-Today that's **384 × 512 px**. Unused cells to the right of shorter animations
-stay transparent.
+## Animations (done by the engine)
 
-**Adding animations** (`run`, `aim`, `shoot`, `reload`, `hurt`, `death`, …):
-append rows to the layout JSON and to every sheet that uses it. Code asking for
-an animation a sheet doesn't have falls back to the first one (`idle`), so a sheet
-missing new rows still works.
+- **Idle:** breathing, tail sway, now and then `headAlt`.
+- **Walk / sprint:** legs stride with IK so feet plant on the ground; the
+  cycle advances with distance travelled. Sprinting leans forward, lengthens
+  the stride and pumps the free arm; the gun is carried low.
+- **Aim:** both hands hold the gun, which points at the aim in any direction;
+  in side view the torso and head turn toward it.
+- **Fire:** the gun and arms kick back and the muzzle climbs.
+- **Reload:** the gun tips up toward the chest.
+
+Posed characters are drawn at 1× into a shared texture and scaled up with the
+camera, so rotated pieces keep square pixels.
 
 ## Recolorable regions (hair / fur / scales)
 
@@ -93,35 +115,27 @@ Rules:
 
 ## Paper-doll layers (armor)
 
-Armor is drawn as extra full sheets layered on top of the body, using **the
-same layout**. A frame in a helmet sheet lines up pixel-for-pixel with the same
-frame in the body sheet.
+Armor is drawn as extra atlases layered on top of the body, using **the same
+layout and pivots**: a helmet's `head` cell lines up pixel-for-pixel with the
+body's `head` cell, so gear moves with the piece it's on.
 
 Draw order, bottom to top (`PAPER_DOLL_ORDER` in `src/render/CharacterView.ts`):
 
-1. `body`: the race's base sheet (bare, or in a simple undersuit)
-2. `legs`: pants + boots
-3. `torso`: top/vest + gloves/gauntlets
-4. `head`: helmet
+1. `body`: the race's base atlas (bare, or in a simple undersuit)
+2. `legs`: pants + boots (on the leg pieces, plus the belt on the torso's hips)
+3. `torso`: top/vest (torso piece) + sleeves, pads and gloves (arm pieces)
+4. `head`: helmet / hood (head pieces)
 
-Each race needs its own armor sheets, because the bodies differ (tails, snouts,
-ears, digitigrade legs). An armor sheet:
+Each race needs its own armor atlases, because the bodies differ (tails,
+snouts, ears, digitigrade legs). An armor atlas:
 - is transparent everywhere except the gear,
 - may cover body pixels (a helmet hides hair),
-- must not draw pixels for parts it doesn't cover.
-
-Leave a gap for the tail in `legs` sheets for lizardman and sergal. The tail is
-part of the body layer. In the `up` (back) view the tail hangs *in front* of
-the legs and lower back, so torso and legs gear must leave those pixels empty
-there, or the tail disappears under the armor.
+- leaves the `tail` cell empty.
 
 Paint the main fabric or plating of armor in the **secondary** key colors. The
-armor's `dye` setting recolors those regions, so one sheet can serve as an
+armor's `dye` setting recolors those regions, so one atlas can serve as an
 olive military vest and a black mercenary vest. Fixed parts (straps, metal
 buckles, visor glass) use normal colors.
-
-In the side view, the arm nearer the camera and the gear on it belong in
-`torso`. The far arm is drawn darker in `body`.
 
 ## Tiles and props (for reference)
 

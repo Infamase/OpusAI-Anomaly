@@ -16,8 +16,8 @@ export const MAX_RESIST = 0.9;
 export const ARMOR_WEAR_PER_DAMAGE = 0.0025;
 /** Weapon condition lost per shot. */
 export const WEAPON_WEAR_PER_SHOT = 0.0004;
-/** Height of the gun / chest above the feet, in px. */
-export const CHEST_HEIGHT = 26;
+/** Height of the gun / chest above the feet, in px. Keep in sync with GUN_PIVOT in render/puppet.ts. */
+export const CHEST_HEIGHT = 31;
 /** Which armor piece takes the hit (and the wear). */
 const HIT_SLOT_WEIGHTS: [(typeof ARMOR_SLOTS)[number], number][] = [
   ['torso', 0.6],

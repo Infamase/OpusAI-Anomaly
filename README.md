@@ -12,6 +12,10 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > squad. Dead NPCs stay dead and their bodies keep their loot. Five weapons,
 > six ammo types, a weight-limited backpack, saves you can move between PCs.
 >
+> **Animation:** characters are Flash-style cutout puppets (separate torso,
+> head, arm and leg pieces) with procedural walk, sprint, aim, fire and reload:
+> hands hold the gun and follow the aim in any direction.
+>
 > **Art:** 64px characters with realistic proportions, colored outlines and
 > soft lighting, plus muted, textured terrain with blended ground, pine forests,
 > boulders and tank-room style interiors. All of it is generated in code

@@ -3,7 +3,7 @@
   "id": "sergal",
   "name": "Sergal",
   "description": "Big, tough and strong enough to haul a lot of loot, at the cost of a little speed.",
-  "spriteLayout": "humanoid64",
+  "spriteLayout": "puppet",
   "sheet": "placeholder:sergal",
   "colorChannels": [
     {

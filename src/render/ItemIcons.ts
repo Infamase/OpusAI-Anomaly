@@ -1,16 +1,16 @@
 import { Texture } from 'pixi.js';
 import { findItem } from '../content/items';
 import type { ContentRegistry } from '../content/Registry';
-import { layoutRow } from '../content/types/spriteLayout';
 import { armorSheetSrc } from '../game/equipment';
-import type { PixelCanvas } from './PixelCanvas';
+import { PixelCanvas } from './PixelCanvas';
+import { composePuppet, restState, solvePose } from './puppet';
 import { cropToContent, drawAmmoBox, drawConsumable, drawUnknown } from './placeholder/items';
 import { generateWeaponArt } from './placeholder/weapons';
 import type { SpriteSheetCache } from './SpriteSheets';
 
 /**
  * Icons for every item, built from the same art the game draws: weapons from
- * their held sprite, armor cropped from its paper-doll sheet (so dye colors
+ * their held sprite, armor posed on its body's rig (so dye colors
  * match), plus generated ammo boxes and supplies. Cached per item id; each icon
  * is available as pixels, a data URL (for the DOM) and a Pixi texture (for the
  * ground).
@@ -80,9 +80,14 @@ export class ItemIcons {
       case 'armor': {
         const layout = this.content.get('spriteLayout', info.def.spriteLayout);
         try {
-          const sheet = this.sheets.pixels(armorSheetSrc(this.content, info.def), layout, { secondary: info.def.dye });
-          const row = Math.max(0, layoutRow(layout, layout.animations[0]!.id, 'down'));
-          return cropToContent(sheet, 0, row * layout.frameSize, layout.frameSize, layout.frameSize);
+          // Pose the armor alone on the body it was made for, standing, facing the camera.
+          const body = this.content.all('race').find((r) => r.armorTag === info.def.fitsRace);
+          const rig = body && this.sheets.rig(body.sheet);
+          if (!rig) return drawUnknown();
+          const atlas = this.sheets.pixels(armorSheetSrc(this.content, info.def), layout, { secondary: info.def.dye });
+          const out = new PixelCanvas(64, 64);
+          composePuppet({ rig, atlases: [atlas] }, solvePose(rig, restState('down')), out, 32, 60);
+          return cropToContent(out, 0, 0, 64, 64);
         } catch {
           return drawUnknown();
         }

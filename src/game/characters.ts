@@ -73,7 +73,7 @@ export function spawnCharacter(world: World, content: ContentRegistry, sheets: S
   world.add(e, Stats, buildCharacterStats(content, race, equipment));
   world.add(e, Aim, { dir: null });
   const view = new CharacterView();
-  view.setLayer('body', sheets.get(race.sheet, content.get('spriteLayout', race.spriteLayout), colors));
+  view.setLayer('body', sheets.get(race.sheet, content.get('spriteLayout', race.spriteLayout), colors), sheets.rig(race.sheet));
   world.add(e, View, view);
   refreshArmorLayers(world, content, sheets, e);
   return e;
@@ -110,7 +110,7 @@ export function setCharacterAppearance(
   }
   ch.raceId = raceId;
   ch.colors = resolved;
-  world.req(e, View).setLayer('body', sheets.get(race.sheet, content.get('spriteLayout', race.spriteLayout), resolved));
+  world.req(e, View).setLayer('body', sheets.get(race.sheet, content.get('spriteLayout', race.spriteLayout), resolved), sheets.rig(race.sheet));
   refreshArmorLayers(world, content, sheets, e);
   return removed;
 }

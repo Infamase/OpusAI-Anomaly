@@ -3,7 +3,7 @@
   "id": "human",
   "name": "Human",
   "description": "Adaptable and well-supplied. No strengths, no weaknesses \u2014 the baseline everything else is measured against.",
-  "spriteLayout": "humanoid64",
+  "spriteLayout": "puppet",
   "sheet": "placeholder:human",
   "colorChannels": [
     {

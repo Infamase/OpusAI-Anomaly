@@ -1,0 +1,9 @@
+{
+  "type": "spriteLayout",
+  "id": "puppet",
+  "frameSize": 48,
+  "anchor": [32, 60],
+  "directions": ["down", "right", "up"],
+  "animations": [{ "id": "parts", "frames": 12, "fps": 1 }],
+  "parts": ["torso", "head", "headAlt", "tail", "upperArmA", "lowerArmA", "upperArmB", "lowerArmB", "upperLegA", "lowerLegA", "upperLegB", "lowerLegB"]
+}
