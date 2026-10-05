@@ -18,10 +18,11 @@ import type { EquipmentSave, ItemInstance } from '../../save/types';
 import { chunkKey, type WorldDeltas } from '../../save/WorldDeltas';
 import { DevTools, type DevHooks } from '../../ui/DevTools';
 import { Hud, type HudState } from '../../ui/Hud';
+import { MINIMAP_RADIUS, type Blip } from '../../ui/Minimap';
 import { WorldLabels } from '../../ui/WorldLabels';
 import { NpcBrainSystem, type BarkKind } from '../ai/NpcBrainSystem';
 import { addCombatComponents, prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
-import { CHEST_HEIGHT, currentSpread } from '../combat';
+import { CHEST_HEIGHT, currentSpread, lineOfSight } from '../combat';
 import { GameAudio, playUseSound } from '../GameAudio';
 import type { CombatEvents } from '../combatEvents';
 import {
@@ -30,6 +31,7 @@ import {
   Character,
   Combatant,
   Container,
+  Encumbrance,
   Equipment,
   Faction,
   Health,
@@ -82,6 +84,8 @@ import { PauseScene } from './PauseScene';
 export const START_WORLD_ID = 'test_range';
 const WORLD_ID = START_WORLD_ID;
 const AUTOSAVE_SEC = 30;
+/** People this close show on the minimap even without line of sight (you'd hear them). */
+const SENSE_RADIUS = TILE_PX * 6;
 const BUILD_WALL = 'metal_wall';
 const BUILD_FLOOR = 'dirt';
 /** Lines used when a faction has none of its own for a situation. */
@@ -152,6 +156,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
   private devSquads = 0;
   private fx = new CombatFx();
   private sound!: GameAudio;
+  private minimapIn = 0;
   private crosshair = new Crosshair();
   /** Which weapon each character view currently shows, to know when to swap textures. */
   private shownWeapon = new Map<Entity, string | null>();
@@ -387,7 +392,13 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     this.renderCrosshair(frameDt, px, py);
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
     this.hud?.prompt(this.focus !== null && this.game.scenes.current === this ? this.promptFor(this.focus) : null);
-    this.hud?.update(this.hudState(), frameDt);
+    const chest = g.camera.worldToScreen(px, py - CHEST_HEIGHT);
+    this.hud?.update(this.hudState(), frameDt, { x: chest.x / g.renderer.pixelRatio, y: chest.y / g.renderer.pixelRatio });
+    this.minimapIn -= frameDt;
+    if (this.minimapIn <= 0) {
+      this.minimapIn = 0.1;
+      this.drawMinimap(px, py);
+    }
     this.updateLabels(frameDt, alpha);
     this.dev?.update(performance.now());
   }
@@ -408,7 +419,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       this.world.get(h.target, View)?.flash();
       if (h.attacker === this.playerEntity) this.crosshair.hit(h.killed);
       if (h.target === this.playerEntity) {
-        this.hud?.damage(h.dealt);
+        // The arc points back along the bullet's path, toward the shooter.
+        this.hud?.damage(h.dealt, h.angle + Math.PI);
         cam.kick(Math.cos(h.angle) * 2, Math.sin(h.angle) * 2);
       }
     });
@@ -416,8 +428,19 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       this.world.get(d.entity, View)?.setDead(true);
       this.labels?.forget(d.entity);
       if (d.entity === this.playerEntity) this.onPlayerDeath(d.killer);
-      else this.population?.onNpcDeath(d.entity);
+      else {
+        if (d.killer === this.playerEntity) this.announceKill(d.entity);
+        this.population?.onNpcDeath(d.entity);
+      }
     });
+  }
+
+  /** Kill feed line, in the victim's faction color. */
+  private announceKill(e: Entity): void {
+    const npc = this.world.get(e, Npc);
+    const faction = this.game.content.tryGet('faction', this.world.get(e, Faction)?.id ?? '');
+    const template = npc && this.game.content.tryGet('npcTemplate', npc.templateId);
+    this.message(`Killed ${npc?.name ?? 'stalker'}${template ? ` (${template.name})` : ''}`, faction?.color);
   }
 
   private onPlayerDeath(killer: Entity | null): void {
@@ -488,16 +511,23 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     const c = this.world.req(e, Combatant);
     const eq = this.world.req(e, Equipment);
     const inv = this.world.req(e, Inventory);
+    const load = this.world.get(e, Encumbrance);
     const item = c.active ? eq[c.active] : undefined;
     const def = item && g.content.tryGet('weapon', item.defId);
     const ammoId = item?.loadedAmmo ?? def?.ammo[0];
+    const otherSlot = c.active === 'sidearm' ? 'primary' : 'sidearm';
+    const other = eq[otherSlot];
+    const otherDef = other && g.content.tryGet('weapon', other.defId);
     return {
       hp: h.hp,
       maxHp: stats.get('max_health'),
       bleed: h.bleed,
+      healing: h.regen.some((r) => r.left > 0),
       stamina: st.current,
       maxStamina: stats.get('max_stamina'),
       exhausted: st.exhausted,
+      load: { weight: load?.weight ?? 0, limit: load?.limit ?? 1, level: load?.level ?? 0 },
+      meds: inv.reduce((n, it) => n + (g.content.tryGet('consumable', it.defId)?.category === 'medical' ? countOf(it) : 0), 0),
       weapon:
         def && item && c.active
           ? {
@@ -512,12 +542,40 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
               reload: c.reloadLeft > 0 ? 1 - c.reloadLeft / c.reloadTotal : null,
             }
           : null,
+      holstered: otherDef && other ? { slot: otherSlot, name: otherDef.name, loaded: other.loaded ?? 0 } : null,
       armor: ARMOR_SLOTS.flatMap((slot) => {
         const it = eq[slot];
         const d = it && g.content.tryGet('armor', it.defId);
         return it && d ? [{ slot, name: d.name, condition: it.condition }] : [];
       }),
     };
+  }
+
+  /** Terrain around the player plus the people, containers and items they could know about. */
+  private drawMinimap(px: number, py: number): void {
+    const map = this.map;
+    const hud = this.hud;
+    if (!map || !hud) return;
+    const range = MINIMAP_RADIUS * TILE_PX;
+    const blips: Blip[] = [];
+    for (const e of this.world.query(Transform)) {
+      if (e === this.playerEntity) continue;
+      const t = this.world.req(e, Transform);
+      const dx = t.x - px;
+      const dy = t.y - py;
+      if (Math.abs(dx) > range || Math.abs(dy) > range) continue;
+      if (this.world.has(e, Npc) && !this.world.get(e, Health)?.dead) {
+        // People show when close or in plain sight.
+        if (Math.hypot(dx, dy) > SENSE_RADIUS && !lineOfSight(map, px, py - CHEST_HEIGHT, t.x, t.y - CHEST_HEIGHT)) continue;
+        blips.push({ x: t.x, y: t.y, kind: this.relations.attitude(this.world, e, this.playerEntity) });
+      } else if (this.world.has(e, Container)) {
+        blips.push({ x: t.x, y: t.y, kind: this.world.req(e, Container).kind === 'body' ? 'body' : 'crate' });
+      } else if (this.world.has(e, WorldItem)) {
+        blips.push({ x: t.x, y: t.y, kind: 'item' });
+      }
+    }
+    const aim = this.world.get(this.playerEntity, Aim)?.dir;
+    hud.minimap.draw(map, px, py, aim ? Math.atan2(aim.y, aim.x) : null, blips);
   }
 
   // ---- NPC labels & barks ------------------------------------------------------
@@ -721,8 +779,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     }
   }
 
-  message(text: string): void {
-    this.hud?.message(text);
+  message(text: string, color?: string): void {
+    this.hud?.message(text, color);
   }
 
   private quickHeal(): void {
