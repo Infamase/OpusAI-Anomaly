@@ -67,6 +67,8 @@ export interface Health {
   sinceHit: number;
   /** Dev: ignore damage. */
   god?: boolean;
+  /** Active heal-over-time effects (medkits, food). */
+  regen: { rate: number; left: number }[];
 }
 export const Health = defineComponent<Health>('Health');
 
@@ -151,3 +153,39 @@ export interface ShooterAI {
   homeY: number;
 }
 export const ShooterAI = defineComponent<ShooterAI>('ShooterAI');
+
+// ---- Inventory (Module 9) ----------------------------------------------------
+
+/** Carried weight vs. limit. level: 0 fine, 1 overloaded (slow, no sprint), 2 barely moving. */
+export interface Encumbrance {
+  weight: number;
+  limit: number;
+  level: 0 | 1 | 2;
+}
+export const Encumbrance = defineComponent<Encumbrance>('Encumbrance');
+
+/** An item lying on the ground. `recordId` links it to its saved chunk record. */
+export interface WorldItem {
+  item: ItemInstance;
+  recordId: string;
+  chunkKey: string;
+}
+export const WorldItem = defineComponent<WorldItem>('WorldItem');
+
+/**
+ * Something with contents: a crate (generated with the world, contents saved
+ * once touched) or a body (temporary). `items` is null until first opened,
+ * then rolled from `lootTable`.
+ */
+export interface Container {
+  id: string;
+  label: string;
+  kind: 'crate' | 'body';
+  chunkKey: string | null;
+  lootTable: string | null;
+  items: ItemInstance[] | null;
+}
+export const Container = defineComponent<Container>('Container');
+
+/** A static prop sprite (items on the ground, crates). */
+export const PropView = defineComponent<import('../render/PropView').PropView>('PropView');

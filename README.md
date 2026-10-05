@@ -4,65 +4,69 @@ A 2D pixel-art, top-down survival shooter in the spirit of S.T.A.L.K.E.R., set
 across procedurally generated planets, ships and space stations. It runs in the
 browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamepad.
 
-> Status: **Phase 0 (Foundation) and Module 6 (paper-doll armor) are complete.**
-> The game opens on a main menu (New Game, Load Game, Import Save). New Game
-> leads to a character creator (name, race, color, starting gear). In game, each
-> race wears its own layered armor (helmet / top + gloves / pants + boots) with
-> stat bonuses, on a generated, chunk-streamed test map, using keyboard/mouse,
-> gamepad. Saves hold multiple characters and can be
-> moved between devices.
+> **Status:** Phase 0 (foundation), Module 6 (armor + character creator + menus),
+> Module 8 (combat) and Module 9 (inventory) are done. You can make a character,
+> fight test bandits on a generated map with five weapons and six ammo types,
+> loot crates and bodies, manage a weight-limited backpack, patch yourself up,
+> and save, load, and move saves between PCs.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173 (also reachable from other devices on your LAN)
+npm run dev        # http://localhost:5173
 npm test           # unit tests
 npm run build      # typecheck + production build into dist/
 ```
 
-Chrome or Edge give the best results (WebGPU). Firefox and other browsers fall
-back to WebGL automatically.
-
-URL flags: `?renderer=webgl` forces WebGL, `?debug=1` opens the dev panel.
+Chrome or Edge give the best results (WebGPU). Other browsers fall back to WebGL
+automatically. URL flags: `?renderer=webgl` forces WebGL, `?debug=1` opens the
+dev panel.
 
 ## Controls
 
 | Action | Keyboard / mouse | Gamepad |
 | --- | --- | --- |
-| Move | WASD / arrows | Left stick |
-| Aim | Mouse | Right stick |
-| Fire | Left click / Space | RT |
-| Sprint | Shift | L3 |
-| Use / Reload | E / R | A / X |
+| Move / aim | WASD / mouse | Left / right stick |
+| Fire | Left click | RT |
+| Reload | R | X |
+| Primary / sidearm / swap | 1 / 2 / Q or mouse wheel | RB |
+| Sprint (lowers your gun, uses stamina) | Shift | L3 |
+| Interact (pick up, open crate, search body) | E | A |
+| Inventory | Tab or I | Y |
+| Quick heal (bandage if bleeding, else best medkit) | H | D-pad down |
 | Pause | Esc | Start |
 | Dev panel | ` or F3 | Select |
 
-The **dev panel** (testing scaffolding until inventory exists) can equip any
-armor that fits your race, switch race/color, zoom, renderer, toggle a build
-mode (E/USE toggles a wall in front of you, to test map saves), save, export,
-and regenerate the world.
+**Inventory:** double-click to equip or use, drag between slots, backpack and
+containers, drag outside the window to drop on the ground, Shift-click to move
+items straight into or out of a container. Hovering an item compares it with
+what you have equipped.
 
-## Saves across devices
+The **dev panel** is testing scaffolding: give weapons, god mode, heal,
+spawn/clear bandits, swap armor, change race/color, zoom, renderer, build mode
+(E toggles walls), save/export, regenerate the world.
 
-Every save slot can be **exported** from *Load Game → Export* (downloads a
-file). On the other PC, use **Import Save** on the main menu and pick the
-`.sfa.json` file. If that save is already there, you choose whether to replace
-the copy on this device or keep both.
+## Saves across PCs
+
+*Load Game → Export* downloads a `.sfa.json` file. On the other PC, use
+**Import Save** on the main menu. If that save already exists there, you choose
+whether to replace it or keep both.
 
 ## Project layout
 
 ```
-content/base/        game data (races, stats, tiles, world templates). Add content here
-docs/                ARCHITECTURE.md (how to extend) · SPRITE_SPEC.md (art contract)
+content/base/        game data: races, stats, tiles, armor, weapons, ammo, consumables, loot tables, worlds
+docs/                ARCHITECTURE.md (how it fits together, how to extend) · SPRITE_SPEC.md (art contract)
 public/              static files (icons, manifest; sprite PNGs go in public/sprites/)
 src/core/            game loop, scenes, events, RNG, settings
-src/render/          PixiJS renderer, camera, tilemap, paper-doll, palette swap, placeholder art
+src/render/          PixiJS renderer, camera, tilemap, paper-doll, combat effects, icons, placeholder art
 src/input/           keyboard/mouse, gamepad → actions
 src/ecs/ src/stats/  entity-component-system, stat & modifier system
-src/content/         content registry, schemas, pack loader
+src/content/         content registry, schemas, pack loader, item catalog
 src/save/            IndexedDB saves, migrations, world deltas
-src/game/            components, systems, world generation, scenes
+src/game/            components, systems (weapons, projectiles, vitals, AI...), items, scenes
+src/ui/              HUD, dev panel, DOM helpers
 tests/               vitest unit tests
 ```
 
@@ -70,8 +74,8 @@ tests/               vitest unit tests
 
 | Phase | Modules | Status |
 | --- | --- | --- |
-| 0 Foundation | Core, Renderer, Input, ECS/Content/Stats, Save | ✅ |
-| 1 Vertical slice | ✅ Paper-doll armor + character creator + menus · combat · inventory · AI & factions · HUD | in progress |
+| 0 Foundation | Core, renderer, input, ECS/content/stats, saves | ✅ |
+| 1 Vertical slice | ✅ Armor + creator + menus · ✅ combat · ✅ inventory · AI & factions · HUD polish | in progress |
 | 2 Worlds | Planet generation, station/ship chunk generation, alien fauna, anomalies & artifacts | |
 | 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, audio & polish | |
 

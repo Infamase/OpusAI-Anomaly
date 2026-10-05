@@ -7,7 +7,7 @@ import type { ChannelColors } from '../render/palette';
 import type { SpriteSheetCache } from '../render/SpriteSheets';
 import type { EquipmentSave, ItemInstance, WeaponSlotId } from '../save/types';
 import { StatBlock } from '../stats/Stats';
-import { Aim, Character, Collider, Combatant, Equipment, Faction, Health, Inventory, newCombatant, Stamina, Stats, Transform, Velocity, View } from './components';
+import { Aim, Character, Collider, Combatant, Encumbrance, Equipment, Faction, Health, Inventory, newCombatant, Stamina, Stats, Transform, Velocity, View } from './components';
 import { applyEquipmentStats, ARMOR_SLOTS, defaultActiveWeapon, fitProblem, prepareEquipmentArt, refreshArmorLayers } from './equipment';
 
 /** The race's default colors, with any overrides applied. */
@@ -130,7 +130,7 @@ export function addCombatComponents(world: World, e: Entity, opts: CombatOptions
   const stats = world.req(e, Stats);
   const eq = world.req(e, Equipment);
   const maxHp = stats.get('max_health');
-  world.add(e, Health, { hp: Math.min(maxHp, opts.hp ?? maxHp), bleed: 0, dead: false, sinceHit: 99 });
+  world.add(e, Health, { hp: Math.min(maxHp, opts.hp ?? maxHp), bleed: 0, dead: false, sinceHit: 99, regen: [] });
   world.add(e, Stamina, { current: stats.get('max_stamina'), exhausted: false, regenDelay: 0 });
   const active = opts.active !== undefined && opts.active !== null && eq[opts.active] ? opts.active : defaultActiveWeapon(eq);
   const combat = newCombatant(active);
@@ -138,4 +138,5 @@ export function addCombatComponents(world: World, e: Entity, opts: CombatOptions
   world.add(e, Combatant, combat);
   world.add(e, Inventory, opts.inventory ?? []);
   world.add(e, Faction, { id: opts.faction });
+  world.add(e, Encumbrance, { weight: 0, limit: 0, level: 0 });
 }

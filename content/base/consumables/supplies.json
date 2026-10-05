@@ -1,0 +1,8 @@
+[
+  { "type": "consumable", "id": "bandage", "name": "Bandage", "category": "medical", "description": "Stops most bleeding.", "weight": 0.05, "value": 40, "maxStack": 10, "effects": { "stopBleed": 3, "heal": 3 }, "icon": "bandage", "color": "#e6e0d0" },
+  { "type": "consumable", "id": "medkit", "name": "First Aid Kit", "category": "medical", "description": "Patches you up over a few seconds and slows bleeding.", "weight": 0.25, "value": 180, "maxStack": 5, "effects": { "heal": 10, "healOverTime": { "amount": 40, "seconds": 4 }, "stopBleed": 1.5 }, "icon": "medkit", "color": "#c8402e" },
+  { "type": "consumable", "id": "army_medkit", "name": "Army Medkit", "category": "medical", "description": "Military-grade trauma kit.", "weight": 0.35, "value": 420, "maxStack": 5, "effects": { "heal": 25, "healOverTime": { "amount": 50, "seconds": 3 }, "stopBleed": 3 }, "icon": "medkit", "color": "#5a7a3a" },
+  { "type": "consumable", "id": "stim_injector", "name": "Stim Injector", "category": "medical", "description": "Adrenaline cocktail: instant health and a second wind.", "weight": 0.05, "value": 350, "maxStack": 5, "effects": { "heal": 20, "stamina": 100 }, "icon": "injector", "color": "#4a8ac8" },
+  { "type": "consumable", "id": "canned_meat", "name": "Canned Meat", "category": "food", "description": "Tastes of tin. Slowly restores a little health.", "weight": 0.35, "value": 30, "maxStack": 5, "effects": { "healOverTime": { "amount": 12, "seconds": 12 }, "stamina": 30 }, "icon": "food", "color": "#a87a4a" },
+  { "type": "consumable", "id": "energy_drink", "name": "Energy Drink", "category": "food", "description": "Restores stamina fast.", "weight": 0.3, "value": 50, "maxStack": 5, "effects": { "stamina": 80 }, "icon": "drink", "color": "#3aa86a" }
+]

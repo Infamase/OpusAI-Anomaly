@@ -1,4 +1,4 @@
-import { emptyChunkDelta, isChunkDeltaEmpty, type ChunkDelta } from './types';
+import { emptyChunkDelta, isChunkDeltaEmpty, type ChunkDelta, type WorldEntityRecord } from './types';
 
 export const chunkKey = (cx: number, cy: number): string => `${cx},${cy}`;
 
@@ -33,6 +33,33 @@ export class WorldDeltas {
     if (!d.removed.includes(generatedEntityId)) d.removed.push(generatedEntityId);
     this.chunks.set(key, d);
     this.dirty.add(key);
+  }
+
+  /** Adds or replaces a saved world object (matched by id). */
+  putEntity(key: string, record: WorldEntityRecord): void {
+    const d = this.chunks.get(key) ?? emptyChunkDelta();
+    const i = d.entities.findIndex((r) => r.id === record.id);
+    if (i >= 0) d.entities[i] = record;
+    else d.entities.push(record);
+    this.chunks.set(key, d);
+    this.dirty.add(key);
+  }
+
+  removeEntity(key: string, id: string): void {
+    const d = this.chunks.get(key);
+    if (!d) return;
+    const before = d.entities.length;
+    d.entities = d.entities.filter((r) => r.id !== id);
+    if (d.entities.length !== before) this.dirty.add(key);
+  }
+
+  entity(key: string, id: string): WorldEntityRecord | undefined {
+    return this.chunks.get(key)?.entities.find((r) => r.id === id);
+  }
+
+  /** Every saved world object of a kind, with its chunk. */
+  *entitiesOfKind(kind: string): Generator<{ key: string; record: WorldEntityRecord }> {
+    for (const [key, d] of this.chunks) for (const record of d.entities) if (record.kind === kind) yield { key, record };
   }
 
   get changedChunkCount(): number {

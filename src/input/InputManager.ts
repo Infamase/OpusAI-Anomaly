@@ -53,8 +53,9 @@ export class InputManager {
     } else {
       this.move = { x: 0, y: 0 };
       this.aim = { kind: 'none' };
-      // Keep menu/system buttons alive so a paused game can be unpaused.
-      this.down = new Set([...nextDown].filter((b) => b === 'pause' || b === 'debugToggle'));
+      // Keep menu/system buttons alive so overlays (pause, inventory) can be closed.
+      const ui = new Set<ButtonAction>(['pause', 'debugToggle', 'inventory', 'interact']);
+      this.down = new Set([...nextDown].filter((b) => ui.has(b)));
     }
   }
 

@@ -36,6 +36,8 @@ export class Hud {
   private wInfo = el('div', 'hud-winfo');
   private wReload = el('div', 'hud-fill reload');
   private armorBox = el('div', 'hud-armor');
+  private promptEl = el('div', 'hud-prompt');
+  private messages = el('div', 'hud-messages');
   private last = new Map<string, string>();
   private hurt = 0;
 
@@ -49,8 +51,25 @@ export class Hud {
       this.armorBox,
     );
     this.weaponBox.append(this.wName, this.wAmmo, this.wInfo, el('div', 'hud-bar thin', undefined, this.wReload));
-    this.root.append(this.vignette, vitals, this.weaponBox);
+    this.root.append(this.vignette, vitals, this.weaponBox, this.promptEl, this.messages);
     parent.append(this.root);
+  }
+
+  /** Interaction hint, e.g. "E  Pick up Bandage" (null hides it). */
+  prompt(text: string | null): void {
+    this.set('prompt', text ?? '', (v) => {
+      this.promptEl.textContent = v;
+      this.promptEl.style.display = v ? '' : 'none';
+    });
+  }
+
+  /** Short notice above the HUD that fades out ("Picked up...", "Overloaded"). */
+  message(text: string): void {
+    const m = el('div', 'hud-message', text);
+    this.messages.append(m);
+    while (this.messages.children.length > 4) this.messages.firstElementChild?.remove();
+    setTimeout(() => m.classList.add('fade'), 2200);
+    setTimeout(() => m.remove(), 2800);
   }
 
   /** Red flash proportional to damage taken. */

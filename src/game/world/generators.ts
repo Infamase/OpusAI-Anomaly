@@ -17,6 +17,18 @@ export interface ChunkGenContext<P> {
   params: P;
 }
 
+/** A world object placed by a generator (crates now; anomalies, NPC camps... later). */
+export interface WorldObjectSpawn {
+  /** Stable id: same seed + chunk always gives the same ids, so saved changes can refer to them. */
+  id: string;
+  kind: 'crate';
+  /** World pixels (feet / base). */
+  x: number;
+  y: number;
+  variant: 'supply' | 'military';
+  lootTable: string;
+}
+
 export interface WorldGenerator<P = unknown> {
   readonly id: string;
   /**
@@ -28,6 +40,8 @@ export interface WorldGenerator<P = unknown> {
   parseParams(raw: unknown, tiles: TileSet): P;
   /** Fills `out` (chunkSize * chunkSize, row-major) with tile indices. */
   generateChunk(ctx: ChunkGenContext<P>, out: Uint16Array): void;
+  /** Objects in one chunk. Must be deterministic like generateChunk. */
+  objects?(ctx: ChunkGenContext<P>, tiles: Uint16Array): WorldObjectSpawn[];
   /** Where the player appears on arrival, in tile coordinates. */
   spawnPoint(seed: number, params: P, widthTiles: number, heightTiles: number): { x: number; y: number };
 }

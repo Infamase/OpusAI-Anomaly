@@ -39,6 +39,18 @@
     {
       "item": "ammo_9x19",
       "count": 150
+    },
+    {
+      "item": "bandage",
+      "count": 3
+    },
+    {
+      "item": "medkit",
+      "count": 1
+    },
+    {
+      "item": "canned_meat",
+      "count": 1
     }
   ],
   "hitbox": {

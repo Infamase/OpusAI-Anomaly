@@ -130,6 +130,25 @@ export class TileMap<P = unknown> {
     return true;
   }
 
+  /** Generator-placed objects in a chunk (deterministic, before player changes). */
+  objects(cx: number, cy: number): import('./generators').WorldObjectSpawn[] {
+    const c = this.chunk(cx, cy);
+    if (!c || !this.generator.objects) return [];
+    return this.generator.objects(
+      {
+        seed: this.seed,
+        cx,
+        cy,
+        chunkSize: this.chunkSize,
+        widthTiles: this.widthTiles,
+        heightTiles: this.heightTiles,
+        tiles: this.tiles,
+        params: this.params,
+      },
+      c.base,
+    );
+  }
+
   /** Frees chunks outside the given tile rectangle (they regenerate on demand). */
   trim(minTx: number, minTy: number, maxTx: number, maxTy: number): void {
     const S = this.chunkSize;

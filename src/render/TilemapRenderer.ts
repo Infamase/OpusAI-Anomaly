@@ -42,6 +42,9 @@ interface ChunkView {
 export class TilemapRenderer {
   private views = new Map<string, ChunkView>();
   private pendingRedraw = new Set<string>();
+  /** Fired when a chunk becomes visible / is dropped, so world objects can stream with it. */
+  onChunkShown: ((cx: number, cy: number) => void) | null = null;
+  onChunkHidden: ((cx: number, cy: number) => void) | null = null;
 
   constructor(
     private layer: Container,
@@ -81,6 +84,7 @@ export class TilemapRenderer {
         view.sprite.destroy();
         view.texture.destroy(true);
         this.views.delete(key);
+        this.onChunkHidden?.(cx, cy);
       }
     }
     for (const key of this.pendingRedraw) this.views.get(key)?.texture.source.update();
@@ -114,6 +118,7 @@ export class TilemapRenderer {
     view.sprite.position.set(cx * S * TILE_SIZE, cy * S * TILE_SIZE);
     this.layer.addChild(view.sprite);
     this.views.set(key, view);
+    this.onChunkShown?.(cx, cy);
   }
 
   private redrawTile(tx: number, ty: number): void {

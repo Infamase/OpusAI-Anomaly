@@ -13,7 +13,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
                                 cross-checked)    world generators…)
 ```
 
-## Modules (Phase 0)
+## Modules
 
 | Module | Folder | What it owns |
 | --- | --- | --- |
@@ -23,6 +23,9 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 4 ECS / Content / Stats | `src/ecs/`, `src/content/`, `src/stats/` | Minimal ECS `World`; content packs, schemas, registry; `StatBlock` (base → flat → percent → multiplier) |
 | 5 Save | `src/save/` | `SaveManager`, IndexedDB/memory backends, versioned migrations, per-world `WorldDeltas` |
 | Game | `src/game/` | Components, systems, character factory, world generators, `TileMap`, scenes |
+| 6 Armor | `src/game/equipment.ts`, `src/render/placeholder/armor.ts` | Paper-doll armor, race fit, condition-scaled protection |
+| 8 Combat | `src/game/combat.ts`, `src/game/systems/{Weapon,Projectile,Vitals,ShooterAI}System.ts` | Weapons, projectiles, damage vs resistances, bleeding, stamina, temporary bandit AI |
+| 9 Inventory | `src/game/items.ts`, `inventoryActions.ts`, `loot.ts`, `consumables.ts`, `scenes/InventoryScene.ts` | Backpack, weight limit, equip/use/drop, crates and bodies, consumables, item icons |
 
 ### Frame flow
 
@@ -31,7 +34,8 @@ requestAnimationFrame
  └─ FixedStepper: 0..5 sim steps of 1/60 s
      ├─ InputManager.update()        poll devices → actions
      └─ SceneManager.update(dt)      top scene (and those below, if it doesn't block)
-          └─ World.update(dt)        PlayerControl → Movement → Animation
+          └─ World.update(dt)        PlayerControl → ShooterAI → Weapons → Movement →
+                                     Projectiles → Vitals → Encumbrance → Animation
  └─ SceneManager.render(alpha)       interpolate positions, set frames, camera, stream chunks
  └─ GameRenderer.render()
 ```
@@ -66,6 +70,50 @@ over the canvas and draw animated characters with `CharacterPreview`.
   body-part tags the body generator records per pixel. One set of rules fits
   every body shape, and a tail drawn in front of the body is never covered.
 
+## Combat (Module 8)
+
+- **Content:** `weapon` defs (slot primary/sidearm, ammo types, fire mode, rate,
+  damage × pellets, spread/move spread/bloom, speed, range, reload, armor
+  piercing, recoil) and `ammo` defs (damage multiplier, AP bonus, stack size).
+- **Intents → shots:** the player's input or an AI writes intents to the
+  `Combatant` component (`trigger`, `wantReload`, `wantSwitch`). `WeaponSystem`
+  turns them into shots and reloads. Rounds in the magazine live on the
+  weapon's `ItemInstance` (`loaded`, `loadedAmmo`), so they're saved
+  automatically. Reloads pull from the `Inventory`. If the loaded ammo type has
+  run out, the next accepted type is used and the old rounds go back into the
+  backpack.
+- **Projectiles** are swept every tick against walls (tile DDA) and hurtboxes,
+  so fast bullets never tunnel. Characters of the same faction don't hit each
+  other.
+- **Damage:** `dealt = amount × (1 − clamp(resist − AP, 0, 0.9))`, where resist
+  is the target's `<damageType>_resist` stat. A random armor piece (torso 60%,
+  legs 25%, head 15%) loses condition. Resist stats flagged
+  `scalesWithCondition` shrink with wear (down to 30%). Ballistic and rupture
+  hits that get through cause bleeding.
+- **Feedback** goes through `CombatEvents` (shot, hit, impact, death, ...) to
+  effects, the HUD and the camera. Sound will hook in here too.
+- `ShooterAISystem` is a **temporary** test opponent; Module 10 replaces it with
+  real AI and factions.
+
+## Inventory (Module 9)
+
+- **Items:** armor, weapons, ammo and consumables share one id namespace
+  (`src/content/items.ts`). An inventory is a plain `ItemInstance[]`. Stackable
+  items merge up to their `maxStack`.
+- **Weight:** backpack plus worn gear, against the `carry_weight` stat. Over the
+  limit you move at 70% speed and can't sprint; over 140% of it, 25% speed
+  (`EncumbranceSystem`).
+- **Containers:** generators place world objects per chunk (`WorldGenerator.objects`)
+  with stable ids. A crate's contents are rolled from its `lootTable` with a seed
+  derived from the world seed and the crate id, so they're identical every visit
+  until changed. After that, they're saved as a chunk entity record. Bodies of
+  killed NPCs become containers holding their gear (worn down) plus pocket loot.
+- **Ground items** are chunk entity records (`kind: "item"`) and spawn and
+  despawn with their chunk, like crates.
+- **UI:** `InventoryScene` (paper doll, backpack, container, details with
+  equipped-item comparison; drag & drop). Item icons are generated from the same
+  art the game draws (`ItemIcons`).
+
 ## Extension points
 
 ### Add a playable race
@@ -81,6 +129,13 @@ to the race's `armorTag`, and choose a `placeholder.style` (`hood`/`helmet`,
 per `docs/SPRITE_SPEC.md`. Use `dye` for color variants. A new playable race
 needs its own armor pieces, and its `startingEquipment` must fit it (the loader
 checks this).
+
+### Add a weapon, ammo type, consumable or loot table
+Add JSON under `content/base/weapons/`, `ammo/`, `consumables/` or `loot/`.
+Weapons use `placeholder.style` (`pistol`, `smg`, `rifle`, `shotgun`, `sniper`)
+or a `sprite` PNG pointing right with `grip` and `muzzle` pixel coordinates.
+Every item id must be unique across all item types (the loader checks). A new
+item *kind* means adding it to `ITEM_CONTENT_TYPES` in `src/content/items.ts`.
 
 ### Add a stat
 Add an entry to `content/base/stats/core.json`. Races set it via `baseStats`.
@@ -128,8 +183,12 @@ IndexedDB "stalker-future-anomaly"
   changes are applied on top.
 - Autosaves happen every 30 s, when the app is hidden/closed (`visibilitychange`/`pagehide`), and on manual save. Only chunks that changed are written.
 - Undoing a change (back to the generated tile) deletes the record, so saves stay small.
+- Chunk records also hold **world entity records** `{id, kind, x, y, data}`:
+  dropped items (`kind: "item"`) and the contents of containers the player has
+  touched (`kind: "container"`).
 - **Format changes:** bump `SAVE_VERSION` and add a step in `src/save/migrations.ts`.
-  Current format is **v2** (v1 → v2 added `player.equipment`).
+  Current format is **v3** (v2 added `player.equipment`; v3 added weapon slots,
+  `player.inventory`, `activeWeapon`, `health`).
 - **Slots:** each character is its own slot (`slot-<time>-<random>`). Export
   writes `{format: "sfa-save", data, chunks}` JSON. Import upgrades older
   formats and asks before replacing a slot that already exists.

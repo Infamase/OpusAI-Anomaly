@@ -27,6 +27,12 @@ export class VitalsSystem implements System {
         continue;
       }
       const max = world.get(e, Stats)?.get('max_health') ?? 100;
+      for (const r of h.regen) {
+        const t = Math.min(dt, r.left);
+        h.hp += r.rate * t;
+        r.left -= t;
+      }
+      if (h.regen.length) h.regen = h.regen.filter((r) => r.left > 0);
       if (h.bleed > 0) {
         if (!h.god) h.hp -= h.bleed * dt;
         h.bleed = Math.max(0, h.bleed - BLEED_DECAY * dt);

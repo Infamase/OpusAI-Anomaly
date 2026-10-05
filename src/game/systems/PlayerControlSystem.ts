@@ -3,7 +3,7 @@ import type { System, World } from '../../ecs/World';
 import type { Camera } from '../../render/Camera';
 import type { InputManager } from '../../input/InputManager';
 import { CHEST_HEIGHT } from '../combat';
-import { Aim, Character, Combatant, Health, PlayerControlled, Stamina, Stats, Transform, Velocity } from '../components';
+import { Aim, Character, Combatant, Encumbrance, Health, PlayerControlled, Stamina, Stats, Transform, Velocity } from '../components';
 
 /** Turns input actions into the player's movement, aim and weapon intents. */
 export class PlayerControlSystem implements System {
@@ -34,7 +34,8 @@ export class PlayerControlSystem implements System {
       const firing = this.input.isDown('fire');
       const stamina = world.get(e, Stamina);
       // Sprinting lowers the gun: holding fire cancels it, and it costs stamina.
-      ch.sprinting = this.input.isDown('sprint') && length(move) > 0.1 && !firing && !(stamina?.exhausted ?? false);
+      const overloaded = (world.get(e, Encumbrance)?.level ?? 0) > 0;
+      ch.sprinting = this.input.isDown('sprint') && length(move) > 0.1 && !firing && !(stamina?.exhausted ?? false) && !overloaded;
       const speed = stats.get('move_speed') * (ch.sprinting ? stats.get('sprint_multiplier') : 1);
       vel.x = move.x * speed;
       vel.y = move.y * speed;

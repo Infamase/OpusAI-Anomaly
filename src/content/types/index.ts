@@ -1,6 +1,8 @@
 import type { ContentRegistry } from '../Registry';
 import { ammoType } from './ammo';
 import { armorType } from './armor';
+import { consumableType } from './consumable';
+import { lootTableType } from './lootTable';
 import { raceType } from './race';
 import { spriteLayoutType } from './spriteLayout';
 import { statType } from './stat';
@@ -20,12 +22,16 @@ export function defineCoreContentTypes(registry: ContentRegistry): void {
   registry.defineType(armorType);
   registry.defineType(ammoType);
   registry.defineType(weaponType);
+  registry.defineType(consumableType);
+  registry.defineType(lootTableType);
   registry.defineType(tileType);
   registry.defineType(worldGenType);
 }
 
 export type { AmmoDef } from './ammo';
 export type { ArmorDef } from './armor';
+export type { ConsumableDef } from './consumable';
+export type { LootTableDef } from './lootTable';
 export type { RaceDef } from './race';
 export type { SpriteLayoutDef } from './spriteLayout';
 export type { TileDef } from './tile';

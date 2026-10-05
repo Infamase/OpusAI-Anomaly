@@ -89,8 +89,21 @@ export interface ChunkDelta {
   tiles: Record<string, string>;
   /** Generated entities that no longer exist (looted crates, killed spawns...). */
   removed: string[];
-  /** Entities the player introduced (dropped items, placed objects...). */
-  entities: unknown[];
+  /** Entities the player introduced or changed (dropped items, looted containers...). */
+  entities: WorldEntityRecord[];
+}
+
+/**
+ * A saved world object. `kind` decides how it's restored:
+ * - "item": an item lying on the ground (data: ItemInstance)
+ * - "container": the current contents of a generated container (data: ItemInstance[])
+ */
+export interface WorldEntityRecord {
+  id: string;
+  kind: string;
+  x: number;
+  y: number;
+  data: unknown;
 }
 
 export interface ChunkDeltaRecord {

@@ -2,17 +2,20 @@ import { EventBus } from '../../core/EventBus';
 import type { Game } from '../../core/Game';
 import { GAME_VERSION } from '../../core/Game';
 import { directionVector, lerp } from '../../core/math';
-import { Rng } from '../../core/rng';
+import { deriveSeed, hashString, Rng } from '../../core/rng';
 import type { Scene } from '../../core/Scene';
+import { Texture } from 'pixi.js';
 import { World, type Entity } from '../../ecs/World';
 import type { CharacterView } from '../../render/CharacterView';
 import { CombatFx } from '../../render/CombatFx';
+import { PropView } from '../../render/PropView';
+import { drawCrate } from '../../render/placeholder/items';
 import { Crosshair } from '../../render/Crosshair';
 import type { ChannelColors } from '../../render/palette';
 import { TileAtlas, TilemapRenderer } from '../../render/TilemapRenderer';
 import { SaveManager } from '../../save/SaveManager';
-import type { EquipmentSave } from '../../save/types';
-import type { WorldDeltas } from '../../save/WorldDeltas';
+import type { EquipmentSave, ItemInstance } from '../../save/types';
+import { chunkKey, type WorldDeltas } from '../../save/WorldDeltas';
 import { DevTools, type DevHooks } from '../../ui/DevTools';
 import { Hud, type HudState } from '../../ui/Hud';
 import { addCombatComponents, prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
@@ -22,21 +25,30 @@ import {
   Aim,
   Character,
   Combatant,
+  Container,
   Equipment,
   Health,
   Inventory,
   PlayerControlled,
   Projectile,
+  PropView as PropViewC,
   ShooterAI,
   Stamina,
   Stats,
   Transform,
   Velocity,
   View,
+  WorldItem,
 } from '../components';
+import { pickQuickHeal, useConsumable } from '../consumables';
+import { findItem } from '../../content/items';
+import { rollLoot } from '../loot';
+import { EncumbranceSystem, refreshEncumbrance } from '../systems/EncumbranceSystem';
+import { InventoryScene, type InventoryHost } from './InventoryScene';
 import {
   ARMOR_SLOTS,
   createItem,
+  refreshArmorLayers,
   defaultActiveWeapon,
   equipArmor,
   prepareArmorArt,
@@ -45,7 +57,7 @@ import {
   unequipArmor,
   type ArmorSlot,
 } from '../equipment';
-import { addItem, countItem, createLoadedWeapon } from '../items';
+import { addItem, countItem, countOf, createLoadedWeapon } from '../items';
 import { generateStalker } from '../npcs';
 import { AnimationSystem } from '../systems/AnimationSystem';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -108,11 +120,11 @@ export async function startNewGame(game: Game, who: NewCharacter): Promise<void>
  * against test bandits. Everything persists through "seed + changes" saves.
  * The world is still the Phase 0 test range until planets (Phase 2) exist.
  */
-export class GameplayScene implements Scene, DevHooks {
+export class GameplayScene implements Scene, DevHooks, InventoryHost {
   readonly id = 'gameplay';
   buildMode = false;
 
-  private world = new World();
+  readonly world = new World();
   private combatEvents = new EventBus<CombatEvents>();
   private map: TileMap | null = null;
   private tileRenderer: TilemapRenderer | null = null;
@@ -128,6 +140,11 @@ export class GameplayScene implements Scene, DevHooks {
   private playTime = 0;
   private offEvents: (() => void)[] = [];
   private banditRng = new Rng(Date.now() >>> 0);
+  /** World objects (crates, dropped items) spawned per visible chunk. */
+  private chunkObjects = new Map<string, Entity[]>();
+  private crateTextures: Partial<Record<'supply' | 'military', Texture>> = {};
+  /** The crate / item / body that E would interact with right now. */
+  private focus: Entity | null = null;
   /** Set once enter() completes; exit() only saves a fully loaded scene. */
   private ready = false;
 
@@ -135,6 +152,10 @@ export class GameplayScene implements Scene, DevHooks {
     private game: Game,
     readonly slotId: string,
   ) {}
+
+  get playerId(): Entity {
+    return this.playerEntity;
+  }
 
   /** True once the world and player exist (enter() is async; the loop may tick before it finishes). */
   get isReady(): boolean {
@@ -177,15 +198,19 @@ export class GameplayScene implements Scene, DevHooks {
       .addSystem(new MovementSystem(map))
       .addSystem(new ProjectileSystem(g.content, map, this.combatEvents))
       .addSystem(new VitalsSystem(this.combatEvents))
+      .addSystem(new EncumbranceSystem(g.content))
       .addSystem(new AnimationSystem());
     this.world.onDestroy = (e) => {
       this.world.get(e, View)?.destroy();
+      this.world.get(e, PropViewC)?.destroy();
       this.shownWeapon.delete(e);
     };
+    this.tileRenderer.onChunkShown = (cx, cy) => this.spawnChunkObjects(cx, cy);
+    this.tileRenderer.onChunkHidden = (cx, cy) => this.despawnChunkObjects(cx, cy);
     this.listenToCombat();
 
-    // --- Art: every weapon is tiny, so prepare them all up front.
-    await Promise.all(g.content.all('weapon').map((w) => g.weaponArt.prepare(w)));
+    // --- Art: weapons and item icons are tiny, so prepare them all up front.
+    await Promise.all([...g.content.all('weapon').map((w) => g.weaponArt.prepare(w)), g.icons.prepareAll()]);
 
     // --- Player.
     await prepareCharacterArt(g.content, g.sheets, save.player.raceId, save.player.equipment);
@@ -211,6 +236,7 @@ export class GameplayScene implements Scene, DevHooks {
       hp: save.player.health,
     });
     g.renderer.entities.addChild(this.world.req(this.playerEntity, View).root);
+    refreshEncumbrance(this.world, g.content, this.playerEntity);
     g.camera.snapTo({ x, y: y - CHEST_HEIGHT });
 
     for (let i = 0; i < BANDITS_ON_ENTER; i++) await this.spawnBandit();
@@ -240,8 +266,10 @@ export class GameplayScene implements Scene, DevHooks {
     this.fx.destroy();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
+    for (const e of this.world.query(PropViewC)) this.world.destroy(e);
     for (const e of this.world.query(Projectile)) this.world.destroy(e);
     this.world.flushDestroyed();
+    this.chunkObjects.clear();
   }
 
   update(dt: number): void {
@@ -252,7 +280,12 @@ export class GameplayScene implements Scene, DevHooks {
       return;
     }
     this.world.update(dt);
+    const alive = !this.world.get(this.playerEntity, Health)?.dead;
+    this.focus = alive && !this.buildMode ? this.findInteractable() : null;
     if (this.buildMode && input.justPressed('interact')) this.toggleTileInFront();
+    else if (alive && input.justPressed('interact') && this.focus !== null) this.interact(this.focus);
+    else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
+    if (alive && input.justPressed('quickHeal')) this.quickHeal();
 
     this.playTime += dt;
     this.sinceSave += dt;
@@ -301,6 +334,8 @@ export class GameplayScene implements Scene, DevHooks {
     }
     this.fx.render(frameDt, tracers, bars);
     this.renderCrosshair(frameDt, px, py);
+    for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
+    this.hud?.prompt(this.focus !== null && this.game.scenes.current === this ? this.promptFor(this.focus) : null);
     this.hud?.update(this.hudState(), frameDt);
     this.dev?.update(performance.now());
   }
@@ -327,6 +362,7 @@ export class GameplayScene implements Scene, DevHooks {
     ev.on('death', (d) => {
       this.world.get(d.entity, View)?.setDead(true);
       if (d.entity === this.playerEntity) this.onPlayerDeath(d.killer);
+      else this.makeBodyLootable(d.entity);
     });
   }
 
@@ -335,7 +371,7 @@ export class GameplayScene implements Scene, DevHooks {
     const by = killer !== null ? this.world.get(killer, Equipment) : undefined;
     const weaponId = killer !== null ? by?.[this.world.get(killer, Combatant)?.active ?? 'primary']?.defId : undefined;
     const cause =
-      killer === null ? 'You bled out.' : `Killed by a bandit${weaponId ? ` with a ${g.content.tryGet('weapon', weaponId)?.name}` : ''}.`;
+      killer === null ? 'You bled out.' : `Killed by a bandit${weaponId ? ` with ${withArticle(g.content.tryGet('weapon', weaponId)?.name ?? weaponId)}` : ''}.`;
     // No save here: dying sends you back to your last save.
     void g.scenes.push(new DeathScene(g, cause, () => g.scenes.change(new GameplayScene(g, this.slotId))));
   }
@@ -466,6 +502,178 @@ export class GameplayScene implements Scene, DevHooks {
       g.renderer.entities.addChild(this.world.req(e, View).root);
       return;
     }
+  }
+
+  // ---- world objects & looting ----------------------------------------------
+
+  /** Spawns a chunk's crates (with any saved contents) and the items dropped there. */
+  private spawnChunkObjects(cx: number, cy: number): void {
+    const map = this.map;
+    const deltas = this.deltas;
+    if (!map || !deltas) return;
+    const key = chunkKey(cx, cy);
+    const list: Entity[] = [];
+    for (const obj of map.objects(cx, cy)) {
+      const saved = deltas.entity(key, obj.id);
+      const e = this.world.create();
+      this.world.add(e, Transform, { x: obj.x, y: obj.y, prevX: obj.x, prevY: obj.y });
+      this.world.add(e, Container, {
+        id: obj.id,
+        label: obj.variant === 'military' ? 'Military case' : 'Supply crate',
+        kind: 'crate',
+        chunkKey: key,
+        lootTable: obj.lootTable,
+        items: saved ? structuredClone(saved.data as ItemInstance[]) : null,
+      });
+      this.addProp(e, this.crateTexture(obj.variant), obj.x, obj.y, 9);
+      list.push(e);
+    }
+    for (const { key: k, record } of deltas.entitiesOfKind('item')) {
+      if (k === key) list.push(this.spawnWorldItem(record.data as ItemInstance, record.x, record.y, key, record.id));
+    }
+    this.chunkObjects.set(key, list);
+  }
+
+  private despawnChunkObjects(cx: number, cy: number): void {
+    const key = chunkKey(cx, cy);
+    for (const e of this.chunkObjects.get(key) ?? []) if (this.world.isAlive(e)) this.world.destroy(e);
+    this.chunkObjects.delete(key);
+  }
+
+  private spawnWorldItem(item: ItemInstance, x: number, y: number, key: string, recordId: string): Entity {
+    const e = this.world.create();
+    this.world.add(e, Transform, { x, y, prevX: x, prevY: y });
+    this.world.add(e, WorldItem, { item, recordId, chunkKey: key });
+    this.addProp(e, this.game.icons.texture(item.defId), x, y);
+    return e;
+  }
+
+  private addProp(e: Entity, texture: Texture, x: number, y: number, shadow?: number): void {
+    const view = new PropView(texture, { shadow });
+    view.setPosition(x, y);
+    this.world.add(e, PropViewC, view);
+    this.game.renderer.entities.addChild(view.root);
+  }
+
+  private crateTexture(variant: 'supply' | 'military'): Texture {
+    return (this.crateTextures[variant] ??= Texture.from(drawCrate(variant).toCanvas(), true));
+  }
+
+  /** Nearest item, crate or body within reach of the player's feet. */
+  private findInteractable(): Entity | null {
+    const pt = this.world.req(this.playerEntity, Transform);
+    let best: Entity | null = null;
+    let bestD = 30;
+    const consider = (e: Entity) => {
+      const t = this.world.req(e, Transform);
+      const d = Math.hypot(t.x - pt.x, t.y - pt.y);
+      if (d < bestD) {
+        best = e;
+        bestD = d;
+      }
+    };
+    for (const e of this.world.query(WorldItem, Transform)) consider(e);
+    for (const e of this.world.query(Container, Transform)) if (e !== this.playerEntity) consider(e);
+    return best;
+  }
+
+  private promptFor(e: Entity): string {
+    const wi = this.world.get(e, WorldItem);
+    if (wi) {
+      const name = findItem(this.game.content, wi.item.defId)?.def.name ?? wi.item.defId;
+      return `E  Pick up ${name}${countOf(wi.item) > 1 ? ` ×${countOf(wi.item)}` : ''}`;
+    }
+    const c = this.world.get(e, Container);
+    if (!c) return '';
+    const empty = c.items !== null && c.items.length === 0;
+    return `E  ${c.kind === 'body' ? 'Search' : 'Open'} ${c.label}${empty ? ' (empty)' : ''}`;
+  }
+
+  private interact(e: Entity): void {
+    const g = this.game;
+    const wi = this.world.get(e, WorldItem);
+    if (wi) {
+      addItem(g.content, this.world.req(this.playerEntity, Inventory), wi.item);
+      this.deltas?.removeEntity(wi.chunkKey, wi.recordId);
+      this.world.destroy(e);
+      refreshEncumbrance(this.world, g.content, this.playerEntity);
+      const name = findItem(g.content, wi.item.defId)?.def.name ?? wi.item.defId;
+      this.message(`Picked up ${name}${countOf(wi.item) > 1 ? ` ×${countOf(wi.item)}` : ''}`);
+      return;
+    }
+    const c = this.world.get(e, Container);
+    if (!c) return;
+    if (c.items === null) {
+      // First look inside: roll the contents from the seed, so they're the same every time until changed.
+      const seed = this.map ? deriveSeed(this.map.seed, 'crate', hashString(c.id)) : 1;
+      c.items = c.lootTable ? rollLoot(g.content, c.lootTable, new Rng(seed)) : [];
+    }
+    void g.scenes.push(new InventoryScene(g, this, e));
+  }
+
+  /** Dead NPCs become searchable: their worn gear and weapons (worn down) plus pocket loot. */
+  private makeBodyLootable(e: Entity): void {
+    const g = this.game;
+    const eq = this.world.get(e, Equipment);
+    if (!eq) return;
+    const items: ItemInstance[] = [];
+    for (const it of Object.values(eq)) {
+      if (!it) continue;
+      it.condition = Math.round(it.condition * this.banditRng.range(0.35, 0.85) * 100) / 100;
+      items.push(it);
+    }
+    for (const it of rollLoot(g.content, 'bandit_pockets', this.banditRng)) addItem(g.content, items, it);
+    this.world.add(e, Container, { id: `body:${e}`, label: 'body', kind: 'body', chunkKey: null, lootTable: null, items });
+  }
+
+  // ---- InventoryHost -------------------------------------------------------
+
+  dropItem(item: ItemInstance): void {
+    const t = this.world.req(this.playerEntity, Transform);
+    const x = t.x + this.banditRng.range(-10, 10);
+    const y = t.y + this.banditRng.range(2, 10);
+    const S = this.map?.chunkSize ?? 16;
+    const key = chunkKey(Math.floor(x / TILE_PX / S), Math.floor(y / TILE_PX / S));
+    this.deltas?.putEntity(key, { id: item.uid, kind: 'item', x, y, data: item });
+    const e = this.spawnWorldItem(item, x, y, key, item.uid);
+    if (!this.chunkObjects.has(key)) this.chunkObjects.set(key, []);
+    this.chunkObjects.get(key)!.push(e);
+    refreshEncumbrance(this.world, this.game.content, this.playerEntity);
+  }
+
+  containerChanged(e: Entity): void {
+    const c = this.world.get(e, Container);
+    if (!c || !c.items) return;
+    if (c.kind === 'crate' && c.chunkKey && this.deltas) {
+      const t = this.world.req(e, Transform);
+      this.deltas.putEntity(c.chunkKey, { id: c.id, kind: 'container', x: t.x, y: t.y, data: structuredClone(c.items) });
+    }
+    if (c.kind === 'body') {
+      // Gear taken off a body disappears from it.
+      const eq = this.world.get(e, Equipment);
+      if (eq) {
+        for (const [slot, it] of Object.entries(eq)) if (it && !c.items.includes(it)) delete eq[slot as keyof typeof eq];
+        refreshArmorLayers(this.world, this.game.content, this.game.sheets, e);
+      }
+    }
+  }
+
+  message(text: string): void {
+    this.hud?.message(text);
+  }
+
+  private quickHeal(): void {
+    const g = this.game;
+    const e = this.playerEntity;
+    const h = this.world.req(e, Health);
+    const inv = this.world.req(e, Inventory);
+    const item = pickQuickHeal(g.content, inv, h.hp / this.world.req(e, Stats).get('max_health'), h.bleed);
+    if (!item) {
+      this.message(inv.some((i) => g.content.tryGet('consumable', i.defId)?.category === 'medical') ? 'No need to heal.' : 'No medical supplies.');
+      return;
+    }
+    const msg = useConsumable(this.world, g.content, e, item);
+    if (msg) this.message(msg);
   }
 
   // ---- DevHooks -------------------------------------------------------------
@@ -654,6 +862,11 @@ export class GameplayScene implements Scene, DevHooks {
       console.error('[save] autosave failed', e);
     }
   }
+}
+
+/** "an AKR-5", "a VZ-9". */
+function withArticle(name: string): string {
+  return /^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`;
 }
 
 function newSeed(): number {

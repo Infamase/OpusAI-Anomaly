@@ -10,6 +10,7 @@ import { Camera } from '../render/Camera';
 import { GameRenderer } from '../render/Renderer';
 import { SpriteSheetCache } from '../render/SpriteSheets';
 import { WeaponArtCache } from '../render/WeaponArt';
+import { ItemIcons } from '../render/ItemIcons';
 import { openBestBackend } from '../save/backends';
 import { SaveManager } from '../save/SaveManager';
 import { EventBus } from './EventBus';
@@ -40,6 +41,7 @@ export class Game {
   readonly sheets = new SpriteSheetCache();
   readonly weaponArt = new WeaponArtCache();
   readonly content = new ContentRegistry();
+  readonly icons = new ItemIcons(this.content, this.sheets);
   readonly settings: Settings;
   renderer!: GameRenderer;
   input!: InputManager;

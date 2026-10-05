@@ -1,7 +1,7 @@
-import { fbm2D, deriveSeed } from '../../core/rng';
+import { fbm2D, deriveSeed, Rng } from '../../core/rng';
 import { parseOrThrow, v } from '../../content/schema';
 import type { TileSet } from './TileSet';
-import { registerGenerator, type WorldGenerator } from './generators';
+import { registerGenerator, type WorldGenerator, type WorldObjectSpawn } from './generators';
 
 /**
  * Phase 0 test map: noise terrain with rock outcrops and a small metal outpost
@@ -98,6 +98,40 @@ export const testRangeGenerator: WorldGenerator<Params> = {
         out[y * S + x] = classify(ctx.seed, ctx.params, cx * S + x, cy * S + y, W, H);
       }
     }
+  },
+
+  objects(ctx, tiles) {
+    const { chunkSize: S, cx, cy, widthTiles: W, heightTiles: H, params } = ctx;
+    const T = 32;
+    const out: WorldObjectSpawn[] = [];
+    // Two military cases in the outpost, beside the cover pillars.
+    const o = outpostRect(params, W, H);
+    for (const [i, [lx, ly]] of [
+      [0, [2, 2]],
+      [1, [o.w - 3, 2]],
+    ] as const) {
+      const gx = o.x + lx;
+      const gy = o.y + ly;
+      if (Math.floor(gx / S) === cx && Math.floor(gy / S) === cy) {
+        out.push({ id: `crate:outpost:${i}`, kind: 'crate', x: (gx + 0.5) * T, y: (gy + 0.8) * T, variant: 'military', lootTable: 'military_crate' });
+      }
+    }
+    // Scattered supply crates on open ground.
+    const rng = new Rng(deriveSeed(ctx.seed, 'crates', cx, cy));
+    const n = rng.chance(0.45) ? (rng.chance(0.3) ? 2 : 1) : 0;
+    for (let i = 0; i < n; i++) {
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const lx = rng.int(1, S - 2);
+        const ly = rng.int(1, S - 2);
+        const gx = cx * S + lx;
+        const gy = cy * S + ly;
+        const inOutpost = gx >= o.x - 1 && gy >= o.y - 1 && gx <= o.x + o.w && gy <= o.y + o.h;
+        if (inOutpost || ctx.tiles.solid[tiles[ly * S + lx]!] || ctx.tiles.solid[tiles[(ly - 1) * S + lx]!]) continue;
+        out.push({ id: `crate:${cx},${cy}:${i}`, kind: 'crate', x: (gx + 0.5) * T, y: (gy + 0.8) * T, variant: 'supply', lootTable: 'supply_crate' });
+        break;
+      }
+    }
+    return out;
   },
 
   spawnPoint(_seed, params, W, H) {
