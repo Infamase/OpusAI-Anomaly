@@ -1,5 +1,6 @@
 import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
+import { checkSoundRefs, soundRefs } from './sound';
 
 declare module '../Registry' {
   interface ContentMap {
@@ -26,6 +27,8 @@ const schema = v.object({
   blend: v.optional(v.number({ int: true, min: 0 }), 0),
   /** A tall prop (tree, boulder...) standing on this tile, drawn over the ground art. */
   prop: v.optional(v.literal(...PROP_STYLES)),
+  /** Footsteps on this ground and bullets striking it (otherwise the footstep / impact cues). */
+  sounds: soundRefs('step', 'impact'),
   /** Generated stand-in art until a real tileset exists (for prop tiles: the ground under the prop). */
   placeholder: v.object({
     style: v.literal(...PLACEHOLDER_TILE_STYLES),
@@ -36,4 +39,10 @@ const schema = v.object({
 
 export type TileDef = Infer<typeof schema>;
 
-export const tileType: ContentTypeSpec<'tile'> = { type: 'tile', schema };
+export const tileType: ContentTypeSpec<'tile'> = {
+  type: 'tile',
+  schema,
+  crossCheck(def, ctx) {
+    checkSoundRefs(def.sounds, ctx);
+  },
+};

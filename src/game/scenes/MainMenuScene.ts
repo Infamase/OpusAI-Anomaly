@@ -1,3 +1,4 @@
+import { OptionsPanel } from '../../ui/OptionsPanel';
 import { Container } from 'pixi.js';
 import type { Game } from '../../core/Game';
 import { GAME_VERSION } from '../../core/Game';
@@ -97,6 +98,7 @@ export class MainMenuScene implements Scene {
       button('New Game', () => void this.game.scenes.change(new CharacterCreatorScene(g)), `btn big ${latest ? '' : 'primary'}`),
       button('Load Game', () => void this.showLoad(), 'btn big'),
       button('Import Save', () => void this.importSave(), 'btn big'),
+      button('Options', () => new OptionsPanel(g), 'btn big'),
     );
     this.root.replaceChildren(
       el('div', 'menu-column', undefined, this.title(), nav),

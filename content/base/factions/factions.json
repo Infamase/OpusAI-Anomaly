@@ -19,6 +19,7 @@
     "defaultAttitude": "hostile",
     "relations": {},
     "names": ["Kolyan", "Shnyr", "Bully", "Vovan", "Gnat", "Scar", "Lyokha", "Rat", "Borov", "Stitch", "Crooked", "Zhora"],
+    "sounds": { "bark": "bandit_whistle" },
     "barks": {
       "contact": ["Get him!", "Fresh meat!", "Over there, boys!"],
       "hurt": ["Aah, you scum!", "I'm bleeding!"],

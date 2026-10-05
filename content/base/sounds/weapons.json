@@ -1,0 +1,116 @@
+[
+  {
+    "type": "sound", "id": "shot_pistol", "cue": "shot", "range": 900, "maxVoices": 6, "volume": 0.8,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.06, "curve": 4, "filter": { "type": "lowpass", "freq": [9000, 2500] } },
+        { "wave": "noise", "length": 0.24, "curve": 3, "gain": 0.8, "filter": { "type": "lowpass", "freq": [2400, 400] } },
+        { "wave": "sine", "freq": [160, 55], "length": 0.12, "gain": 0.7 }
+      ],
+      "drive": 2.5, "echo": { "delay": 0.09, "feedback": 0.3, "mix": 0.22 }, "vary": 0.06
+    }
+  },
+  {
+    "type": "sound", "id": "shot_smg", "range": 850, "maxVoices": 6, "minInterval": 0.02, "volume": 0.75,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.04, "curve": 4, "filter": { "type": "lowpass", "freq": [8000, 3000] } },
+        { "wave": "noise", "length": 0.15, "curve": 3, "gain": 0.8, "filter": { "type": "lowpass", "freq": [3000, 600] } },
+        { "wave": "sine", "freq": [190, 70], "length": 0.07, "gain": 0.6 }
+      ],
+      "drive": 2, "echo": { "delay": 0.08, "feedback": 0.25, "mix": 0.18 }, "vary": 0.08
+    }
+  },
+  {
+    "type": "sound", "id": "shot_rifle", "range": 1100, "maxVoices": 6, "minInterval": 0.02, "volume": 0.95,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.07, "curve": 4, "filter": { "type": "lowpass", "freq": [10000, 3000] } },
+        { "wave": "noise", "length": 0.34, "curve": 3, "gain": 0.9, "filter": { "type": "lowpass", "freq": [2600, 300] } },
+        { "wave": "sine", "freq": [125, 40], "length": 0.18, "gain": 0.8 },
+        { "wave": "brown", "start": 0.03, "length": 0.6, "gain": 0.4, "filter": { "type": "lowpass", "freq": [900, 200] } }
+      ],
+      "drive": 3, "echo": { "delay": 0.13, "feedback": 0.35, "mix": 0.28 }, "vary": 0.06
+    }
+  },
+  {
+    "type": "sound", "id": "shot_shotgun", "range": 1000, "volume": 1,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.08, "curve": 4, "filter": { "type": "lowpass", "freq": [8000, 2000] } },
+        { "wave": "noise", "length": 0.45, "curve": 3, "gain": 1.1, "filter": { "type": "lowpass", "freq": [1800, 250] } },
+        { "wave": "sine", "freq": [95, 35], "length": 0.26, "gain": 1 },
+        { "wave": "brown", "start": 0.04, "length": 0.7, "gain": 0.5, "filter": { "type": "lowpass", "freq": [700, 150] } }
+      ],
+      "drive": 3.5, "echo": { "delay": 0.15, "feedback": 0.35, "mix": 0.3 }, "vary": 0.05
+    }
+  },
+  {
+    "type": "sound", "id": "shot_dmr", "range": 1400, "volume": 1,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.1, "curve": 5, "gain": 1.2, "filter": { "type": "highpass", "freq": [2500, 1200] } },
+        { "wave": "noise", "length": 0.4, "curve": 3, "gain": 0.9, "filter": { "type": "lowpass", "freq": [2200, 250] } },
+        { "wave": "sine", "freq": [110, 38], "length": 0.22, "gain": 0.9 },
+        { "wave": "brown", "start": 0.05, "length": 1.1, "gain": 0.5, "filter": { "type": "lowpass", "freq": [800, 150] } }
+      ],
+      "drive": 3, "echo": { "delay": 0.19, "feedback": 0.4, "mix": 0.32 }, "vary": 0.04
+    }
+  },
+  {
+    "type": "sound", "id": "dry_click", "cue": "dry_fire", "range": 320, "volume": 0.6, "minInterval": 0.08,
+    "synth": {
+      "layers": [
+        { "wave": "square", "freq": [2400, 1800], "length": 0.012, "curve": 3, "gain": 0.5 },
+        { "wave": "noise", "length": 0.025, "curve": 3, "filter": { "type": "bandpass", "freq": [3200, 3000], "q": 3 } }
+      ],
+      "vary": 0.1
+    }
+  },
+  {
+    "type": "sound", "id": "mag_out", "cue": "reload", "range": 420, "volume": 0.6,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.04, "curve": 3, "filter": { "type": "bandpass", "freq": [2200, 2000], "q": 4 } },
+        { "wave": "square", "freq": [900, 650], "length": 0.025, "curve": 3, "gain": 0.3 },
+        { "wave": "noise", "start": 0.08, "length": 0.18, "attack": 0.02, "curve": 2, "gain": 0.5, "filter": { "type": "bandpass", "freq": [1400, 900], "q": 1.5 } }
+      ],
+      "vary": 0.08
+    }
+  },
+  {
+    "type": "sound", "id": "mag_in", "cue": "reload_done", "range": 420, "volume": 0.7,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.05, "curve": 4, "filter": { "type": "bandpass", "freq": [1700, 1500], "q": 3 } },
+        { "wave": "triangle", "freq": [800, 600], "length": 0.05, "curve": 3, "gain": 0.4 },
+        { "wave": "noise", "start": 0.14, "length": 0.07, "curve": 3, "gain": 0.8, "filter": { "type": "bandpass", "freq": [2600, 2200], "q": 4 } },
+        { "wave": "noise", "start": 0.24, "length": 0.05, "curve": 4, "gain": 0.9, "filter": { "type": "bandpass", "freq": [2000, 1800], "q": 5 } },
+        { "wave": "square", "freq": [1300, 1100], "start": 0.24, "length": 0.03, "curve": 3, "gain": 0.25 }
+      ],
+      "vary": 0.06
+    }
+  },
+  {
+    "type": "sound", "id": "shell_load", "range": 420, "volume": 0.7,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.06, "curve": 3, "filter": { "type": "bandpass", "freq": [1200, 1000], "q": 2 } },
+        { "wave": "noise", "start": 0.2, "length": 0.09, "curve": 3, "gain": 0.9, "filter": { "type": "bandpass", "freq": [1500, 900], "q": 2 } },
+        { "wave": "noise", "start": 0.36, "length": 0.08, "curve": 4, "gain": 1, "filter": { "type": "bandpass", "freq": [2200, 1600], "q": 3 } },
+        { "wave": "square", "freq": [600, 450], "start": 0.36, "length": 0.04, "curve": 3, "gain": 0.3 }
+      ],
+      "vary": 0.05
+    }
+  },
+  {
+    "type": "sound", "id": "weapon_draw", "cue": "weapon_switch", "range": 300, "volume": 0.5,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.16, "attack": 0.04, "curve": 2, "gain": 0.5, "filter": { "type": "bandpass", "freq": [900, 1800], "q": 1 } },
+        { "wave": "noise", "start": 0.15, "length": 0.03, "curve": 4, "filter": { "type": "bandpass", "freq": [2600, 2400], "q": 4 } }
+      ],
+      "vary": 0.1
+    }
+  }
+]

@@ -45,6 +45,7 @@ export class WeaponSystem implements System {
           c.switchLeft = SWITCH_TIME;
           c.reloadLeft = 0;
           c.burstLeft = 0;
+          this.events.emit('weaponSwitch', { shooter: e });
         }
         c.wantSwitch = null;
       }
@@ -63,7 +64,7 @@ export class WeaponSystem implements System {
         c.reloadLeft -= dt;
         if (c.reloadLeft <= 0) {
           c.reloadLeft = 0;
-          this.finishReload(c, item, def, inv);
+          if (this.finishReload(c, item, def, inv)) this.events.emit('reloadDone', { shooter: e });
         }
       } else if (c.wantReload) {
         this.startReload(e, c, item, def, inv);
@@ -118,9 +119,9 @@ export class WeaponSystem implements System {
     this.events.emit('reloadStart', { shooter: e, time: def.reloadTime });
   }
 
-  private finishReload(c: Combatant, item: ItemInstance, def: WeaponDef, inv: ItemInstance[]): void {
+  private finishReload(c: Combatant, item: ItemInstance, def: WeaponDef, inv: ItemInstance[]): boolean {
     const ammo = this.nextAmmo(c, item, def.ammo, inv);
-    if (!ammo) return;
+    if (!ammo) return false;
     // Switching ammo type: unload the old rounds back into the inventory first.
     if (item.loadedAmmo && item.loadedAmmo !== ammo && (item.loaded ?? 0) > 0) {
       if (!c.infiniteAmmo) addItem(this.content, inv, createItem(item.loadedAmmo, item.loaded!));
@@ -130,6 +131,7 @@ export class WeaponSystem implements System {
     const got = c.infiniteAmmo ? need : takeItem(inv, ammo, need);
     item.loaded = (item.loaded ?? 0) + got;
     item.loadedAmmo = ammo;
+    return true;
   }
 
   private fire(world: World, e: number, c: Combatant, item: ItemInstance, def: WeaponDef): void {

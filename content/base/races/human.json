@@ -53,6 +53,7 @@
       "count": 1
     }
   ],
+  "sounds": { "hurt": "hurt_human", "death": "death_human" },
   "hitbox": {
     "w": 12,
     "h": 8

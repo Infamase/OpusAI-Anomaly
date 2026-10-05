@@ -32,12 +32,14 @@ export class DeathScene implements Scene {
     );
     this.game.root.append(this.overlay);
     this.game.input.enabled = false;
+    this.game.audio.duck(true);
     load.focus();
   }
 
   exit(): void {
     this.overlay?.remove();
     this.game.input.enabled = true;
+    this.game.audio.duck(false);
   }
 
   update(): void {}

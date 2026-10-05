@@ -22,8 +22,16 @@ const schema = v.object({
   heightChunks: v.number({ int: true, min: 1 }),
   /** Generator-specific settings, validated by the generator itself. */
   params: v.any(),
+  /** Looping background sounds layered together (otherwise the ambient cue). */
+  ambient: v.optional(v.array(v.id())),
 });
 
 export type WorldGenDef = Infer<typeof schema>;
 
-export const worldGenType: ContentTypeSpec<'worldGen'> = { type: 'worldGen', schema };
+export const worldGenType: ContentTypeSpec<'worldGen'> = {
+  type: 'worldGen',
+  schema,
+  crossCheck(def, ctx) {
+    def.ambient?.forEach((id, i) => ctx.ref('sound', id, `ambient[${i}]`));
+  },
+};

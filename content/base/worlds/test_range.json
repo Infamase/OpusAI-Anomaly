@@ -5,6 +5,7 @@
   "generator": "test_range",
   "widthChunks": 8,
   "heightChunks": 8,
+  "ambient": ["amb_wind", "amb_zone_hum"],
   "params": {
     "ground": "dirt",
     "grass": "grass",

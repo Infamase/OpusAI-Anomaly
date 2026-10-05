@@ -22,6 +22,7 @@ import { WorldLabels } from '../../ui/WorldLabels';
 import { NpcBrainSystem, type BarkKind } from '../ai/NpcBrainSystem';
 import { addCombatComponents, prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
 import { CHEST_HEIGHT, currentSpread } from '../combat';
+import { GameAudio, playUseSound } from '../GameAudio';
 import type { CombatEvents } from '../combatEvents';
 import {
   Aim,
@@ -150,6 +151,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
   private population: Population | null = null;
   private devSquads = 0;
   private fx = new CombatFx();
+  private sound!: GameAudio;
   private crosshair = new Crosshair();
   /** Which weapon each character view currently shows, to know when to swap textures. */
   private shownWeapon = new Map<Entity, string | null>();
@@ -231,6 +233,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     this.tileRenderer.onChunkShown = (cx, cy) => this.spawnChunkObjects(cx, cy);
     this.tileRenderer.onChunkHidden = (cx, cy) => this.despawnChunkObjects(cx, cy);
     this.listenToCombat();
+    this.sound = new GameAudio(g.audio, g.content, this.world, map, () => this.playerEntity);
+    this.sound.listen(this.combatEvents);
 
     // --- Art: weapons and item icons are tiny, so prepare them all up front.
     await Promise.all([...g.content.all('weapon').map((w) => g.weaponArt.prepare(w)), g.icons.prepareAll()]);
@@ -279,6 +283,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
         if (g.scenes.current === this) this.openPauseMenu();
       }),
     );
+    const ambientCue = g.audio.cue('ambient');
+    g.audio.setAmbient(genDef.ambient ?? (ambientCue ? [ambientCue] : []));
     this.ready = true;
     await this.save();
   }
@@ -287,6 +293,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     if (this.ready) await this.save();
     this.ready = false;
     this.game.setGameplayInput(false);
+    this.game.audio.setAmbient([]);
     this.game.renderer.canvas.classList.remove('aiming');
     for (const off of this.offEvents) off();
     this.combatEvents.clear();
@@ -317,6 +324,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     else if (alive && input.justPressed('interact') && this.focus !== null) this.interact(this.focus);
     else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
+    const hp = this.world.get(this.playerEntity, Health);
+    this.sound.update(dt, hp ? hp.hp / this.world.req(this.playerEntity, Stats).get('max_health') : 1, alive);
 
     this.playTime += dt;
     this.sinceSave += dt;
@@ -341,7 +350,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       const vel = this.world.get(e, Velocity);
       const aimDir = this.world.get(e, Aim)?.dir;
       const c = this.world.get(e, Combatant);
-      view.update(frameDt, {
+      const stepped = view.update(frameDt, {
         facing: ch.facing,
         speed: vel ? Math.hypot(vel.x, vel.y) : 0,
         walkSpeed: this.world.get(e, Stats)?.get('move_speed') ?? 70,
@@ -349,6 +358,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
         aim: aimDir ? Math.atan2(aimDir.y, aimDir.x) : null,
         reload: c && c.reloadLeft > 0 ? 1 - c.reloadLeft / Math.max(0.01, c.reloadTotal) : null,
       });
+      if (stepped) this.sound.footstep(e, x, y, ch.sprinting);
       const h = this.world.get(e, Health);
       if (e === this.playerEntity) {
         px = x;
@@ -357,6 +367,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
         bars.push({ x, y, frac: h.hp / (this.world.get(e, Stats)?.get('max_health') ?? 100) });
       }
     }
+
+    g.audio.setListener(px, py);
 
     // Camera leads slightly toward the aim direction, Stalker-style.
     const aim = this.world.get(this.playerEntity, Aim)?.dir;
@@ -520,6 +532,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     const pt = this.world.req(this.playerEntity, Transform);
     if (Math.hypot(t.x - pt.x, t.y - pt.y) > 520) return;
     this.labels?.say(e, this.rng.pick(lines), faction?.color ?? '#ccc');
+    this.sound.bark(e);
   }
 
   /** Name tag for the NPC under the cursor, and positions for floating text. */
@@ -661,6 +674,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       this.world.destroy(e);
       refreshEncumbrance(this.world, g.content, this.playerEntity);
       const name = findItem(g.content, wi.item.defId)?.def.name ?? wi.item.defId;
+      g.audio.playCue('pickup');
       this.message(`Picked up ${name}${countOf(wi.item) > 1 ? ` ×${countOf(wi.item)}` : ''}`);
       return;
     }
@@ -721,7 +735,9 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       this.message(inv.some((i) => g.content.tryGet('consumable', i.defId)?.category === 'medical') ? 'No need to heal.' : 'No medical supplies.');
       return;
     }
+    const defId = item.defId;
     const msg = useConsumable(this.world, g.content, e, item);
+    if (msg) playUseSound(g.audio, g.content, defId);
     if (msg) this.message(msg);
   }
 

@@ -1,6 +1,7 @@
 import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
 import { checkUniqueItemId } from '../items';
+import { checkSoundRefs, soundRefs } from './sound';
 
 declare module '../Registry' {
   interface ContentMap {
@@ -30,6 +31,8 @@ const schema = v.object({
   }),
   icon: v.literal(...CONSUMABLE_ICONS),
   color: v.optional(v.color(), '#c8c0a8'),
+  /** Played when used (otherwise the use_item cue). */
+  sounds: soundRefs('use'),
 });
 
 export type ConsumableDef = Infer<typeof schema>;
@@ -39,5 +42,6 @@ export const consumableType: ContentTypeSpec<'consumable'> = {
   schema,
   crossCheck(def, ctx) {
     checkUniqueItemId(def.id, 'consumable', ctx);
+    checkSoundRefs(def.sounds, ctx);
   },
 };

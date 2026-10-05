@@ -1,0 +1,24 @@
+[
+  {
+    "type": "sound", "id": "amb_wind", "cue": "ambient", "bus": "ambient", "range": 0, "volume": 0.5,
+    "synth": {
+      "loop": true,
+      "layers": [
+        { "wave": "brown", "length": 12, "curve": 0, "lfo": [0.17, 0.55], "filter": { "type": "lowpass", "freq": [520, 520] } },
+        { "wave": "noise", "length": 12, "curve": 0, "gain": 0.12, "lfo": [0.083, 0.85], "filter": { "type": "bandpass", "freq": [900, 900], "q": 0.7 } },
+        { "wave": "noise", "length": 12, "curve": 0, "gain": 0.05, "lfo": [0.25, 0.9], "filter": { "type": "bandpass", "freq": [2400, 2400], "q": 3 } }
+      ]
+    }
+  },
+  {
+    "type": "sound", "id": "amb_zone_hum", "bus": "ambient", "range": 0, "volume": 0.22,
+    "synth": {
+      "loop": true,
+      "layers": [
+        { "wave": "sine", "freq": [55, 55], "length": 12, "curve": 0, "lfo": [0.25, 0.4] },
+        { "wave": "sine", "freq": [82.5, 82.5], "length": 12, "curve": 0, "gain": 0.4, "lfo": [0.0833, 0.7] },
+        { "wave": "crackle", "freq": [6, 6], "length": 12, "curve": 0, "gain": 0.25, "filter": { "type": "highpass", "freq": [3000, 3000] } }
+      ]
+    }
+  }
+]

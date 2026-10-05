@@ -58,6 +58,7 @@
       "count": 1
     }
   ],
+  "sounds": { "hurt": "hurt_sergal", "death": "death_sergal" },
   "hitbox": {
     "w": 14,
     "h": 8

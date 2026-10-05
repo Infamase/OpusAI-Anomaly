@@ -1033,3 +1033,67 @@ body {
   margin: 0;
   font-size: 11px;
 }
+
+/* ---------- Options ---------- */
+.options-box {
+  width: min(480px, 100%);
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+}
+.opt-section {
+  margin: 14px 0 6px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid #2a3036;
+  padding-bottom: 4px;
+}
+.opt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+.opt-label {
+  flex: 0 0 150px;
+}
+.opt-range {
+  flex: 1;
+  accent-color: var(--accent);
+}
+.opt-value {
+  width: 44px;
+  text-align: right;
+  color: #f3e4b0;
+  font-variant-numeric: tabular-nums;
+}
+.opt-check {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+.opt-select {
+  flex: 1;
+  font: inherit;
+  color: var(--text);
+  background: #1c2026;
+  border: 1px solid var(--panel-border);
+  padding: 6px;
+}
+.opt-note {
+  margin: 0 0 4px 160px !important;
+  font-size: 11px;
+  color: var(--muted);
+}
+.options-box .modal-buttons {
+  margin-top: 16px;
+}
+@media (max-width: 520px) {
+  .opt-label {
+    flex-basis: 110px;
+  }
+  .opt-note {
+    margin-left: 0 !important;
+  }
+}

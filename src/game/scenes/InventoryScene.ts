@@ -8,6 +8,7 @@ import { drawPortrait } from '../../ui/portrait';
 import { prepareCharacterArt } from '../characters';
 import { Character, Container, Encumbrance, Equipment, Health, Inventory, Stats } from '../components';
 import { conditionFactor } from '../equipment';
+import { playUseSound } from '../GameAudio';
 import { equipFromInventory, slotFor, unequipToInventory, unloadWeapon, useFromInventory } from '../inventoryActions';
 import { addItem, countOf, inventoryWeight, removeInstance } from '../items';
 import { refreshEncumbrance } from '../systems/EncumbranceSystem';
@@ -97,10 +98,12 @@ export class InventoryScene implements Scene {
     });
     g.root.append(this.root);
     this.redraw();
+    g.audio.playCue('ui_open');
   }
 
   exit(): void {
     this.root.remove();
+    this.game.audio.playCue('ui_close');
     this.game.input.enabled = true;
     if (this.container !== null && this.containerDirty) this.host.containerChanged(this.container);
   }
@@ -170,18 +173,27 @@ export class InventoryScene implements Scene {
     if (where.from === 'slot') return this.act(() => this.unequip(where.slot));
     if (this.container !== null) return this.act(() => this.store(item));
     const kind = this.info(item)?.kind;
-    if (kind === 'consumable') return this.act(() => useFromInventory(this.w, this.content, this.p, item));
+    if (kind === 'consumable') return this.act(() => this.use(item));
     if (kind === 'armor' || kind === 'weapon') return this.act(() => this.equip(item));
     return Promise.resolve();
   }
 
-  private equip(item: ItemInstance): Promise<string | null> {
-    return equipFromInventory(this.w, this.content, this.game.sheets, this.p, item);
+  private async equip(item: ItemInstance): Promise<string | null> {
+    const err = await equipFromInventory(this.w, this.content, this.game.sheets, this.p, item);
+    if (!err) this.game.audio.playCue('equip');
+    return err;
   }
 
   private unequip(slot: EquipmentSlot): null {
     unequipToInventory(this.w, this.content, this.game.sheets, this.p, slot);
+    this.game.audio.playCue('equip');
     return null;
+  }
+
+  private use(item: ItemInstance): string | null {
+    const err = useFromInventory(this.w, this.content, this.p, item);
+    if (!err) playUseSound(this.game.audio, this.content, item.defId);
+    return err;
   }
 
   private take(item: ItemInstance): null {
@@ -189,6 +201,7 @@ export class InventoryScene implements Scene {
     if (!crate || !removeInstance(crate, item.uid)) return null;
     addItem(this.content, this.bag(), item);
     this.containerDirty = true;
+    this.game.audio.playCue('pickup');
     return null;
   }
 
@@ -197,6 +210,7 @@ export class InventoryScene implements Scene {
     if (!crate || !removeInstance(this.bag(), item.uid)) return null;
     addItem(this.content, crate, item);
     this.containerDirty = true;
+    this.game.audio.playCue('pickup');
     return null;
   }
 
@@ -205,6 +219,7 @@ export class InventoryScene implements Scene {
     if (!crate) return null;
     for (const it of crate.splice(0)) addItem(this.content, this.bag(), it);
     this.containerDirty = true;
+    this.game.audio.playCue('pickup');
     return null;
   }
 
@@ -462,7 +477,7 @@ export class InventoryScene implements Scene {
       if (where.from === 'slot') actions.append(button('Unequip', () => void this.act(() => this.unequip(where.slot))));
       if (where.from === 'bag') {
         if (info.kind === 'armor' || info.kind === 'weapon') actions.append(button('Equip', () => void this.act(() => this.equip(item)), 'btn primary'));
-        if (info.kind === 'consumable') actions.append(button('Use', () => void this.act(() => useFromInventory(this.w, this.content, this.p, item)), 'btn primary'));
+        if (info.kind === 'consumable') actions.append(button('Use', () => void this.act(() => this.use(item)), 'btn primary'));
         if (this.container !== null) actions.append(button('Store', () => void this.act(() => this.store(item))));
       }
       if (info.kind === 'weapon' && (item.loaded ?? 0) > 0 && where.from !== 'container') {

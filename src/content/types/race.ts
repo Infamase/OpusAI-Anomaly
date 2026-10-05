@@ -1,5 +1,6 @@
 import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
+import { checkSoundRefs, soundRefs } from './sound';
 import { PALETTE_CHANNELS } from '../../render/palette';
 import { isItemId } from '../items';
 
@@ -37,6 +38,8 @@ const schema = v.object({
   startingInventory: v.optional(v.array(v.object({ item: v.id(), count: v.optional(v.number({ int: true, min: 1 }), 1) })), []),
   /** Collision box at the feet, in pixels. */
   hitbox: v.object({ w: v.number({ min: 1 }), h: v.number({ min: 1 }) }),
+  /** Pain and death sounds (otherwise the hit_flesh / death cues). */
+  sounds: soundRefs('hurt', 'death'),
 });
 
 export type RaceDef = Infer<typeof schema>;
@@ -46,6 +49,7 @@ export const raceType: ContentTypeSpec<'race'> = {
   schema,
   crossCheck(def, ctx) {
     ctx.ref('spriteLayout', def.spriteLayout, 'spriteLayout');
+    checkSoundRefs(def.sounds, ctx);
     for (const stat of Object.keys(def.baseStats)) ctx.ref('stat', stat, `baseStats.${stat}`);
     const channels = def.colorChannels.map((c) => c.channel);
     if (new Set(channels).size !== channels.length) ctx.error('colorChannels lists a channel twice');

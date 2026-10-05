@@ -1,5 +1,6 @@
 import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
+import { checkSoundRefs, soundRefs } from './sound';
 
 declare module '../Registry' {
   interface ContentMap {
@@ -29,6 +30,8 @@ const schema = v.object({
   names: v.array(v.string({ nonEmpty: true }), { min: 1 }),
   /** Short lines NPCs shout. Missing keys fall back to generic lines. */
   barks: v.optional(v.record(v.array(v.string({ nonEmpty: true }))), {} as Record<string, string[]>),
+  /** Played with a bark (otherwise the bark cue): a radio squelch, a grunt… */
+  sounds: soundRefs('bark'),
 });
 
 export type FactionDef = Infer<typeof schema>;
@@ -38,5 +41,6 @@ export const factionType: ContentTypeSpec<'faction'> = {
   schema,
   crossCheck(def, ctx) {
     for (const id of Object.keys(def.relations)) ctx.ref('faction', id, `relations.${id}`);
+    checkSoundRefs(def.sounds, ctx);
   },
 };

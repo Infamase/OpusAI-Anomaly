@@ -1,0 +1,86 @@
+[
+  {
+    "type": "sound", "id": "hurt_human", "bus": "voice", "range": 520, "volume": 0.55, "maxVoices": 3, "minInterval": 0.25,
+    "synth": {
+      "layers": [
+        { "wave": "saw", "freq": [150, 105], "length": 0.24, "attack": 0.02, "curve": 1.5, "filter": { "type": "lowpass", "freq": [1100, 500], "q": 2 } },
+        { "wave": "noise", "length": 0.18, "attack": 0.02, "curve": 2, "gain": 0.25, "filter": { "type": "bandpass", "freq": [800, 600], "q": 2 } }
+      ],
+      "drive": 2, "vary": 0.1
+    }
+  },
+  {
+    "type": "sound", "id": "hurt_sergal", "bus": "voice", "range": 520, "volume": 0.55, "maxVoices": 3, "minInterval": 0.25,
+    "synth": {
+      "layers": [
+        { "wave": "saw", "freq": [420, 260], "length": 0.2, "attack": 0.01, "curve": 1.5, "filter": { "type": "bandpass", "freq": [1600, 900], "q": 2.5 } },
+        { "wave": "saw", "freq": [140, 110], "length": 0.22, "attack": 0.02, "curve": 2, "gain": 0.5, "filter": { "type": "lowpass", "freq": [700, 400] } }
+      ],
+      "drive": 2.5, "vary": 0.1
+    }
+  },
+  {
+    "type": "sound", "id": "hurt_lizardman", "bus": "voice", "range": 520, "volume": 0.55, "maxVoices": 3, "minInterval": 0.25,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.3, "attack": 0.03, "curve": 1.5, "filter": { "type": "highpass", "freq": [3500, 2400] } },
+        { "wave": "saw", "freq": [110, 85], "length": 0.22, "attack": 0.02, "curve": 1.5, "gain": 0.6, "lfo": [28, 0.5], "filter": { "type": "lowpass", "freq": [600, 350] } }
+      ],
+      "drive": 2, "vary": 0.1
+    }
+  },
+  {
+    "type": "sound", "id": "death_human", "cue": "death", "bus": "voice", "range": 560, "volume": 0.6, "variants": 2,
+    "synth": {
+      "layers": [
+        { "wave": "saw", "freq": [150, 70], "length": 0.55, "attack": 0.03, "curve": 1.5, "filter": { "type": "lowpass", "freq": [1000, 300], "q": 2 } },
+        { "wave": "sine", "freq": [85, 40], "start": 0.4, "length": 0.15, "gain": 0.8 },
+        { "wave": "noise", "start": 0.4, "length": 0.2, "curve": 3, "gain": 0.6, "filter": { "type": "lowpass", "freq": [900, 200] } }
+      ],
+      "drive": 2, "vary": 0.08
+    }
+  },
+  {
+    "type": "sound", "id": "death_sergal", "bus": "voice", "range": 560, "volume": 0.6, "variants": 2,
+    "synth": {
+      "layers": [
+        { "wave": "saw", "freq": [380, 150], "length": 0.5, "attack": 0.02, "curve": 1.4, "filter": { "type": "bandpass", "freq": [1500, 600], "q": 2 } },
+        { "wave": "sine", "freq": [85, 40], "start": 0.42, "length": 0.15, "gain": 0.8 },
+        { "wave": "noise", "start": 0.42, "length": 0.2, "curve": 3, "gain": 0.6, "filter": { "type": "lowpass", "freq": [900, 200] } }
+      ],
+      "drive": 2.5, "vary": 0.08
+    }
+  },
+  {
+    "type": "sound", "id": "death_lizardman", "bus": "voice", "range": 560, "volume": 0.6, "variants": 2,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.5, "attack": 0.03, "curve": 1.2, "filter": { "type": "highpass", "freq": [3200, 1800] } },
+        { "wave": "saw", "freq": [100, 55], "length": 0.5, "attack": 0.03, "curve": 1.4, "gain": 0.6, "lfo": [24, 0.5], "filter": { "type": "lowpass", "freq": [500, 250] } },
+        { "wave": "sine", "freq": [85, 40], "start": 0.45, "length": 0.15, "gain": 0.8 },
+        { "wave": "noise", "start": 0.45, "length": 0.2, "curve": 3, "gain": 0.6, "filter": { "type": "lowpass", "freq": [900, 200] } }
+      ],
+      "drive": 2, "vary": 0.08
+    }
+  },
+  {
+    "type": "sound", "id": "radio_squelch", "cue": "bark", "bus": "voice", "range": 560, "volume": 0.4, "minInterval": 0.3,
+    "synth": {
+      "layers": [
+        { "wave": "noise", "length": 0.12, "attack": 0.004, "curve": 0.6, "filter": { "type": "bandpass", "freq": [2100, 1900], "q": 1.2 } },
+        { "wave": "sine", "freq": [1050, 1050], "length": 0.035, "curve": 1, "gain": 0.4 }
+      ],
+      "vary": 0.05
+    }
+  },
+  {
+    "type": "sound", "id": "bandit_whistle", "bus": "voice", "range": 560, "volume": 0.35, "minInterval": 0.3,
+    "synth": {
+      "layers": [
+        { "wave": "sine", "freq": [1300, 2100], "length": 0.14, "attack": 0.02, "curve": 1 },
+        { "wave": "sine", "freq": [2100, 1500], "start": 0.16, "length": 0.18, "attack": 0.02, "curve": 1.5 }
+      ],
+      "vary": 0.08
+    }
+  }
+]

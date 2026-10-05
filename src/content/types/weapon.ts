@@ -2,6 +2,7 @@ import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
 import { WEAPON_STYLES } from '../../render/placeholder/weapons';
 import { checkUniqueItemId } from '../items';
+import { checkSoundRefs, soundRefs } from './sound';
 
 declare module '../Registry' {
   interface ContentMap {
@@ -52,6 +53,8 @@ const schema = v.object({
   recoil: v.optional(v.number({ min: 0 }), 1),
   weight: v.number({ min: 0 }),
   value: v.number({ int: true, min: 0 }),
+  /** Sound overrides (otherwise the shot / reload / … cues). */
+  sounds: soundRefs('shot', 'reload', 'reloadDone', 'dry', 'equip'),
   /** Generated stand-in art, or a PNG pointing right with grip and muzzle pixel coordinates. */
   placeholder: v.optional(v.object({ style: v.literal(...WEAPON_STYLES) })),
   sprite: v.optional(
@@ -70,6 +73,7 @@ export const weaponType: ContentTypeSpec<'weapon'> = {
   schema,
   crossCheck(def, ctx) {
     checkUniqueItemId(def.id, 'weapon', ctx);
+    checkSoundRefs(def.sounds, ctx);
     def.ammo.forEach((a, i) => ctx.ref('ammo', a, `ammo[${i}]`));
     ctx.ref('stat', resistStat(def.damageType), 'damageType (its resist stat)');
     if (!def.placeholder && !def.sprite) ctx.error('needs either "placeholder" or "sprite"');

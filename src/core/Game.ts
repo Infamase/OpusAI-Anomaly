@@ -1,3 +1,4 @@
+import { AudioEngine } from '../audio/AudioEngine';
 import { ContentRegistry } from '../content/Registry';
 import { bundledContentFiles } from '../content/bundled';
 import { loadContent, type LoadReport } from '../content/loader';
@@ -43,6 +44,7 @@ export class Game {
   readonly content = new ContentRegistry();
   readonly icons = new ItemIcons(this.content, this.sheets);
   readonly settings: Settings;
+  readonly audio: AudioEngine;
   renderer!: GameRenderer;
   input!: InputManager;
   saves!: SaveManager;
@@ -61,6 +63,8 @@ export class Game {
 
   constructor(readonly root: HTMLElement) {
     this.settings = loadSettings();
+    this.audio = new AudioEngine(this.content, this.settings.volume);
+    this.audio.setVolumes(this.settings.volume, this.settings.muted);
     this.debugVisible = this.settings.showDebug;
     this.loop = new GameLoop({
       update: (dt) => this.update(dt),
@@ -76,6 +80,15 @@ export class Game {
     if (this.contentReport.errors.length) {
       throw new Error(`Content errors:\n${this.contentReport.errors.join('\n')}`);
     }
+    this.audio.init();
+    // Every enabled menu button clicks.
+    this.root.addEventListener(
+      'click',
+      (e) => {
+        if (e.target instanceof Element && e.target.closest('button:not(:disabled)')) this.audio.playCue('ui_click');
+      },
+      true,
+    );
 
     onProgress('Starting renderer…');
     this.renderer = await GameRenderer.create(this.root, this.settings.renderer);
@@ -111,8 +124,10 @@ export class Game {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.input.reset();
+        this.audio.suspend();
         this.events.emit('app:hidden', undefined);
       } else {
+        this.audio.resume();
         this.events.emit('app:visible', undefined);
       }
     });

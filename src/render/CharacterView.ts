@@ -213,13 +213,16 @@ export class CharacterView {
     this.recoilLeft = RECOIL_TIME;
   }
 
-  /** Advances the animation and redraws if the pose changed. */
-  update(dt: number, state: CharacterViewState): void {
+  /** Advances the animation and redraws if the pose changed. Returns true when a foot came down. */
+  update(dt: number, state: CharacterViewState): boolean {
     this.state = state;
     this.time += dt;
     this.recoilLeft = Math.max(0, this.recoilLeft - dt);
+    const step = Math.floor(this.phase / Math.PI);
     if (!this.dead) this.phase += ((state.speed * dt) / (state.sprint ? SPRINT_CYCLE : WALK_CYCLE)) * Math.PI * 2;
     this.redraw();
+    // Feet plant twice per walk cycle, at phase 0 and π.
+    return !this.dead && state.speed > 4 && Math.floor(this.phase / Math.PI) !== step;
   }
 
   setPosition(x: number, y: number): void {

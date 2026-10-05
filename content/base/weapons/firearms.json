@@ -5,7 +5,8 @@
     "ammo": ["ammo_9x19", "ammo_9x19_hp"], "magazine": 12, "fireMode": "semi", "fireRate": 360,
     "damage": 18, "spread": 3, "moveSpread": 3, "bloomPerShot": 1.5, "bloomMax": 6, "bloomRecovery": 14,
     "projectileSpeed": 900, "range": 420, "reloadTime": 1.4, "armorPiercing": 0.05, "recoil": 1,
-    "weight": 0.8, "value": 450, "placeholder": { "style": "pistol" }
+    "weight": 0.8, "value": 450, "placeholder": { "style": "pistol" },
+    "sounds": { "shot": "shot_pistol" }
   },
   {
     "type": "weapon", "id": "kestrel_smg", "name": "Kestrel SMG", "slot": "primary",
@@ -13,7 +14,8 @@
     "ammo": ["ammo_9x19", "ammo_9x19_hp"], "magazine": 30, "fireMode": "auto", "fireRate": 780,
     "damage": 14, "spread": 5, "moveSpread": 4, "bloomPerShot": 1.1, "bloomMax": 9, "bloomRecovery": 16,
     "projectileSpeed": 950, "range": 380, "reloadTime": 1.9, "armorPiercing": 0.05, "recoil": 1,
-    "weight": 2.6, "value": 1800, "placeholder": { "style": "smg" }
+    "weight": 2.6, "value": 1800, "placeholder": { "style": "smg" },
+    "sounds": { "shot": "shot_smg" }
   },
   {
     "type": "weapon", "id": "akr5_rifle", "name": "AKR-5 Assault Rifle", "slot": "primary",
@@ -21,7 +23,8 @@
     "ammo": ["ammo_545x39", "ammo_545x39_ap"], "magazine": 30, "fireMode": "auto", "fireRate": 600,
     "damage": 26, "spread": 2.5, "moveSpread": 5, "bloomPerShot": 1.4, "bloomMax": 7, "bloomRecovery": 12,
     "projectileSpeed": 1250, "range": 640, "reloadTime": 2.3, "armorPiercing": 0.25, "recoil": 1.5,
-    "weight": 3.4, "value": 3500, "placeholder": { "style": "rifle" }
+    "weight": 3.4, "value": 3500, "placeholder": { "style": "rifle" },
+    "sounds": { "shot": "shot_rifle" }
   },
   {
     "type": "weapon", "id": "toz12_shotgun", "name": "TOZ-12 Trench Gun", "slot": "primary",
@@ -29,7 +32,8 @@
     "ammo": ["ammo_12ga_buck"], "magazine": 6, "fireMode": "semi", "fireRate": 75, "pellets": 8,
     "damage": 11, "spread": 14, "moveSpread": 2, "bloomPerShot": 0, "bloomMax": 0, "bloomRecovery": 10,
     "projectileSpeed": 800, "range": 260, "reloadTime": 2.8, "armorPiercing": 0, "recoil": 3,
-    "weight": 3.6, "value": 1600, "placeholder": { "style": "shotgun" }
+    "weight": 3.6, "value": 1600, "placeholder": { "style": "shotgun" },
+    "sounds": { "shot": "shot_shotgun", "reloadDone": "shell_load" }
   },
   {
     "type": "weapon", "id": "longshot_dmr", "name": "Longshot DMR", "slot": "primary",
@@ -37,6 +41,7 @@
     "ammo": ["ammo_762x54"], "magazine": 10, "fireMode": "semi", "fireRate": 140,
     "damage": 62, "spread": 0.8, "moveSpread": 7, "bloomPerShot": 3, "bloomMax": 6, "bloomRecovery": 8,
     "projectileSpeed": 1700, "range": 960, "reloadTime": 2.6, "armorPiercing": 0.45, "recoil": 3,
-    "weight": 4.4, "value": 6200, "placeholder": { "style": "sniper" }
+    "weight": 4.4, "value": 6200, "placeholder": { "style": "sniper" },
+    "sounds": { "shot": "shot_dmr" }
   }
 ]

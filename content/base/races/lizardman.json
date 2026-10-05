@@ -58,6 +58,7 @@
       "count": 1
     }
   ],
+  "sounds": { "hurt": "hurt_lizardman", "death": "death_lizardman" },
   "hitbox": {
     "w": 12,
     "h": 8
