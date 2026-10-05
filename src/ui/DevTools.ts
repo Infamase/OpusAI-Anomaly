@@ -14,6 +14,12 @@ export interface DevHooks {
   /** Equips (or with null, removes) armor. Returns an error message or null. */
   equip(slot: ArmorSlot, armorId: string | null): Promise<string | null>;
   resetGear(): Promise<void>;
+  listWeapons(): { id: string; name: string; slot: string }[];
+  giveWeapon(id: string): void;
+  godMode: boolean;
+  heal(): void;
+  spawnBandit(): Promise<void>;
+  clearBandits(): void;
   buildMode: boolean;
   saveNow(): Promise<void>;
   newWorld(): Promise<void>;
@@ -106,6 +112,34 @@ export class DevTools {
     reset.onclick = () => void hooks.newWorld();
     saveRow.append(save, exp, reset);
 
+    const combat = el('div', 'dev-gear');
+    const weaponSelect = el('select');
+    weaponSelect.append(new Option('Give weapon…', ''));
+    for (const w of hooks.listWeapons()) weaponSelect.append(new Option(`${w.name} (${w.slot})`, w.id));
+    weaponSelect.onchange = () => {
+      if (weaponSelect.value) hooks.giveWeapon(weaponSelect.value);
+      weaponSelect.value = '';
+      weaponSelect.blur();
+    };
+    const god = el('input');
+    god.type = 'checkbox';
+    god.checked = hooks.godMode;
+    god.onchange = () => {
+      hooks.godMode = god.checked;
+      god.blur();
+    };
+    const godLabel = el('label', 'row');
+    godLabel.append(god, el('span', 'grow', 'God mode (take no damage)'));
+    const combatRow = el('div', 'row');
+    const spawn = el('button', '', 'Spawn bandit');
+    spawn.onclick = () => void hooks.spawnBandit();
+    const clear = el('button', '', 'Clear bandits');
+    clear.onclick = () => hooks.clearBandits();
+    const heal = el('button', '', 'Heal');
+    heal.onclick = () => hooks.heal();
+    combatRow.append(spawn, clear, heal);
+    combat.append(weaponSelect, godLabel, combatRow);
+
     const colorRow = el('label', 'row');
     colorRow.append(this.colorLabel, this.colorInput);
     this.panel.append(
@@ -115,6 +149,8 @@ export class DevTools {
       this.swatches,
       el('h4', '', 'Equipment'),
       this.gear,
+      el('h4', '', 'Combat'),
+      combat,
       this.stats,
       buildLabel,
       zoomRow,

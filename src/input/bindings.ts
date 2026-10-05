@@ -28,6 +28,10 @@ export const DEFAULT_KEYBOARD: KeyboardBindings = {
     pause: ['Escape'],
     debugToggle: ['Backquote', 'F3'],
     fire: ['Space'],
+    weapon1: ['Digit1'],
+    weapon2: ['Digit2'],
+    // "Wheel" is a virtual code for any mouse-wheel step.
+    swapWeapon: ['KeyQ', 'Wheel'],
   },
   mouse: { 0: 'fire', 2: 'altFire' },
 };
@@ -53,5 +57,6 @@ export const DEFAULT_GAMEPAD: GamepadBindings = {
     inventory: [3], // Y / Triangle
     pause: [9], // Start
     debugToggle: [8], // Select / Back
+    swapWeapon: [5], // RB
   },
 };

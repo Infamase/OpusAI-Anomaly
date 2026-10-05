@@ -6,7 +6,7 @@ import { SaveManager } from '../src/save/SaveManager';
 import type { PlayerSave } from '../src/save/types';
 import { WorldDeltas } from '../src/save/WorldDeltas';
 
-const player: PlayerSave = { name: 'Strelok', raceId: 'human', colors: { primary: '#5b3a29' }, worldId: 'w1', x: 10, y: 20, facing: 'down', equipment: {} };
+const player: PlayerSave = { name: 'Strelok', raceId: 'human', colors: { primary: '#5b3a29' }, worldId: 'w1', x: 10, y: 20, facing: 'down', equipment: {}, inventory: [], activeWeapon: null };
 const newGame = (m: SaveManager, slotId = 's1') =>
   m.newGame({ slotId, name: 'Test', player: { ...player }, gameVersion: '0.1.0', contentPacks: [{ id: 'base', version: '0.1.0' }] });
 

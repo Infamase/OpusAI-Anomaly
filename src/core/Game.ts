@@ -9,6 +9,7 @@ import { KeyboardMouseSource } from '../input/KeyboardMouseSource';
 import { Camera } from '../render/Camera';
 import { GameRenderer } from '../render/Renderer';
 import { SpriteSheetCache } from '../render/SpriteSheets';
+import { WeaponArtCache } from '../render/WeaponArt';
 import { openBestBackend } from '../save/backends';
 import { SaveManager } from '../save/SaveManager';
 import { EventBus } from './EventBus';
@@ -37,6 +38,7 @@ export class Game {
   readonly scenes = new SceneManager();
   readonly camera = new Camera();
   readonly sheets = new SpriteSheetCache();
+  readonly weaponArt = new WeaponArtCache();
   readonly content = new ContentRegistry();
   readonly settings: Settings;
   renderer!: GameRenderer;

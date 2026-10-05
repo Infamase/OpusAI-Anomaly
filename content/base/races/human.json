@@ -31,7 +31,15 @@
   "startingEquipment": [
     "human_stalker_hood",
     "human_stalker_jacket",
-    "human_stalker_pants"
+    "human_stalker_pants",
+    "vz9_pistol",
+    "kestrel_smg"
+  ],
+  "startingInventory": [
+    {
+      "item": "ammo_9x19",
+      "count": 150
+    }
   ],
   "hitbox": {
     "w": 12,

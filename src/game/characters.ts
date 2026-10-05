@@ -5,10 +5,10 @@ import type { Entity, World } from '../ecs/World';
 import { CharacterView } from '../render/CharacterView';
 import type { ChannelColors } from '../render/palette';
 import type { SpriteSheetCache } from '../render/SpriteSheets';
-import type { EquipmentSave, ItemInstance } from '../save/types';
+import type { EquipmentSave, ItemInstance, WeaponSlotId } from '../save/types';
 import { StatBlock } from '../stats/Stats';
-import { Aim, Character, Collider, Equipment, Stats, Transform, Velocity, View } from './components';
-import { applyEquipmentStats, ARMOR_SLOTS, fitProblem, prepareEquipmentArt, refreshArmorLayers } from './equipment';
+import { Aim, Character, Collider, Combatant, Equipment, Faction, Health, Inventory, newCombatant, Stamina, Stats, Transform, Velocity, View } from './components';
+import { applyEquipmentStats, ARMOR_SLOTS, defaultActiveWeapon, fitProblem, prepareEquipmentArt, refreshArmorLayers } from './equipment';
 
 /** The race's default colors, with any overrides applied. */
 export function resolveColors(race: RaceDef, colors: ChannelColors = {}): ChannelColors {
@@ -113,4 +113,29 @@ export function setCharacterAppearance(
   world.req(e, View).setLayer('body', sheets.get(race.sheet, content.get('spriteLayout', race.spriteLayout), resolved));
   refreshArmorLayers(world, content, sheets, e);
   return removed;
+}
+
+export interface CombatOptions {
+  faction: string;
+  /** Weapon slot in hand; defaults to primary, else sidearm. */
+  active?: WeaponSlotId | null;
+  inventory?: ItemInstance[];
+  /** Starting hit points; defaults to full. */
+  hp?: number;
+  infiniteAmmo?: boolean;
+}
+
+/** Makes a spawned character able to fight and be hurt: health, stamina, weapons, inventory, faction. */
+export function addCombatComponents(world: World, e: Entity, opts: CombatOptions): void {
+  const stats = world.req(e, Stats);
+  const eq = world.req(e, Equipment);
+  const maxHp = stats.get('max_health');
+  world.add(e, Health, { hp: Math.min(maxHp, opts.hp ?? maxHp), bleed: 0, dead: false, sinceHit: 99 });
+  world.add(e, Stamina, { current: stats.get('max_stamina'), exhausted: false, regenDelay: 0 });
+  const active = opts.active !== undefined && opts.active !== null && eq[opts.active] ? opts.active : defaultActiveWeapon(eq);
+  const combat = newCombatant(active);
+  if (opts.infiniteAmmo) combat.infiniteAmmo = true;
+  world.add(e, Combatant, combat);
+  world.add(e, Inventory, opts.inventory ?? []);
+  world.add(e, Faction, { id: opts.faction });
 }

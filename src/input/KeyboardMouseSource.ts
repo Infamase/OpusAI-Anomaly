@@ -52,6 +52,12 @@ export class KeyboardMouseSource implements InputSource {
     this.listen(window, 'pointerup', (e: PointerEvent) => {
       this.mouseHeld.delete(e.button);
     });
+    this.listen(target, 'wheel', (e: WheelEvent) => {
+      if (this.capture) e.preventDefault();
+      if (Math.abs(e.deltaY) < 1) return;
+      this.tapped.add('Wheel');
+      this.activity();
+    });
     this.listen(target, 'contextmenu', (e: Event) => e.preventDefault());
     this.listen(window, 'blur', () => this.reset());
   }

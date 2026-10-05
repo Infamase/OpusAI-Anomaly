@@ -7,7 +7,8 @@ import type { EquipmentSave } from '../../save/types';
 import { CharacterPreview } from '../../ui/CharacterPreview';
 import { button, el, modal } from '../../ui/dom';
 import { buildCharacterStats, resolveColors } from '../characters';
-import { startingEquipment } from '../equipment';
+import { findItem } from '../../content/items';
+import { startingEquipment, startingInventory } from '../equipment';
 import { startNewGame } from './GameplayScene';
 
 const NAMES = ['Strelok', 'Ghost', 'Fang', 'Scar', 'Hawk', 'Nomad', 'Kestrel', 'Ash', 'Vex', 'Saber', 'Rook', 'Tarn', 'Juniper', 'Doc', 'Wren', 'Sable'];
@@ -185,10 +186,14 @@ export class CharacterCreatorScene implements Scene {
 
   private renderKitAndStats(race: RaceDef): void {
     const g = this.game;
-    const kit = Object.values(this.equipment).map((item) => g.content.get('armor', item!.defId));
+    const names = [...Object.values(this.equipment), ...startingInventory(g.content, race.id)].map((item) => {
+      const def = findItem(g.content, item!.defId)?.def;
+      const n = item!.count ?? 1;
+      return `${def?.name ?? item!.defId}${n > 1 ? ` ×${n}` : ''}`;
+    });
     this.kitArea.replaceChildren(
       el('span', 'label', 'Starting gear'),
-      kit.length ? el('ul', 'kit-list', undefined, ...kit.map((a) => el('li', '', a.name))) : el('p', 'muted', 'None'),
+      names.length ? el('ul', 'kit-list', undefined, ...names.map((n) => el('li', '', n))) : el('p', 'muted', 'None'),
     );
     const stats = buildCharacterStats(g.content, race, this.equipment);
     const rows = g.content

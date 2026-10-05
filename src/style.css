@@ -591,3 +591,136 @@ body {
 .dev-gear select {
   flex: 1;
 }
+
+/* ---------- HUD ---------- */
+.hud {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  font-size: 12px;
+}
+.hud-vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 10, 10, 0.75) 100%);
+}
+.hud-vitals {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  background: rgba(10, 12, 15, 0.72);
+  border: 1px solid #2c3238;
+}
+.hud-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hud-label {
+  width: 18px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.hud-bar {
+  flex: 1;
+  height: 10px;
+  background: #0b0d10;
+  border: 1px solid #2a3036;
+}
+.hud-bar.thin {
+  height: 5px;
+}
+.hud-fill {
+  height: 100%;
+  width: 100%;
+}
+.hud-fill.hp {
+  background: linear-gradient(#c8402e, #8e2a1e);
+}
+.hud-fill.st {
+  background: #9aa84a;
+}
+.hud-fill.st.exhausted {
+  background: #6a6a5a;
+}
+.hud-fill.reload {
+  width: 0;
+  background: var(--accent);
+}
+.hud-num {
+  width: 30px;
+  text-align: right;
+  color: #f3e4b0;
+}
+.hud-bleed {
+  position: absolute;
+  left: 0;
+  top: -18px;
+  color: #ff6a5a;
+  font-size: 11px;
+  text-shadow: 0 1px 0 #000;
+}
+.hud-armor {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.hud-chip {
+  font-size: 10px;
+  padding: 1px 5px;
+  color: var(--muted);
+  border: 1px solid #2c3238;
+  text-transform: uppercase;
+}
+.hud-chip.worn {
+  color: #ff9a7a;
+  border-color: #6a2a20;
+}
+.hud-weapon {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  min-width: 220px;
+  padding: 8px 12px;
+  text-align: right;
+  background: rgba(10, 12, 15, 0.72);
+  border: 1px solid #2c3238;
+}
+.hud-wname {
+  color: #f3e4b0;
+}
+.hud-ammo {
+  font-size: 26px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+.hud-ammo.empty {
+  color: #ff6a5a;
+}
+.hud-winfo {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.death-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(40, 0, 0, 0.45);
+}
+.death-title {
+  color: #ff6a5a !important;
+}
+.game-canvas.aiming {
+  cursor: none;
+}

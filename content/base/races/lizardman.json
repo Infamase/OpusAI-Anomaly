@@ -31,7 +31,19 @@
   "startingEquipment": [
     "lizardman_stalker_hood",
     "lizardman_stalker_jacket",
-    "lizardman_stalker_pants"
+    "lizardman_stalker_pants",
+    "vz9_pistol",
+    "toz12_shotgun"
+  ],
+  "startingInventory": [
+    {
+      "item": "ammo_9x19",
+      "count": 48
+    },
+    {
+      "item": "ammo_12ga_buck",
+      "count": 30
+    }
   ],
   "hitbox": {
     "w": 12,

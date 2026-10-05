@@ -31,7 +31,19 @@
   "startingEquipment": [
     "sergal_stalker_hood",
     "sergal_stalker_jacket",
-    "sergal_stalker_pants"
+    "sergal_stalker_pants",
+    "vz9_pistol",
+    "akr5_rifle"
+  ],
+  "startingInventory": [
+    {
+      "item": "ammo_9x19",
+      "count": 48
+    },
+    {
+      "item": "ammo_545x39",
+      "count": 90
+    }
   ],
   "hitbox": {
     "w": 14,

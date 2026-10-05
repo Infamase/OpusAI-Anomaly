@@ -5,7 +5,7 @@ import type { ChannelColors } from '../render/palette';
  * Bump when the save format changes, and add a step to migrations.ts that
  * upgrades the previous version. Old saves keep loading forever.
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface SaveMeta {
   slotId: string;
@@ -24,11 +24,18 @@ export interface ItemInstance {
   uid: string;
   /** Content id of the item's definition. */
   defId: string;
-  /** 0..1 durability (used by combat later). */
+  /** 0..1 durability. Worn armor protects less; worn guns spread more. */
   condition: number;
+  /** Stack size for stackable items (ammo). Missing means 1. */
+  count?: number;
+  /** Weapons: rounds in the magazine and which ammo they are. */
+  loaded?: number;
+  loadedAmmo?: string;
 }
 
-export type EquipmentSlot = 'head' | 'torso' | 'legs';
+export type ArmorSlotId = 'head' | 'torso' | 'legs';
+export type WeaponSlotId = 'primary' | 'sidearm';
+export type EquipmentSlot = ArmorSlotId | WeaponSlotId;
 export type EquipmentSave = Partial<Record<EquipmentSlot, ItemInstance>>;
 
 export interface PlayerSave {
@@ -40,6 +47,12 @@ export interface PlayerSave {
   y: number;
   facing: Direction;
   equipment: EquipmentSave;
+  /** Everything carried that isn't equipped. */
+  inventory: ItemInstance[];
+  /** Weapon slot in hand, or null for holstered. */
+  activeWeapon: WeaponSlotId | null;
+  /** Current hit points; missing means full. */
+  health?: number;
 }
 
 /**

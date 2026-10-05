@@ -30,6 +30,8 @@ export interface StatDef {
   max?: number;
   /** Display hint: "int", "percent", "float". */
   format?: 'int' | 'percent' | 'float';
+  /** Item bonuses to this stat shrink as the item wears out (armor protection). */
+  scalesWithCondition?: boolean;
 }
 
 export class StatBlock {

@@ -16,6 +16,8 @@ export interface Migration {
 export const MIGRATIONS: Migration[] = [
   // v2 (Module 6): worn armor. Older characters start with nothing equipped.
   { from: 1, save: (d) => ({ ...d, player: { equipment: {}, ...d.player } }) },
+  // v3 (Module 8): weapons, inventory, health.
+  { from: 2, save: (d) => ({ ...d, player: { inventory: [], activeWeapon: null, ...d.player } }) },
 ];
 
 export class SaveVersionError extends Error {}

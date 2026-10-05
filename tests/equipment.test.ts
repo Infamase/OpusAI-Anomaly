@@ -31,7 +31,7 @@ describe('armor content', () => {
       for (const slot of ['head', 'torso', 'legs'] as ArmorSlot[]) {
         expect(armorFor(content, race.id, slot).length, `${race.id} ${slot}`).toBeGreaterThanOrEqual(2);
       }
-      expect(Object.keys(startingEquipment(content, race.id)).sort()).toEqual(['head', 'legs', 'torso']);
+      expect(Object.keys(startingEquipment(content, race.id)).sort()).toEqual(['head', 'legs', 'primary', 'sidearm', 'torso']);
     }
   });
 
@@ -52,7 +52,7 @@ describe('armor content', () => {
     expect(errors).toMatch(/style "helmet" is not a legs style/);
     expect(errors).toMatch(/needs either "sheet" or "placeholder"/);
     // Races still reference their (now missing) stalker kits.
-    expect(errors).toMatch(/startingEquipment references unknown armor "human_stalker_hood"/);
+    expect(errors).toMatch(/startingEquipment references unknown armor or weapon "human_stalker_hood"/);
   });
 });
 
@@ -154,7 +154,7 @@ describe('equipment', () => {
   });
 });
 
-describe('save format v2 and slot management', () => {
+describe('save format upgrades and slot management', () => {
   const v1 = (slotId: string): SaveData =>
     ({
       version: 1,
@@ -164,10 +164,12 @@ describe('save format v2 and slot management', () => {
       flags: {},
     }) as unknown as SaveData;
 
-  it('upgrades Phase 0 saves with empty equipment', () => {
+  it('upgrades Phase 0 saves through v2 (equipment) and v3 (inventory, weapons)', () => {
     const out = migrateSave<SaveData>(v1('a'), MIGRATIONS);
-    expect(out.version).toBe(2);
+    expect(out.version).toBe(3);
     expect(out.player.equipment).toEqual({});
+    expect(out.player.inventory).toEqual([]);
+    expect(out.player.activeWeapon).toBeNull();
   });
 
   it('lists summaries (newest first) including old-format slots', async () => {
@@ -179,7 +181,7 @@ describe('save format v2 and slot management', () => {
       name: 'New',
       gameVersion: '0.2.0',
       contentPacks: [],
-      player: { name: 'New', raceId: 'sergal', colors: {}, worldId: 'w', x: 0, y: 0, facing: 'down', equipment: startingEquipment(content, 'sergal') },
+      player: { name: 'New', raceId: 'sergal', colors: {}, worldId: 'w', x: 0, y: 0, facing: 'down', equipment: startingEquipment(content, 'sergal'), inventory: [], activeWeapon: null },
     });
     await m.save();
     const list = await m.listSummaries();
@@ -202,7 +204,7 @@ describe('save format v2 and slot management', () => {
       name: 'A',
       gameVersion: '0.2.0',
       contentPacks: [],
-      player: { name: 'A', raceId: 'human', colors: {}, worldId: 'w', x: 0, y: 0, facing: 'down', equipment: {} },
+      player: { name: 'A', raceId: 'human', colors: {}, worldId: 'w', x: 0, y: 0, facing: 'down', equipment: {}, inventory: [], activeWeapon: null },
     });
     m.ensureWorld('w', 'g', 5, 1);
     (await m.enterWorld('w')).setTile('0,0', 1, 'x');
@@ -223,7 +225,7 @@ describe('save format v2 and slot management', () => {
       name: 'A',
       gameVersion: '0.2.0',
       contentPacks: [],
-      player: { name: 'A', raceId: 'human', colors: {}, worldId: 'w', x: 0, y: 0, facing: 'down', equipment: {} },
+      player: { name: 'A', raceId: 'human', colors: {}, worldId: 'w', x: 0, y: 0, facing: 'down', equipment: {}, inventory: [], activeWeapon: null },
     });
     m.ensureWorld('w', 'g', 5, 1);
     (await m.enterWorld('w')).setTile('0,0', 1, 'x');

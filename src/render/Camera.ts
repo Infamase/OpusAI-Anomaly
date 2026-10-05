@@ -23,6 +23,15 @@ export class Camera {
 
   private target: Vec2 | null = null;
   private lookAhead: Vec2 = { x: 0, y: 0 };
+  /** Recoil / impact offset that springs back to zero. */
+  private kickX = 0;
+  private kickY = 0;
+
+  /** Jolts the view by (dx, dy) world pixels (gun recoil, getting hit). */
+  kick(dx: number, dy: number): void {
+    this.kickX += dx;
+    this.kickY += dy;
+  }
 
   setViewport(w: number, h: number): void {
     this.viewportW = w;
@@ -50,12 +59,17 @@ export class Camera {
     const t = 1 - Math.exp(-frameDt * 10);
     this.x = lerp(this.x, tx, t);
     this.y = lerp(this.y, ty, t);
+    const k = Math.exp(-frameDt * 18);
+    this.kickX *= k;
+    this.kickY *= k;
   }
 
   /** Positions the world container. Offsets are rounded to whole device pixels. */
   apply(world: Container): void {
     world.scale.set(this.zoom);
-    world.position.set(Math.round(this.viewportW / 2 - this.x * this.zoom), Math.round(this.viewportH / 2 - this.y * this.zoom));
+    const x = this.x + this.kickX;
+    const y = this.y + this.kickY;
+    world.position.set(Math.round(this.viewportW / 2 - x * this.zoom), Math.round(this.viewportH / 2 - y * this.zoom));
   }
 
   screenToWorld(sx: number, sy: number): Vec2 {

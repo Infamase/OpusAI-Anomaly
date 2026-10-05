@@ -14,6 +14,9 @@ export const BUTTON_ACTIONS = [
   'inventory',
   'pause',
   'debugToggle',
+  'weapon1',
+  'weapon2',
+  'swapWeapon',
 ] as const;
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];
 

@@ -1,6 +1,7 @@
 import type { ContentTypeSpec } from '../Registry';
 import { v, type Infer } from '../schema';
 import { ALL_ARMOR_STYLES, ARMOR_SLOTS, isArmorStyleForSlot } from '../../render/placeholder/armor';
+import { checkUniqueItemId } from '../items';
 
 declare module '../Registry' {
   interface ContentMap {
@@ -44,6 +45,7 @@ export const armorType: ContentTypeSpec<'armor'> = {
   type: 'armor',
   schema,
   crossCheck(def, ctx) {
+    checkUniqueItemId(def.id, 'armor', ctx);
     ctx.ref('spriteLayout', def.spriteLayout, 'spriteLayout');
     def.modifiers.forEach((m, i) => ctx.ref('stat', m.stat, `modifiers[${i}].stat`));
     if (!ctx.registry.all('race').some((r) => r.armorTag === def.fitsRace)) {

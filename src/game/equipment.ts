@@ -1,27 +1,15 @@
 import type { ContentRegistry } from '../content/Registry';
 import type { ArmorDef } from '../content/types';
+import { WEAPON_SLOTS, type WeaponSlot } from '../content/types/weapon';
 import type { Entity, World } from '../ecs/World';
 import { ARMOR_SLOTS, type ArmorSlot } from '../render/placeholder/armor';
 import { placeholderArmorSrc, type SpriteSheetCache } from '../render/SpriteSheets';
 import type { EquipmentSave, ItemInstance } from '../save/types';
 import type { StatBlock, StatModifier } from '../stats/Stats';
 import { Character, Equipment, Stats, View } from './components';
+import { addItem, createItem, createLoadedWeapon } from './items';
 
-export { ARMOR_SLOTS, type ArmorSlot };
-
-/**
- * Unique item id. Uses getRandomValues (not randomUUID) because randomUUID is
- * missing on plain-http pages, e.g. when testing from another PC on the LAN.
- */
-export function newItemUid(): string {
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  return Date.now().toString(36) + Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-export function createItem(defId: string): ItemInstance {
-  return { uid: newItemUid(), defId, condition: 1 };
-}
+export { ARMOR_SLOTS, WEAPON_SLOTS, createItem, type ArmorSlot, type WeaponSlot };
 
 export const itemSource = (item: ItemInstance): string => `item:${item.uid}`;
 
@@ -51,8 +39,15 @@ export function armorSheetSrc(content: ContentRegistry, armor: ArmorDef): string
   return placeholderArmorSrc(body.sheet.slice('placeholder:'.length), armor.slot, armor.placeholder.style);
 }
 
-export function armorModifiers(item: ItemInstance, armor: ArmorDef): StatModifier[] {
-  return armor.modifiers.map((m) => ({ ...m, source: itemSource(item) }));
+/** Protection left at a given condition: worn-out armor still gives 30%. */
+export const conditionFactor = (condition: number): number => 0.3 + 0.7 * Math.max(0, Math.min(1, condition));
+
+/** The item's stat modifiers; stats flagged scalesWithCondition shrink as the armor wears. */
+export function armorModifiers(content: ContentRegistry, item: ItemInstance, armor: ArmorDef): StatModifier[] {
+  return armor.modifiers.map((m) => {
+    const scales = content.tryGet('stat', m.stat)?.scalesWithCondition && m.op === 'flat';
+    return { ...m, value: scales ? m.value * conditionFactor(item.condition) : m.value, source: itemSource(item) };
+  });
 }
 
 /** Adds the modifiers of every recognised worn item to a stat block. */
@@ -60,8 +55,15 @@ export function applyEquipmentStats(stats: StatBlock, content: ContentRegistry, 
   for (const slot of ARMOR_SLOTS) {
     const item = equipment[slot];
     const def = item && content.tryGet('armor', item.defId);
-    if (item && def) stats.addModifiers(armorModifiers(item, def));
+    if (item && def) stats.addModifiers(armorModifiers(content, item, def));
   }
+}
+
+/** Re-applies one worn item's modifiers (after its condition changed). */
+export function refreshItemStats(stats: StatBlock, content: ContentRegistry, item: ItemInstance): void {
+  const def = content.tryGet('armor', item.defId);
+  stats.removeSource(itemSource(item));
+  if (def) stats.addModifiers(armorModifiers(content, item, def));
 }
 
 /** Loads art for every worn piece. Must finish before the pieces are drawn. */
@@ -79,11 +81,29 @@ export async function prepareArmorArt(content: ContentRegistry, sheets: SpriteSh
   await sheets.prepare(armorSheetSrc(content, def), content.get('spriteLayout', def.spriteLayout));
 }
 
-/** Fresh starting kit for a new character of `raceId`. */
+/** Fresh starting kit (armor + loaded weapons) for a new character of `raceId`. */
 export function startingEquipment(content: ContentRegistry, raceId: string): EquipmentSave {
   const out: EquipmentSave = {};
-  for (const id of content.get('race', raceId).startingEquipment) out[content.get('armor', id).slot] = createItem(id);
+  for (const id of content.get('race', raceId).startingEquipment) {
+    const armor = content.tryGet('armor', id);
+    if (armor) out[armor.slot] = createItem(id);
+    else out[content.get('weapon', id).slot] = createLoadedWeapon(content, id);
+  }
   return out;
+}
+
+/** Fresh starting inventory (ammo, supplies) for a new character of `raceId`. */
+export function startingInventory(content: ContentRegistry, raceId: string): ItemInstance[] {
+  const inv: ItemInstance[] = [];
+  for (const { item, count } of content.get('race', raceId).startingInventory) {
+    addItem(content, inv, content.has('weapon', item) ? createLoadedWeapon(content, item) : createItem(item, count));
+  }
+  return inv;
+}
+
+/** The weapon slot to hold by default: primary if there is one. */
+export function defaultActiveWeapon(equipment: EquipmentSave): WeaponSlot | null {
+  return equipment.primary ? 'primary' : equipment.sidearm ? 'sidearm' : null;
 }
 
 /** Points each paper-doll armor layer at the right sheet (or clears it). */
@@ -113,7 +133,7 @@ export function equipArmor(world: World, content: ContentRegistry, sheets: Sprit
   const replaced = eq[def.slot];
   if (replaced) stats.removeSource(itemSource(replaced));
   eq[def.slot] = item;
-  stats.addModifiers(armorModifiers(item, def));
+  stats.addModifiers(armorModifiers(content, item, def));
   refreshArmorLayers(world, content, sheets, e);
   return { ok: true, replaced };
 }
@@ -125,5 +145,22 @@ export function unequipArmor(world: World, content: ContentRegistry, sheets: Spr
   world.req(e, Stats).removeSource(itemSource(item));
   delete eq[slot];
   refreshArmorLayers(world, content, sheets, e);
+  return item;
+}
+
+/** Puts a weapon in its slot (primary or sidearm). Returns whatever it replaced. */
+export function equipWeapon(world: World, content: ContentRegistry, e: Entity, item: ItemInstance): EquipResult {
+  const def = content.tryGet('weapon', item.defId);
+  if (!def) return { ok: false, reason: `Unknown weapon "${item.defId}".` };
+  const eq = world.req(e, Equipment);
+  const replaced = eq[def.slot];
+  eq[def.slot] = item;
+  return { ok: true, replaced };
+}
+
+export function unequipWeapon(world: World, e: Entity, slot: WeaponSlot): ItemInstance | undefined {
+  const eq = world.req(e, Equipment);
+  const item = eq[slot];
+  delete eq[slot];
   return item;
 }

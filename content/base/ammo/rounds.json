@@ -1,0 +1,8 @@
+[
+  { "type": "ammo", "id": "ammo_9x19", "name": "9×19mm FMJ", "caliber": "9×19", "description": "Common pistol and SMG round.", "weight": 0.012, "value": 2, "maxStack": 60, "color": "#9a8448" },
+  { "type": "ammo", "id": "ammo_9x19_hp", "name": "9×19mm Hollow Point", "caliber": "9×19 HP", "description": "Hits soft targets hard; poor against armor.", "damageMult": 1.25, "apBonus": -0.15, "weight": 0.012, "value": 4, "maxStack": 60, "color": "#b0563a" },
+  { "type": "ammo", "id": "ammo_545x39", "name": "5.45×39mm", "caliber": "5.45×39", "description": "Standard rifle round.", "weight": 0.016, "value": 4, "maxStack": 60, "color": "#7a8a4a" },
+  { "type": "ammo", "id": "ammo_545x39_ap", "name": "5.45×39mm AP", "caliber": "5.45 AP", "description": "Steel-core penetrator. Slightly less damage, much better against armor.", "damageMult": 0.9, "apBonus": 0.2, "weight": 0.016, "value": 9, "maxStack": 60, "color": "#4a6a8a" },
+  { "type": "ammo", "id": "ammo_12ga_buck", "name": "12ga Buckshot", "caliber": "12ga", "description": "Eight pellets per shell. Devastating up close.", "weight": 0.045, "value": 6, "maxStack": 30, "color": "#9a3a32" },
+  { "type": "ammo", "id": "ammo_762x54", "name": "7.62×54mmR", "caliber": "7.62×54", "description": "Full-power rifle round for marksman rifles.", "weight": 0.025, "value": 12, "maxStack": 40, "color": "#5a5a3a" }
+]

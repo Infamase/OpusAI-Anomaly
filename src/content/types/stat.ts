@@ -16,6 +16,7 @@ const schema: Validator<StatDef> = v.object({
   min: v.optional(v.number()),
   max: v.optional(v.number()),
   format: v.optional(v.literal('int', 'percent', 'float')),
+  scalesWithCondition: v.optional(v.boolean()),
 });
 
 export const statType: ContentTypeSpec<'stat'> = {
