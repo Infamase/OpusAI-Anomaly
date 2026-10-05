@@ -2,8 +2,8 @@ import type { Vec2 } from '../core/math';
 
 /**
  * Game code never asks "is W pressed?" — it asks "is the player moving / firing?".
- * Each device translates its raw input into these actions, so keyboard, gamepad
- * and touch all drive the exact same gameplay code.
+ * Each device translates its raw input into these actions, so keyboard/mouse
+ * and gamepad drive the exact same gameplay code.
  */
 export const BUTTON_ACTIONS = [
   'fire',
@@ -17,7 +17,7 @@ export const BUTTON_ACTIONS = [
 ] as const;
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];
 
-export type InputDevice = 'keyboardMouse' | 'gamepad' | 'touch';
+export type InputDevice = 'keyboardMouse' | 'gamepad';
 
 /** Mouse aims at a point on screen; sticks aim in a direction; idle sticks don't aim. */
 export type AimInput =

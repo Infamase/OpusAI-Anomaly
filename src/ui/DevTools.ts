@@ -3,7 +3,7 @@ import { saveSettings } from '../core/Settings';
 import { ARMOR_SLOTS, armorFor, type ArmorSlot } from '../game/equipment';
 import type { ChannelColors } from '../render/palette';
 import type { EquipmentSave } from '../save/types';
-import { el, shareOrDownload, slug } from './dom';
+import { el, downloadText, slug } from './dom';
 
 /** What the active scene exposes to the dev panel. */
 export interface DevHooks {
@@ -24,7 +24,7 @@ const SLOT_LABEL: Record<ArmorSlot, string> = { head: 'Helmet', torso: 'Top + gl
 
 /**
  * Developer overlay: live stats on the left, a control panel on the right.
- * Toggle with ` (backtick) / F3, gamepad Select, or the DEV touch button.
+ * Toggle with ` (backtick) / F3 or gamepad Select.
  * Scaffolding for testing systems before their real UI exists (inventory comes in Module 9).
  */
 export class DevTools {
@@ -96,7 +96,7 @@ export class DevTools {
       try {
         await hooks.saveNow();
         const meta = game.saves.data.meta;
-        await shareOrDownload(`${slug(meta.name)}-${new Date().toISOString().slice(0, 10)}.sfa.json`, await game.saves.exportSlot(meta.slotId));
+        downloadText(`${slug(meta.name)}-${new Date().toISOString().slice(0, 10)}.sfa.json`, await game.saves.exportSlot(meta.slotId));
       } catch (e) {
         this.setStatus(`Export failed: ${(e as Error).message}`);
       }

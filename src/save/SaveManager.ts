@@ -185,7 +185,7 @@ export class SaveManager {
     }
   }
 
-  /** Full slot as portable JSON — a manual backup (useful on iPad, where browsers may evict storage). */
+  /** Full slot as portable JSON — for backups and moving a save to another PC. */
   async exportSlot(slotId: string): Promise<string> {
     const data = await this.backend.loadSlot(slotId);
     if (!data) throw new Error(`No save "${slotId}"`);

@@ -7,7 +7,7 @@ import { BUTTON_ACTIONS, type AimInput, type ButtonAction, type InputDevice, typ
  * Call update() once per fixed simulation step. Movement comes from whichever
  * source is pushing hardest, buttons from all sources, and aim from the most
  * recently used device. `device` tracks the last-used device so the UI can show
- * touch controls or keyboard prompts as appropriate.
+ * keyboard or gamepad prompts as appropriate.
  */
 export class InputManager {
   move: Vec2 = { x: 0, y: 0 };

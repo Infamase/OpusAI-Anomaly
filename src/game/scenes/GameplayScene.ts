@@ -60,7 +60,7 @@ export async function startNewGame(game: Game, who: NewCharacter): Promise<void>
 
 /**
  * In-world play: walk the character around a generated, chunk-streamed map on
- * PC or iPad. Everything persists through "seed + changes" saves. The world is
+ * PC. Everything persists through "seed + changes" saves. The world is
  * still the Phase 0 test range until planets (Phase 2) exist.
  */
 export class GameplayScene implements Scene, DevHooks {

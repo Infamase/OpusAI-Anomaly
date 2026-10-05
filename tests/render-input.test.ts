@@ -63,7 +63,7 @@ describe('input', () => {
   class FakeSource implements InputSource {
     lastActivity = 0;
     state: SourceState = { move: { x: 0, y: 0 }, aim: { kind: 'none' }, buttons: new Set() };
-    constructor(readonly device: 'keyboardMouse' | 'gamepad' | 'touch') {}
+    constructor(readonly device: 'keyboardMouse' | 'gamepad') {}
     poll() {
       return { ...this.state, buttons: new Set(this.state.buttons) };
     }
@@ -73,17 +73,17 @@ describe('input', () => {
 
   it('merges sources, tracks edges and the active device', () => {
     const kb = new FakeSource('keyboardMouse');
-    const touch = new FakeSource('touch');
-    const input = new InputManager([kb, touch]);
+    const pad = new FakeSource('gamepad');
+    const input = new InputManager([kb, pad]);
     const changes: string[] = [];
     input.onDeviceChange = (d) => changes.push(d);
 
-    touch.lastActivity = 10;
-    touch.state.move = { x: 0.5, y: 0 };
-    touch.state.aim = { kind: 'direction', dir: { x: 1, y: 0 } };
+    pad.lastActivity = 10;
+    pad.state.move = { x: 0.5, y: 0 };
+    pad.state.aim = { kind: 'direction', dir: { x: 1, y: 0 } };
     kb.state.buttons.add('reload');
     input.update();
-    expect(input.device).toBe('touch');
+    expect(input.device).toBe('gamepad');
     expect(input.move.x).toBe(0.5);
     expect(input.aim.kind).toBe('direction');
     expect(input.justPressed('reload')).toBe(true);
@@ -93,7 +93,7 @@ describe('input', () => {
     kb.state.buttons.clear();
     input.update();
     expect(input.justReleased('reload')).toBe(true);
-    expect(changes).toEqual(['touch']);
+    expect(changes).toEqual(['gamepad']);
   });
 
   it('blocks gameplay input while disabled but keeps pause working', () => {

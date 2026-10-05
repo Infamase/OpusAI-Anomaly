@@ -19,7 +19,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | --- | --- | --- |
 | 1 Core | `src/core/` | `Game` (wires everything), fixed-timestep `GameLoop` (60 Hz sim, any display rate), `SceneManager` (stack: world + overlays), typed `EventBus`, seeded `Rng`/noise, `Settings` |
 | 2 Renderer | `src/render/` | `GameRenderer` (PixiJS v8, WebGPU with an automatic WebGL fallback), `Camera` (whole-number zoom), `TilemapRenderer` (each chunk drawn into one cached texture), `CharacterView` (paper-doll layers), `SpriteSheetCache` + `palette.ts` (color swapping) |
-| 3 Input | `src/input/` | Keyboard/mouse, gamepad and touch twin-stick sources → one `InputManager` exposing actions (`move`, `aim`, `fire`, `reload`…) |
+| 3 Input | `src/input/` | Keyboard/mouse and gamepad sources → one `InputManager` exposing actions (`move`, `aim`, `fire`, `reload`…) |
 | 4 ECS / Content / Stats | `src/ecs/`, `src/content/`, `src/stats/` | Minimal ECS `World`; content packs, schemas, registry; `StatBlock` (base → flat → percent → multiplier) |
 | 5 Save | `src/save/` | `SaveManager`, IndexedDB/memory backends, versioned migrations, per-world `WorldDeltas` |
 | Game | `src/game/` | Components, systems, character factory, world generators, `TileMap`, scenes |
@@ -45,9 +45,9 @@ MainMenuScene ──New Game──► CharacterCreatorScene ──Begin──►
       └──────────────────────── Save & Quit to Menu ◄──────────────────┘
 ```
 
-Scenes are stacked by `SceneManager`. Only gameplay captures game keys and shows
-the iPad touch sticks (`Game.setGameplayInput`). Menus are DOM over the canvas
-and draw animated characters with `CharacterPreview`.
+Scenes are stacked by `SceneManager`. Only gameplay captures game keys
+(`Game.setGameplayInput`); menus get normal keyboard behaviour. Menus are DOM
+over the canvas and draw animated characters with `CharacterPreview`.
 
 ## Equipment and paper-doll armor (Module 6)
 
@@ -113,7 +113,7 @@ Overrides are logged.
 
 ### Add an input action
 Add it to `BUTTON_ACTIONS` (`src/input/actions.ts`), then add default bindings in
-`src/input/bindings.ts` (and a touch button in `TouchSource` if needed).
+`src/input/bindings.ts`.
 
 ## Saves: "seed + changes"
 
@@ -126,17 +126,15 @@ IndexedDB "stalker-future-anomaly"
 - A world is never stored whole, only its recipe (generator id + seed) plus what
   the player changed. When the player returns, the chunks are regenerated and the
   changes are applied on top.
-- Autosaves happen every 30 s, when the app is hidden/closed (`visibilitychange`/`pagehide`, which
-  iPad needs), and on manual save. Only chunks that changed are written.
+- Autosaves happen every 30 s, when the app is hidden/closed (`visibilitychange`/`pagehide`), and on manual save. Only chunks that changed are written.
 - Undoing a change (back to the generated tile) deletes the record, so saves stay small.
 - **Format changes:** bump `SAVE_VERSION` and add a step in `src/save/migrations.ts`.
   Current format is **v2** (v1 → v2 added `player.equipment`).
 - **Slots:** each character is its own slot (`slot-<time>-<random>`). Export
   writes `{format: "sfa-save", data, chunks}` JSON. Import upgrades older
   formats and asks before replacing a slot that already exists.
-- **iPad:** Safari may evict website storage after ~7 days without a visit
-  unless the game is added to the Home Screen. The game requests persistent
-  storage, and the dev panel can export and import saves as JSON backups.
+- Browsers can evict website storage under disk pressure. The game requests
+  persistent storage, and saves can be exported as JSON backups.
 
 ## Rendering notes
 

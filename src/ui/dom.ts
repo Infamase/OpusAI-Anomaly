@@ -25,10 +25,7 @@ export interface ModalButton<T> {
   cls?: string;
 }
 
-/**
- * In-game modal dialog. Used instead of window.confirm(), which looks out of
- * place and behaves differently in an iPad home-screen app.
- */
+/** In-game modal dialog, used instead of the browser's out-of-place window.confirm(). */
 export function modal<T>(root: HTMLElement, title: string, message: string, buttons: ModalButton<T>[]): Promise<T> {
   return new Promise((resolve) => {
     const overlay = el('div', 'modal-overlay');
@@ -85,24 +82,10 @@ export function pickTextFile(accept: string): Promise<{ name: string; text: stri
   });
 }
 
-/**
- * Hands a file to the user: the share sheet where available (iPad: AirDrop,
- * Save to Files...), otherwise a normal download.
- */
-export async function shareOrDownload(filename: string, text: string, mime = 'application/json'): Promise<void> {
-  const file = new File([text], filename, { type: mime });
-  const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-  if (nav.canShare?.({ files: [file] }) && navigator.share) {
-    try {
-      await navigator.share({ files: [file], title: filename });
-      return;
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
-      // Fall through to a download if sharing failed for another reason.
-    }
-  }
+/** Saves a text file through the browser's normal download. */
+export function downloadText(filename: string, text: string, mime = 'application/json'): void {
   const a = el('a');
-  a.href = URL.createObjectURL(file);
+  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
   a.download = filename;
   document.body.append(a);
   a.click();

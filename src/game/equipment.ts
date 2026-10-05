@@ -11,7 +11,7 @@ export { ARMOR_SLOTS, type ArmorSlot };
 
 /**
  * Unique item id. Uses getRandomValues (not randomUUID) because randomUUID is
- * missing on plain-http pages, e.g. when testing an iPad against a LAN dev server.
+ * missing on plain-http pages, e.g. when testing from another PC on the LAN.
  */
 export function newItemUid(): string {
   const bytes = new Uint8Array(8);

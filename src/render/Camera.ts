@@ -5,8 +5,8 @@ import { lerp, type Vec2 } from '../core/math';
  * 2D camera with whole-number zoom for crisp pixels.
  *
  * Zoom is picked so roughly TARGET_VIEW_HEIGHT world pixels are visible — on a
- * 1080p monitor that's 3x, on an iPad Pro about 5x — so every device sees about
- * the same amount of the world.
+ * 1080p monitor that's 3x, at 1440p 4x — so every screen sees about the same
+ * amount of the world.
  */
 const TARGET_VIEW_HEIGHT = 340;
 const TARGET_VIEW_WIDTH = 600;

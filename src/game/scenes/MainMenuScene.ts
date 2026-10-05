@@ -6,7 +6,7 @@ import type { Scene } from '../../core/Scene';
 import { SaveManager, type SlotSummary } from '../../save/SaveManager';
 import type { EquipmentSave } from '../../save/types';
 import { CharacterPreview } from '../../ui/CharacterPreview';
-import { button, el, formatDate, formatPlayTime, modal, pickTextFile, shareOrDownload, slug, toast } from '../../ui/dom';
+import { button, el, formatDate, formatPlayTime, modal, pickTextFile, downloadText, slug, toast } from '../../ui/dom';
 import { drawPortrait } from '../../ui/portrait';
 import { prepareCharacterArt } from '../characters';
 import { createItem } from '../equipment';
@@ -74,9 +74,9 @@ export class MainMenuScene implements Scene {
     const { width: W, height: H } = this.game.renderer;
     const scale = Math.max(2, Math.floor(Math.min(H / 170, W / 210)));
     const gap = 40 * scale;
-    // Landscape: to the right of the menu column. Portrait: along the bottom.
-    const cx = W > H ? W * 0.66 : W / 2;
-    const y = W > H ? H * 0.62 : H * 0.72;
+    // To the right of the menu column.
+    const cx = W * 0.66;
+    const y = H * 0.62;
     this.previews.forEach((p, i) => {
       p.place(cx + (i - 1) * gap, y, scale);
       p.render();
@@ -173,7 +173,7 @@ export class MainMenuScene implements Scene {
   private async exportSave(s: SlotSummary): Promise<void> {
     try {
       const json = await this.game.saves.exportSlot(s.meta.slotId);
-      await shareOrDownload(`${slug(s.meta.name)}-${new Date().toISOString().slice(0, 10)}.sfa.json`, json);
+      downloadText(`${slug(s.meta.name)}-${new Date().toISOString().slice(0, 10)}.sfa.json`, json);
     } catch (e) {
       toast(this.game.root, `Export failed: ${(e as Error).message}`);
     }

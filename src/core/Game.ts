@@ -6,7 +6,6 @@ import type { InputDevice } from '../input/actions';
 import { GamepadSource } from '../input/GamepadSource';
 import { InputManager } from '../input/InputManager';
 import { KeyboardMouseSource } from '../input/KeyboardMouseSource';
-import { TouchSource } from '../input/TouchSource';
 import { Camera } from '../render/Camera';
 import { GameRenderer } from '../render/Renderer';
 import { SpriteSheetCache } from '../render/SpriteSheets';
@@ -42,12 +41,11 @@ export class Game {
   readonly settings: Settings;
   renderer!: GameRenderer;
   input!: InputManager;
-  touch!: TouchSource;
   saves!: SaveManager;
   contentReport!: LoadReport;
   saveWarning: string | undefined;
   debugVisible = false;
-  /** True while a gameplay scene is active: shows touch controls and captures game keys. */
+  /** True while a gameplay scene is active: game keys are captured (menus get normal keyboard behaviour). */
   gameplayInput = false;
   /** Returns to the title screen. Assigned at startup (avoids scene import cycles). */
   goToMainMenu: () => Promise<void> = async () => {};
@@ -94,18 +92,15 @@ export class Game {
     const { backend, warning } = await openBestBackend();
     this.saves = new SaveManager(backend);
     this.saveWarning = warning;
-    // Ask the browser not to evict our saves (Safari otherwise may after 7 days without a visit).
+    // Ask the browser not to evict our saves under storage pressure.
     void navigator.storage?.persist?.().catch(() => false);
 
-    const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-    this.touch = new TouchSource(this.root);
     this.input = new InputManager(
-      [(this.keyboard = new KeyboardMouseSource(this.renderer.canvas)), new GamepadSource(), this.touch],
-      coarse ? 'touch' : 'keyboardMouse',
+      [(this.keyboard = new KeyboardMouseSource(this.renderer.canvas)), new GamepadSource()],
+      'keyboardMouse',
     );
     this.setGameplayInput(false);
     this.input.onDeviceChange = (d) => {
-      this.touch.visible = this.gameplayInput && d === 'touch';
       this.events.emit('input:device', d);
     };
 
@@ -117,7 +112,7 @@ export class Game {
         this.events.emit('app:visible', undefined);
       }
     });
-    // iOS Safari may skip visibilitychange when the tab is closed; pagehide is the reliable last chance.
+    // Closing the tab may skip visibilitychange; pagehide is the reliable last chance to save.
     window.addEventListener('pagehide', () => this.events.emit('app:hidden', undefined));
   }
 
@@ -125,7 +120,6 @@ export class Game {
   setGameplayInput(on: boolean): void {
     this.gameplayInput = on;
     this.keyboard.capture = on;
-    this.touch.visible = on && this.input.device === 'touch';
     this.input.reset();
   }
 

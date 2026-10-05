@@ -36,23 +36,21 @@ export class KeyboardMouseSource implements InputSource {
       if (this.capture && bound.has(e.code)) e.preventDefault(); // stop Tab focus-hopping, arrow scrolling, etc.
       if (!e.repeat) this.tapped.add(e.code);
       this.held.add(e.code);
-      this.touch();
+      this.activity();
     });
     this.listen(window, 'keyup', (e: KeyboardEvent) => this.held.delete(e.code));
     this.listen(target, 'pointermove', (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
       this.mouse = this.localPoint(e);
-      this.touch();
+      this.activity();
     });
     this.listen(target, 'pointerdown', (e: PointerEvent) => {
-      if (e.pointerType !== 'mouse') return;
       this.mouse = this.localPoint(e);
       this.mouseHeld.add(e.button);
       this.mouseTapped.add(e.button);
-      this.touch();
+      this.activity();
     });
     this.listen(window, 'pointerup', (e: PointerEvent) => {
-      if (e.pointerType === 'mouse') this.mouseHeld.delete(e.button);
+      this.mouseHeld.delete(e.button);
     });
     this.listen(target, 'contextmenu', (e: Event) => e.preventDefault());
     this.listen(window, 'blur', () => this.reset());
@@ -95,7 +93,7 @@ export class KeyboardMouseSource implements InputSource {
     this.cleanup = [];
   }
 
-  private touch(): void {
+  private activity(): void {
     this.lastActivity = performance.now();
   }
 

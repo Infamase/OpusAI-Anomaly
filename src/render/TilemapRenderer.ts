@@ -37,7 +37,7 @@ interface ChunkView {
 /**
  * Draws visible chunks. Each chunk is pre-composited into one 512x512 texture,
  * so the GPU draws a handful of quads per frame instead of thousands of tiles —
- * important for older iPads. Only chunks near the camera have views.
+ * cheap on integrated GPUs. Only chunks near the camera have views.
  */
 export class TilemapRenderer {
   private views = new Map<string, ChunkView>();

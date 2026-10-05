@@ -2,14 +2,14 @@
 
 A 2D pixel-art, top-down survival shooter in the spirit of S.T.A.L.K.E.R., set
 across procedurally generated planets, ships and space stations. It runs in the
-browser on **PC and iPad** (WebGPU with a WebGL fallback).
+browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamepad.
 
 > Status: **Phase 0 (Foundation) and Module 6 (paper-doll armor) are complete.**
 > The game opens on a main menu (New Game, Load Game, Import Save). New Game
 > leads to a character creator (name, race, color, starting gear). In game, each
 > race wears its own layered armor (helmet / top + gloves / pants + boots) with
 > stat bonuses, on a generated, chunk-streamed test map, using keyboard/mouse,
-> gamepad or iPad touch controls. Saves hold multiple characters and can be
+> gamepad. Saves hold multiple characters and can be
 > moved between devices.
 
 ## Run it
@@ -21,24 +21,22 @@ npm test           # unit tests
 npm run build      # typecheck + production build into dist/
 ```
 
-**On an iPad:** use the GitHub Pages build (see below), or run `npm run dev` on
-your PC and open the "Network" URL it prints (same Wi-Fi). The LAN URL is plain
-http, so the browser disables WebGPU and the game uses WebGL; Pages is https and
-can use WebGPU. For fullscreen and reliable saves, use **Share → Add to Home Screen**.
+Chrome or Edge give the best results (WebGPU). Firefox and other browsers fall
+back to WebGL automatically.
 
 URL flags: `?renderer=webgl` forces WebGL, `?debug=1` opens the dev panel.
 
 ## Controls
 
-| Action | Keyboard / mouse | Gamepad | iPad touch |
-| --- | --- | --- | --- |
-| Move | WASD / arrows | Left stick | Left half: floating stick |
-| Aim | Mouse | Right stick | Right half: aim stick |
-| Fire | Left click / Space | RT | Push the aim stick past its outer ring |
-| Sprint | Shift | L3 | RUN (toggle) |
-| Use / Reload | E / R | A / X | USE / RLD |
-| Pause | Esc | Start | ❚❚ |
-| Dev panel | ` or F3 | Select | DEV |
+| Action | Keyboard / mouse | Gamepad |
+| --- | --- | --- |
+| Move | WASD / arrows | Left stick |
+| Aim | Mouse | Right stick |
+| Fire | Left click / Space | RT |
+| Sprint | Shift | L3 |
+| Use / Reload | E / R | A / X |
+| Pause | Esc | Start |
+| Dev panel | ` or F3 | Select |
 
 The **dev panel** (testing scaffolding until inventory exists) can equip any
 armor that fits your race, switch race/color, zoom, renderer, toggle a build
@@ -47,9 +45,8 @@ and regenerate the world.
 
 ## Saves across devices
 
-Every save slot can be **exported** from *Load Game → Export*. On iPad this
-opens the share sheet (AirDrop, Save to Files…), and on PC the file downloads.
-On the other device, use **Import Save** on the main menu and pick the
+Every save slot can be **exported** from *Load Game → Export* (downloads a
+file). On the other PC, use **Import Save** on the main menu and pick the
 `.sfa.json` file. If that save is already there, you choose whether to replace
 the copy on this device or keep both.
 
@@ -61,7 +58,7 @@ docs/                ARCHITECTURE.md (how to extend) · SPRITE_SPEC.md (art cont
 public/              static files (icons, manifest; sprite PNGs go in public/sprites/)
 src/core/            game loop, scenes, events, RNG, settings
 src/render/          PixiJS renderer, camera, tilemap, paper-doll, palette swap, placeholder art
-src/input/           keyboard/mouse, gamepad, touch → actions
+src/input/           keyboard/mouse, gamepad → actions
 src/ecs/ src/stats/  entity-component-system, stat & modifier system
 src/content/         content registry, schemas, pack loader
 src/save/            IndexedDB saves, migrations, world deltas
