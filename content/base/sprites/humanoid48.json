@@ -1,0 +1,11 @@
+{
+  "type": "spriteLayout",
+  "id": "humanoid48",
+  "frameSize": 48,
+  "anchor": [24, 44],
+  "directions": ["down", "left", "right", "up"],
+  "animations": [
+    { "id": "idle", "frames": 4, "fps": 5 },
+    { "id": "walk", "frames": 6, "fps": 10 }
+  ]
+}

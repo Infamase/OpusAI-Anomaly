@@ -1,0 +1,15 @@
+[
+  { "type": "stat", "id": "max_health", "name": "Max Health", "default": 100, "min": 1, "format": "int" },
+  { "type": "stat", "id": "max_stamina", "name": "Max Stamina", "default": 100, "min": 0, "format": "int" },
+  {
+    "type": "stat",
+    "id": "move_speed",
+    "name": "Move Speed",
+    "description": "Walking speed in pixels per second (32 px = 1 tile).",
+    "default": 80,
+    "min": 0,
+    "format": "int"
+  },
+  { "type": "stat", "id": "sprint_multiplier", "name": "Sprint Multiplier", "default": 1.6, "min": 1, "format": "float" },
+  { "type": "stat", "id": "carry_weight", "name": "Carry Weight", "description": "Kilograms carried before becoming overloaded.", "default": 40, "min": 0, "format": "int" }
+]

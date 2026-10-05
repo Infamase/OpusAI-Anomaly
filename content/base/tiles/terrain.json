@@ -1,0 +1,6 @@
+[
+  { "type": "tile", "id": "void", "name": "Void", "solid": true, "opaque": true, "placeholder": { "style": "noise", "color": "#07070b" } },
+  { "type": "tile", "id": "dirt", "name": "Dirt", "solid": false, "placeholder": { "style": "noise", "color": "#5e4a36", "accent": "#4c3b2b" } },
+  { "type": "tile", "id": "grass", "name": "Alien Grass", "solid": false, "placeholder": { "style": "grass", "color": "#3e5b3a", "accent": "#7fa35a" } },
+  { "type": "tile", "id": "rock_wall", "name": "Rock", "solid": true, "opaque": true, "placeholder": { "style": "rock", "color": "#4a4650", "accent": "#2a2730" } }
+]

@@ -1,0 +1,19 @@
+{
+  "type": "race",
+  "id": "human",
+  "name": "Human",
+  "description": "Adaptable and well-supplied. No strengths, no weaknesses — the baseline everything else is measured against.",
+  "spriteLayout": "humanoid48",
+  "sheet": "placeholder:human",
+  "colorChannels": [
+    {
+      "channel": "primary",
+      "label": "Hair",
+      "default": "#5b3a29",
+      "presets": ["#1c1714", "#5b3a29", "#a8642c", "#d9b25f", "#e8e2d0", "#8f2d2d", "#2d5a8f"]
+    }
+  ],
+  "baseStats": { "max_health": 100, "max_stamina": 100, "move_speed": 80, "carry_weight": 40 },
+  "armorTag": "human",
+  "hitbox": { "w": 12, "h": 8 }
+}

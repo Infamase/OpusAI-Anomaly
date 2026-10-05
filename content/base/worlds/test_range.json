@@ -1,0 +1,24 @@
+{
+  "type": "worldGen",
+  "id": "test_range",
+  "name": "Test Range",
+  "generator": "test_range",
+  "widthChunks": 8,
+  "heightChunks": 8,
+  "params": {
+    "ground": "dirt",
+    "grass": "grass",
+    "grassThreshold": 0.5,
+    "rock": "rock_wall",
+    "rockThreshold": 0.66,
+    "border": "rock_wall",
+    "outpost": {
+      "floor": "metal_floor",
+      "grate": "metal_grate",
+      "wall": "metal_wall",
+      "hazard": "hazard_floor",
+      "width": 16,
+      "height": 12
+    }
+  }
+}

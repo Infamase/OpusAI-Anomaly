@@ -1,0 +1,19 @@
+{
+  "type": "race",
+  "id": "lizardman",
+  "name": "Lizardman",
+  "description": "Quick and enduring, but lightly built. Tail and a habit of tasting the air.",
+  "spriteLayout": "humanoid48",
+  "sheet": "placeholder:lizardman",
+  "colorChannels": [
+    {
+      "channel": "primary",
+      "label": "Scales",
+      "default": "#4f8a3c",
+      "presets": ["#4f8a3c", "#2f6b5e", "#8a7a3c", "#7a3c2f", "#3c4f8a", "#6b6b6b", "#b0a070"]
+    }
+  ],
+  "baseStats": { "max_health": 90, "max_stamina": 120, "move_speed": 90, "carry_weight": 35 },
+  "armorTag": "lizardman",
+  "hitbox": { "w": 12, "h": 8 }
+}
