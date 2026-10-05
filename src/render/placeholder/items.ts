@@ -1,4 +1,4 @@
-import { hexToRgb, type RGB } from '../palette';
+import { buildRamp, hexToRgb, type RGB } from '../palette';
 import { PixelCanvas } from '../PixelCanvas';
 import { PLACEHOLDER_OUTLINE } from './characters';
 
@@ -78,28 +78,50 @@ export function drawConsumable(icon: string, colorHex: string): PixelCanvas {
   }
 }
 
-/** World crates: wooden supply crate or green military case. */
+/** World crates: wooden supply crate or olive military case, sized for 64px characters. */
 export function drawCrate(kind: 'supply' | 'military'): PixelCanvas {
-  const pc = new PixelCanvas(22, 18);
-  const base: RGB = kind === 'supply' ? [124, 88, 52] : [70, 84, 56];
-  const dark = shade(base, 0.7);
-  const light = shade(base, 1.25);
-  pc.rect(1, 4, 20, 13, base);
-  pc.rect(1, 1, 20, 4, light);
-  pc.hline(1, 4, 20, dark);
-  pc.vline(20, 1, 16, dark);
-  pc.hline(1, 16, 20, dark);
+  const W = 30;
+  const H = 24;
+  const pc = new PixelCanvas(W, H);
+  const r = buildRamp(kind === 'supply' ? '#8a5a32' : '#56643e');
+  const lid = 7; // top face height
+  // Top face (lit) and front face.
+  pc.rect(1, 1, W - 2, lid, r[4]!);
+  pc.rect(1, 1 + lid, W - 2, H - lid - 2, r[3]!);
+  pc.hline(1, lid, W - 2, r[2]!);
+  pc.hline(1, 1 + lid, W - 2, r[1]!);
+  pc.hline(1, H - 2, W - 2, r[1]!);
+  pc.vline(W - 2, 1 + lid, H - lid - 2, r[2]!);
   if (kind === 'supply') {
-    for (let y = 7; y < 16; y += 3) pc.hline(2, y, 18, dark);
-    pc.vline(4, 5, 11, dark);
-    pc.vline(17, 5, 11, dark);
+    // Planks on the lid and the front, with a darker frame.
+    for (let y = 3; y < lid; y += 2) pc.hline(2, y, W - 4, r[3]!);
+    for (let y = lid + 4; y < H - 2; y += 4) pc.hline(2, y, W - 4, r[2]!);
+    for (const x of [2, W - 4]) for (let y = lid + 1; y < H - 2; y++) pc.set(x, y, r[1]!);
+    for (let i = 0; i < W - 6; i++) pc.set(3 + i, lid + 2 + Math.round((i / (W - 7)) * (H - lid - 5)), r[1]!);
+    for (const [x, y] of [
+      [3, lid + 2],
+      [W - 5, lid + 2],
+      [3, H - 4],
+      [W - 5, H - 4],
+    ] as const) pc.set(x, y, [200, 180, 120]);
   } else {
-    pc.rect(9, 7, 4, 3, [190, 170, 80]);
-    pc.rect(3, 6, 2, 9, dark);
-    pc.rect(17, 6, 2, 9, dark);
-    pc.hline(2, 2, 18, shade(light, 1.1));
+    // Ribbed case with latches and a stenciled stripe.
+    pc.hline(2, 2, W - 4, buildRamp('#56643e')[4]!);
+    for (const x of [5, W - 7]) for (let y = lid + 2; y < H - 3; y++) {
+      pc.set(x, y, r[1]!);
+      pc.set(x + 1, y, r[4]!);
+    }
+    const brass = buildRamp('#b8964e');
+    for (const x of [9, W - 12]) {
+      pc.rect(x, lid + 1, 3, 3, brass[3]!);
+      pc.hline(x, lid + 1, 3, brass[4]!);
+      pc.hline(x, lid + 3, 3, brass[1]!);
+    }
+    pc.rect(12, lid + 7, 6, 2, [214, 196, 120]);
   }
-  return finish(pc);
+  // Colored outline: the darkest tone of the material.
+  pc.outline(r[0]!);
+  return pc;
 }
 
 /** Generic fallback icon (unknown items). */

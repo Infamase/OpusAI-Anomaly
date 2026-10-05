@@ -9,8 +9,8 @@ export const PAPER_DOLL_ORDER = ['body', 'legs', 'torso', 'head'] as const;
 export type PaperDollSlot = (typeof PAPER_DOLL_ORDER)[number];
 
 /** Gun pivot: chest height above the feet. Keep in sync with CHEST_HEIGHT in game/combat.ts. */
-const PIVOT_Y = -16;
-const HOLD_DISTANCE = 4;
+const PIVOT_Y = -26;
+const HOLD_DISTANCE = 5;
 const HIT_FLASH = 0.09;
 
 /**
@@ -24,13 +24,13 @@ export class CharacterView {
   private shadow: Graphics;
   private layers = new Map<PaperDollSlot, { sprite: Sprite; sheet: SpriteSheet }>();
   private weapon: Sprite | null = null;
-  private anchorX = 24;
-  private anchorY = 44;
+  private anchorX = 32;
+  private anchorY = 60;
   private flashLeft = 0;
   private dead = false;
 
   constructor() {
-    this.shadow = new Graphics().ellipse(0, 0, 8, 3).fill({ color: 0x000000, alpha: 0.35 });
+    this.shadow = new Graphics().ellipse(0, 0, 11, 4).fill({ color: 0x000000, alpha: 0.35 });
     this.root.addChild(this.shadow, this.figure);
   }
 
@@ -99,7 +99,8 @@ export class CharacterView {
   setDead(dead: boolean): void {
     this.dead = dead;
     this.figure.rotation = dead ? Math.PI / 2 : 0;
-    this.figure.position.set(dead ? -6 : 0, dead ? 4 : 0);
+    // Lying down: the body is centered on where the character stood.
+    this.figure.position.set(dead ? -26 : 0, dead ? 5 : 0);
     if (this.weapon) this.weapon.visible = !dead;
     this.tint(dead ? 0x8a8a8a : 0xffffff);
   }

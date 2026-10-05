@@ -3,14 +3,15 @@
   "id": "lizardman",
   "name": "Lizardman",
   "description": "Quick and enduring, but lightly built. Tail and a habit of tasting the air.",
-  "spriteLayout": "humanoid48",
+  "spriteLayout": "humanoid64",
   "sheet": "placeholder:lizardman",
   "colorChannels": [
     {
       "channel": "primary",
       "label": "Scales",
-      "default": "#4f8a3c",
+      "default": "#6a9a3a",
       "presets": [
+        "#6a9a3a",
         "#4f8a3c",
         "#2f6b5e",
         "#8a7a3c",

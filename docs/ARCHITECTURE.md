@@ -18,7 +18,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | Module | Folder | What it owns |
 | --- | --- | --- |
 | 1 Core | `src/core/` | `Game` (wires everything), fixed-timestep `GameLoop` (60 Hz sim, any display rate), `SceneManager` (stack: world + overlays), typed `EventBus`, seeded `Rng`/noise, `Settings` |
-| 2 Renderer | `src/render/` | `GameRenderer` (PixiJS v8, WebGPU with an automatic WebGL fallback), `Camera` (whole-number zoom), `TilemapRenderer` (each chunk drawn into one cached texture), `CharacterView` (paper-doll layers), `SpriteSheetCache` + `palette.ts` (color swapping) |
+| 2 Renderer | `src/render/` | `GameRenderer` (PixiJS v8, WebGPU with an automatic WebGL fallback), `Camera` (whole-number zoom), `TilemapRenderer` (each chunk drawn into one cached texture, with blended ground edges and wall shadows; props as depth-sorted sprites), `CharacterView` (paper-doll layers), `SpriteSheetCache` + `palette.ts` (5-tone color swapping), `placeholder/` (generated art: `rig.ts` rasterizer, characters, armor, weapons, tiles, props) |
 | 3 Input | `src/input/` | Keyboard/mouse and gamepad sources → one `InputManager` exposing actions (`move`, `aim`, `fire`, `reload`…) |
 | 4 ECS / Content / Stats | `src/ecs/`, `src/content/`, `src/stats/` | Minimal ECS `World`; content packs, schemas, registry; `StatBlock` (base → flat → percent → multiplier) |
 | 5 Save | `src/save/` | `SaveManager`, IndexedDB/memory backends, versioned migrations, per-world `WorldDeltas` |
@@ -67,6 +67,12 @@ over the canvas and draw animated characters with `CharacterPreview`.
 - **Rendering:** `CharacterView` draws `body → legs → torso → head`, each its
   own sheet in the same layout. Armor is recolored by its `dye` through the
   secondary key colors.
+- **Generated characters** (`src/render/placeholder/characters.ts`) are built
+  from a posed skeleton (two-bone IK for legs, digitigrade legs for sergals and
+  lizardmen) out of round primitives in `rig.ts`, a small "2.5D" rasterizer:
+  each part is a height field, lit from the top-left, quantized onto a 5-tone
+  ramp, with colored outlines, contour lines where parts overlap and small cast
+  shadows. Props (trees, boulders) use the same rasterizer.
 - **Placeholder armor** (`src/render/placeholder/armor.ts`) is painted using the
   body-part tags the body generator records per pixel. One set of rules fits
   every body shape, and a tail drawn in front of the body is never covered.
@@ -191,7 +197,9 @@ Gear, artifacts and cybernetics will add modifiers with `source` tags, and
 
 ### Add a tile
 Add it to `content/base/tiles/*.json` with `solid`, `opaque` and placeholder art
-settings. Saves store tile **ids**, so adding or removing tiles never corrupts
+settings. `blend` makes ground spill over lower-valued neighbors with a ragged
+edge; `prop` (`pine`, `dead_tree`, `boulder`, `bush`) stands a tall sprite on
+the tile. World params can scatter props with `decor` entries. Saves store tile **ids**, so adding or removing tiles never corrupts
 existing worlds. A saved tile whose id no longer exists falls back to the
 generated tile.
 

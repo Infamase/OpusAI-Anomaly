@@ -3,14 +3,15 @@
   "id": "sergal",
   "name": "Sergal",
   "description": "Big, tough and strong enough to haul a lot of loot, at the cost of a little speed.",
-  "spriteLayout": "humanoid48",
+  "spriteLayout": "humanoid64",
   "sheet": "placeholder:sergal",
   "colorChannels": [
     {
       "channel": "primary",
       "label": "Fur",
-      "default": "#e6e2da",
+      "default": "#4d82c4",
       "presets": [
+        "#4d82c4",
         "#e6e2da",
         "#9a9a9e",
         "#4a4a52",

@@ -1,6 +1,6 @@
 [
-  { "type": "tile", "id": "metal_floor", "name": "Deck Plating", "solid": false, "placeholder": { "style": "plate", "color": "#5a626b", "accent": "#3b4148" } },
-  { "type": "tile", "id": "metal_grate", "name": "Grating", "solid": false, "placeholder": { "style": "grate", "color": "#3a4047", "accent": "#1d2125" } },
-  { "type": "tile", "id": "metal_wall", "name": "Bulkhead", "solid": true, "opaque": true, "placeholder": { "style": "wall", "color": "#2c333b", "accent": "#69737e" } },
-  { "type": "tile", "id": "hazard_floor", "name": "Hazard Stripe", "solid": false, "placeholder": { "style": "hazard", "color": "#c9a227", "accent": "#1d1d1d" } }
+  { "type": "tile", "id": "metal_floor", "name": "Deck Plating", "solid": false, "placeholder": { "style": "plate", "color": "#77744a" } },
+  { "type": "tile", "id": "metal_grate", "name": "Grating", "solid": false, "placeholder": { "style": "grate", "color": "#5a5e52" } },
+  { "type": "tile", "id": "metal_wall", "name": "Bulkhead", "solid": true, "opaque": true, "placeholder": { "style": "wall", "color": "#4e5a4c", "accent": "#e0b040" } },
+  { "type": "tile", "id": "hazard_floor", "name": "Hazard Stripe", "solid": false, "placeholder": { "style": "hazard", "color": "#c49a2a", "accent": "#2a2622" } }
 ]

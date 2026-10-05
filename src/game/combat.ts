@@ -17,7 +17,7 @@ export const ARMOR_WEAR_PER_DAMAGE = 0.0025;
 /** Weapon condition lost per shot. */
 export const WEAPON_WEAR_PER_SHOT = 0.0004;
 /** Height of the gun / chest above the feet, in px. */
-export const CHEST_HEIGHT = 16;
+export const CHEST_HEIGHT = 26;
 /** Which armor piece takes the hit (and the wear). */
 const HIT_SLOT_WEIGHTS: [(typeof ARMOR_SLOTS)[number], number][] = [
   ['torso', 0.6],
@@ -114,7 +114,7 @@ export function weaponGeometry(def: WeaponDef): WeaponGeometry {
 }
 
 /** How far the gun sits out from the chest along the aim. */
-export const HOLD_DISTANCE = 4;
+export const HOLD_DISTANCE = 5;
 
 /**
  * World position of the muzzle for a character at (x, y) aiming at `angle`.
@@ -145,8 +145,8 @@ export function hurtbox(world: World, e: Entity): { x0: number; y0: number; x1: 
   const t = world.get(e, Transform);
   const c = world.get(e, Collider);
   if (!t || !c) return null;
-  const half = c.w / 2 + 3;
-  return { x0: t.x - half, y0: t.y - 30, x1: t.x + half, y1: t.y + 1 };
+  const half = c.w / 2 + 4;
+  return { x0: t.x - half, y0: t.y - 50, x1: t.x + half, y1: t.y + 1 };
 }
 
 /** Liang–Barsky: entry fraction (0..1) of segment p0→p1 into the box, or null if it misses. */

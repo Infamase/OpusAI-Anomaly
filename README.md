@@ -11,6 +11,12 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > hunt each other (and you), take cover, reload, heal and call out to their
 > squad. Dead NPCs stay dead and their bodies keep their loot. Five weapons,
 > six ammo types, a weight-limited backpack, saves you can move between PCs.
+>
+> **Art:** 64px characters with realistic proportions, colored outlines and
+> soft lighting, plus muted, textured terrain with blended ground, pine forests,
+> boulders and tank-room style interiors. All of it is generated in code
+> (`src/render/placeholder/`) and can be replaced with drawn PNGs per
+> `docs/SPRITE_SPEC.md`.
 
 ## Run it
 
@@ -81,7 +87,7 @@ tests/               vitest unit tests
 | Phase | Modules | Status |
 | --- | --- | --- |
 | 0 Foundation | Core, renderer, input, ECS/content/stats, saves | ✅ |
-| 1 Vertical slice | ✅ Armor + creator + menus · ✅ combat · ✅ inventory · ✅ AI & factions · art overhaul · HUD polish & sound | in progress |
+| 1 Vertical slice | ✅ Armor + creator + menus · ✅ combat · ✅ inventory · ✅ AI & factions · ✅ art overhaul · HUD polish & sound | in progress |
 | 2 Worlds | Planet generation, station/ship chunk generation, alien fauna, anomalies & artifacts | |
 | 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, audio & polish | |
 

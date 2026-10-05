@@ -6,19 +6,20 @@ import { defineCoreContentTypes } from '../src/content/types';
 import type { InputSource, SourceState } from '../src/input/actions';
 import { applyDeadzone } from '../src/input/GamepadSource';
 import { InputManager } from '../src/input/InputManager';
-import { buildRamp, buildSwapMap, hexToRgb, KEY_COLORS, recolorPixels, rgbToHex } from '../src/render/palette';
+import { BASE_SHADE, buildRamp, buildSwapMap, hexToRgb, KEY_COLORS, recolorPixels, rgbToHex } from '../src/render/palette';
 import { generateCharacterSheet, PLACEHOLDER_RACES } from '../src/render/placeholder/characters';
 
 describe('palette swapping', () => {
   it('builds a dark-to-light ramp around the base color', () => {
     const ramp = buildRamp('#4f8a3c');
-    expect(rgbToHex(ramp[2]!)).toBe('#4f8a3c');
+    expect(ramp).toHaveLength(5);
+    expect(rgbToHex(ramp[BASE_SHADE]!)).toBe('#4f8a3c');
     const lum = ramp.map(([r, g, b]) => r * 0.3 + g * 0.59 + b * 0.11);
     expect(lum).toEqual([...lum].sort((a, b) => a - b));
   });
 
   it('replaces only key colors', () => {
-    const key = hexToRgb(KEY_COLORS.primary[2]!);
+    const key = hexToRgb(KEY_COLORS.primary[BASE_SHADE]!);
     const px = new Uint8ClampedArray([...key, 255, 10, 20, 30, 255, ...key, 0]);
     const changed = recolorPixels(px, buildSwapMap({ primary: '#3366cc' }));
     expect(changed).toBe(1); // the transparent key pixel is skipped
@@ -31,7 +32,7 @@ describe('placeholder character sheets', () => {
   const reg = new ContentRegistry();
   defineCoreContentTypes(reg);
   loadContent(reg, bundledContentFiles);
-  const layout = reg.get('spriteLayout', 'humanoid48');
+  const layout = reg.get('spriteLayout', 'humanoid64');
 
   it.each(PLACEHOLDER_RACES)('%s fills every frame and uses recolorable key colors', (race) => {
     const sheet = generateCharacterSheet(race, layout);
@@ -45,8 +46,9 @@ describe('placeholder character sheets', () => {
       layout.directions.forEach((_dir, d) => {
         for (let f = 0; f < anim.frames; f++) {
           let opaque = 0;
-          for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) if (sheet.alpha(f * 48 + x, (a * 4 + d) * 48 + y)) opaque++;
-          expect(opaque, `${race} ${anim.id} dir${d} f${f}`).toBeGreaterThan(150);
+          const S = layout.frameSize;
+          for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) if (sheet.alpha(f * S + x, (a * 4 + d) * S + y)) opaque++;
+          expect(opaque, `${race} ${anim.id} dir${d} f${f}`).toBeGreaterThan(350);
         }
       }),
     );

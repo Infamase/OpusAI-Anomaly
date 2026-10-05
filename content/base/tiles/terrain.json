@@ -1,6 +1,10 @@
 [
-  { "type": "tile", "id": "void", "name": "Void", "solid": true, "opaque": true, "placeholder": { "style": "noise", "color": "#07070b" } },
-  { "type": "tile", "id": "dirt", "name": "Dirt", "solid": false, "placeholder": { "style": "noise", "color": "#5e4a36", "accent": "#4c3b2b" } },
-  { "type": "tile", "id": "grass", "name": "Alien Grass", "solid": false, "placeholder": { "style": "grass", "color": "#3e5b3a", "accent": "#7fa35a" } },
-  { "type": "tile", "id": "rock_wall", "name": "Rock", "solid": true, "opaque": true, "placeholder": { "style": "rock", "color": "#4a4650", "accent": "#2a2730" } }
+  { "type": "tile", "id": "void", "name": "Void", "solid": true, "opaque": true, "placeholder": { "style": "noise", "color": "#0c0d0a" } },
+  { "type": "tile", "id": "dirt", "name": "Dirt", "solid": false, "blend": 1, "placeholder": { "style": "noise", "color": "#5e4232" } },
+  { "type": "tile", "id": "grass", "name": "Alien Grass", "solid": false, "blend": 2, "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
+  { "type": "tile", "id": "rock_wall", "name": "Rock", "solid": true, "opaque": true, "placeholder": { "style": "rock", "color": "#5d5a56" } },
+  { "type": "tile", "id": "pine_tree", "name": "Pine", "solid": true, "blend": 2, "prop": "pine", "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
+  { "type": "tile", "id": "dead_tree", "name": "Dead Tree", "solid": true, "blend": 1, "prop": "dead_tree", "placeholder": { "style": "noise", "color": "#5e4232" } },
+  { "type": "tile", "id": "boulder", "name": "Boulder", "solid": true, "opaque": true, "blend": 2, "prop": "boulder", "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
+  { "type": "tile", "id": "bush", "name": "Shrub", "solid": false, "blend": 2, "prop": "bush", "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } }
 ]

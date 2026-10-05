@@ -3,46 +3,31 @@ import type { SpriteLayoutDef } from '../../content/types';
 import { layoutSheetSize } from '../../content/types/spriteLayout';
 import { KEY_COLORS, hexToRgb, type RGB } from '../palette';
 import { PixelCanvas } from '../PixelCanvas';
+import { cap, ell, Rig, tri, v, type Ramp, type Shape, type V } from './rig';
 
 /**
- * Generates stand-in 48x48 character sheets so the game is playable before real
- * art exists. Output follows docs/SPRITE_SPEC.md exactly (same layout, anchor
- * and key colors), so hand-drawn PNGs can replace these with no code changes.
+ * Generates the 64x64 character sheets in code, so the game has finished-looking
+ * characters without hand-drawn sheets. Output follows docs/SPRITE_SPEC.md
+ * exactly (layout, anchor, key colors), so drawn PNGs can replace any race with
+ * no code changes.
  *
- * Recolorable regions are painted in the primary KEY colors; the palette swapper
- * turns them into the player's chosen hair / scale / fur color.
+ * Style target: the project's reference sheets (lean, realistic proportions,
+ * colored outlines, soft 4-tone shading lit from the top-left, digitigrade
+ * legs for sergals and lizardmen). Bodies are built from a posed skeleton with
+ * the clay-like rasterizer in rig.ts, which keeps walk cycles consistent.
+ *
+ * Fur / scales / hair are painted in the primary KEY colors; the palette swapper
+ * turns them into the chosen color.
  */
 export const PLACEHOLDER_RACES = ['human', 'lizardman', 'sergal'] as const;
 export type PlaceholderRace = (typeof PLACEHOLDER_RACES)[number];
 
-const K = KEY_COLORS.primary.map(hexToRgb) as [RGB, RGB, RGB, RGB]; // dark -> light
-const KR: [RGB, RGB, RGB] = [K[1], K[2], K[3]];
-const OUTLINE: RGB = [20, 16, 24];
-const SUIT: [RGB, RGB, RGB] = [
-  [44, 52, 38],
-  [68, 80, 54],
-  [92, 106, 72],
-];
-const BOOT: [RGB, RGB] = [
-  [30, 26, 26],
-  [52, 46, 44],
-];
-const BELT: RGB = [46, 36, 28];
-const BUCKLE: RGB = [170, 150, 90];
-const SKIN: [RGB, RGB, RGB] = [
-  [168, 112, 86],
-  [208, 152, 118],
-  [234, 190, 154],
-];
-const DARK: RGB = [28, 22, 30];
-const LIZARD_EYE: RGB = [236, 206, 64];
-const SERGAL_EYE: RGB = [214, 44, 52];
-const TONGUE: RGB = [206, 58, 84];
+export const FRAME = 64;
+const AX = 32;
+/** Feet rest on this row (the layout anchor's y). */
+const GROUND = 60;
 
-const AX = 24;
-const AY = 44;
-
-/** Region tags written while drawing a body (PixelCanvas.regions). */
+/** Region tags written while drawing a body (PixelCanvas.regions). Armor is fitted from these. */
 export const BodyPart = {
   NONE: 0,
   HEAD: 1,
@@ -55,354 +40,648 @@ export const BodyPart = {
   FOOT: 8,
   TAIL: 9,
   MOUTH: 10,
+  NECK: 11,
+  HIP: 12,
+  HAIR: 13,
+  SNOUT: 14,
 } as const;
 const P = BodyPart;
 
+// ---- colors ------------------------------------------------------------------------
+
+const rgb = (...hex: string[]) => hex.map(hexToRgb) as unknown as Ramp;
+/** Hair / fur / scales: palette-swapped to the chosen color. */
+const KEY: Ramp = KEY_COLORS.primary.map(hexToRgb) as unknown as Ramp;
+const SKIN = rgb('#5e2a2c', '#b0634f', '#d68a67', '#f0ad84', '#ffd2a8');
+const PALE = rgb('#7a3a4a', '#cf9a9c', '#e8c4c0', '#f7e6e0', '#fffaf4'); // sergal underside
+const BELLY = rgb('#5a4a2c', '#b8a46a', '#d8c88c', '#ece0aa', '#faf4cc'); // lizard underside
+const CLAW = rgb('#2e0e16', '#6e1e2a', '#962c38', '#b8404a', '#d86a6a');
+const SHORTS = rgb('#1e2a4a', '#3e5f8c', '#5a80b0', '#7aa2cc', '#a6c6e2');
+const LOIN = rgb('#2e1a12', '#5e3420', '#7e4a2a', '#9c6236', '#bf8350');
+const WRAP = rgb('#2a1018', '#5a2232', '#743042', '#8c4052', '#ac5e6c');
+const MOUTH_IN = rgb('#2a0e14', '#5e1a26', '#7e2634', '#9a3442', '#b84c58');
+const EYE_HUMAN: RGB = [52, 34, 38];
+const EYE_WHITE: RGB = [236, 226, 214];
+const EYE_SERGAL: RGB = [255, 112, 40];
+const EYE_SERGAL_HI: RGB = [255, 214, 120];
+const EYE_LIZARD: RGB = [250, 196, 40];
+const EYE_LIZARD_HI: RGB = [255, 238, 150];
+const PUPIL: RGB = [36, 14, 20];
+const TONGUE: RGB = [220, 64, 92];
+const TONGUE_DARK: RGB = [150, 30, 60];
+const TOOTH: RGB = [250, 246, 236];
+
+// ---- poses ---------------------------------------------------------------------------
+
 export interface Pose {
-  bob: number;
-  liftL: number;
-  liftR: number;
-  stride: number;
-  swing: number;
+  walk: boolean;
+  /** Walk phase in radians; leg A leads at 0. */
+  phase: number;
+  /** 0..1 chest rise while idle. */
+  breath: number;
+  /** -1..1 tail sway. */
   sway: number;
   tongue: boolean;
+  earTwitch: boolean;
 }
 
 export function poseFor(anim: string, frame: number): Pose {
   if (anim === 'walk') {
     const f = frame % 6;
-    return {
-      bob: [0, 1, 0, 0, 1, 0][f]!,
-      liftL: [1, 2, 1, 0, 0, 0][f]!,
-      liftR: [0, 0, 0, 1, 2, 1][f]!,
-      stride: [0, 2, 3, 0, -2, -3][f]!,
-      swing: [0, 1, 1, 0, -1, -1][f]!,
-      sway: [-1, -1, 0, 1, 1, 0][f]!,
-      tongue: false,
-    };
+    return { walk: true, phase: (f / 6) * Math.PI * 2, breath: 0, sway: Math.sin((f / 6) * Math.PI * 2), tongue: false, earTwitch: false };
   }
   // idle (and fallback for animations this generator doesn't know yet)
   const f = frame % 4;
-  return { bob: [0, 0, 1, 1][f]!, liftL: 0, liftR: 0, stride: 0, swing: 0, sway: [-1, 0, 1, 0][f]!, tongue: f === 2 };
+  return { walk: false, phase: 0, breath: [0, 0.5, 1, 0.5][f]!, sway: [-1, 0, 1, 0][f]!, tongue: f === 2, earTwitch: f === 3 };
 }
 
-/** Fill with mid tone; light top edge, dark right & bottom edges (light from top-left). */
-function shaded(pc: PixelCanvas, x: number, y: number, w: number, h: number, ramp: readonly [RGB, RGB, RGB]): void {
-  if (w <= 0 || h <= 0) return;
-  pc.rect(x, y, w, h, ramp[1]);
-  if (w > 2) pc.hline(x, y, w - 1, ramp[2]);
-  if (h > 2) pc.vline(x + w - 1, y + 1, h - 1, ramp[0]);
-  if (h > 3) pc.hline(x, y + h - 1, w, ramp[0]);
+// ---- body plans ------------------------------------------------------------------------
+
+interface Build {
+  /** Head center y. */
+  headY: number;
+  neck: { top: number; bottom: number; r: number };
+  shoulderX: number;
+  shoulderY: number;
+  delt: number;
+  chest: { y: number; rx: number; ry: number; side: number };
+  belly: { y: number; rx: number; ry: number; side: number };
+  pelvis: { y: number; rx: number; ry: number; side: number };
+  hipX: number;
+  hipY: number;
+  upperArm: { len: number; r0: number; r1: number };
+  foreArm: { len: number; r0: number; r1: number };
+  hand: number;
+  thigh: { len: number; r0: number; r1: number };
+  shin: { len: number; r0: number; r1: number };
+  /** Digitigrade: a long metatarsus between shin and toes (sergal, lizardman). */
+  meta: null | { len: number; r0: number; r1: number };
+  foot: number;
+  /** Skin for limbs/torso (or the key ramp for fur/scales). */
+  hide: Ramp;
 }
 
-interface RaceStyle {
-  torsoW: number;
-  arm: [RGB, RGB, RGB];
-  hand: RGB;
-  /** Lower legs are bare (scales/fur) rather than suit + boots. */
-  bareLegs: boolean;
-  tail: null | { thick: number; len: number };
-  head(pc: PixelCanvas, dir: Direction, top: number, p: Pose): void;
-  chest?(pc: PixelCanvas, dir: Direction, x: number, y: number, w: number): void;
-}
-
-const STYLES: Record<PlaceholderRace, RaceStyle> = {
+const BUILDS: Record<PlaceholderRace, Build> = {
   human: {
-    torsoW: 12,
-    arm: SUIT,
-    hand: SKIN[1],
-    bareLegs: false,
-    tail: null,
-    head(pc, dir, top) {
-      if (dir === 'up') {
-        shaded(pc, AX - 6, top, 12, 10, KR);
-        pc.hline(AX - 5, top, 10, K[3]);
-        pc.rect(AX - 3, top + 10, 6, 2, SKIN[0]);
-        return;
-      }
-      if (dir === 'down') {
-        shaded(pc, AX - 6, top + 3, 12, 9, SKIN);
-        pc.hline(AX - 5, top + 11, 10, SKIN[0]);
-        shaded(pc, AX - 6, top, 12, 4, KR);
-        pc.hline(AX - 5, top, 10, K[3]);
-        pc.vline(AX - 6, top + 4, 4, K[1]);
-        pc.vline(AX + 5, top + 4, 4, K[0]);
-        pc.rect(AX - 5, top + 4, 4, 1, K[2]);
-        pc.region = P.EYE;
-        pc.rect(AX - 3, top + 7, 1, 2, DARK);
-        pc.rect(AX + 2, top + 7, 1, 2, DARK);
-        pc.region = P.HEAD;
-        pc.rect(AX - 1, top + 10, 2, 1, SKIN[0]);
-        return;
-      }
-      // right (left is mirrored)
-      shaded(pc, AX - 4, top + 3, 9, 9, SKIN);
-      pc.set(AX + 5, top + 8, SKIN[1]);
-      shaded(pc, AX - 5, top, 10, 4, KR);
-      pc.rect(AX - 5, top + 4, 4, 5, K[1]);
-      pc.hline(AX - 4, top, 8, K[3]);
-      pc.region = P.EYE;
-      pc.rect(AX + 2, top + 7, 1, 2, DARK);
-      pc.region = P.HEAD;
-      pc.set(AX + 3, top + 10, SKIN[0]);
-    },
+    headY: 13.5,
+    neck: { top: 17.5, bottom: 22, r: 2.3 },
+    shoulderX: 7.6,
+    shoulderY: 22.6,
+    delt: 2.9,
+    chest: { y: 25.8, rx: 6.9, ry: 4.7, side: 4.6 },
+    belly: { y: 31.2, rx: 5.1, ry: 4.4, side: 4 },
+    pelvis: { y: 36.4, rx: 5.6, ry: 3.2, side: 4.2 },
+    hipX: 3.1,
+    hipY: 37.6,
+    upperArm: { len: 8.6, r0: 2.6, r1: 2.0 },
+    foreArm: { len: 7.6, r0: 2.1, r1: 1.5 },
+    hand: 1.8,
+    thigh: { len: 10.6, r0: 3.3, r1: 2.4 },
+    shin: { len: 10.4, r0: 2.4, r1: 1.6 },
+    meta: null,
+    foot: 1.7,
+    hide: SKIN,
   },
-
-  lizardman: {
-    torsoW: 12,
-    arm: KR,
-    hand: K[2],
-    bareLegs: true,
-    tail: { thick: 4, len: 13 },
-    head(pc, dir, top, p) {
-      const t = top + 1;
-      if (dir === 'up') {
-        shaded(pc, AX - 5, t, 10, 10, KR);
-        for (let i = 0; i < 9; i += 2) pc.set(AX - 1, t + i, K[0]);
-        pc.set(AX - 1, t - 1, K[1]);
-        return;
-      }
-      if (dir === 'down') {
-        shaded(pc, AX - 5, t, 10, 8, KR);
-        shaded(pc, AX - 3, t + 8, 6, 3, KR);
-        pc.set(AX - 2, t + 9, K[0]);
-        pc.set(AX + 1, t + 9, K[0]);
-        pc.region = P.EYE;
-        pc.set(AX - 5, t + 4, LIZARD_EYE);
-        pc.set(AX - 5, t + 5, DARK);
-        pc.set(AX + 4, t + 4, LIZARD_EYE);
-        pc.set(AX + 4, t + 5, DARK);
-        pc.region = P.HEAD;
-        pc.set(AX - 1, t - 1, K[1]);
-        pc.set(AX, t - 1, K[1]);
-        pc.vline(AX - 1, t, 3, K[0]);
-        if (p.tongue) {
-          pc.region = P.MOUTH;
-          pc.vline(AX - 1, t + 10, 2, TONGUE);
-          pc.set(AX - 2, t + 12, TONGUE);
-          pc.set(AX, t + 12, TONGUE);
-        }
-        return;
-      }
-      shaded(pc, AX - 4, t, 8, 10, KR);
-      shaded(pc, AX + 4, t + 4, 4, 5, KR);
-      pc.vline(AX + 7, t + 5, 3, K[2]);
-      pc.hline(AX + 3, t + 7, 5, K[0]);
-      pc.region = P.EYE;
-      pc.set(AX + 1, t + 3, LIZARD_EYE);
-      pc.set(AX + 2, t + 3, DARK);
-      pc.region = P.HEAD;
-      pc.set(AX + 7, t + 5, K[0]);
-      for (let i = 0; i < 4; i += 2) pc.set(AX - 3 + i, t - 1, K[1]);
-      if (p.tongue) {
-        pc.region = P.MOUTH;
-        pc.hline(AX + 8, t + 7, 3, TONGUE);
-        pc.set(AX + 11, t + 6, TONGUE);
-        pc.set(AX + 11, t + 8, TONGUE);
-      }
-    },
-  },
-
   sergal: {
-    torsoW: 14,
-    arm: KR,
-    hand: K[2],
-    bareLegs: true,
-    tail: { thick: 7, len: 12 },
-    chest(pc, dir, x, y, w) {
-      if (dir === 'down') pc.rect(x + w / 2 - 2, y, 4, 3, K[3]);
-      else if (dir === 'right') pc.rect(x + w - 3, y, 3, 3, K[3]);
-    },
-    head(pc, dir, top) {
-      const ear = (x: number, dirX: 1 | -1) => {
-        pc.region = P.EAR;
-        for (let r = 0; r < 6; r++) {
-          const w = 3 - Math.floor(r / 2);
-          for (let i = 0; i < w; i++) pc.set(x + i * dirX, top - 1 - r, r === 0 && i === 1 ? K[0] : K[2]);
-        }
-        pc.region = P.HEAD;
-      };
-      if (dir === 'down' || dir === 'up') {
-        for (let r = 0; r < 12; r++) {
-          const w = Math.max(2, 14 - 2 * Math.floor(r * 0.55));
-          const x = AX - w / 2;
-          pc.hline(x, top + r, w, r === 0 ? K[3] : K[2]);
-          pc.set(x + w - 1, top + r, K[1]);
-          if (dir === 'up' && r < 8) pc.set(AX - 1, top + r, K[1]);
-        }
-        ear(AX - 7, 1);
-        ear(AX + 6, -1);
-        if (dir === 'down') {
-          pc.region = P.EYE;
-          pc.set(AX - 5, top + 4, SERGAL_EYE);
-          pc.set(AX - 4, top + 5, SERGAL_EYE);
-          pc.set(AX + 4, top + 4, SERGAL_EYE);
-          pc.set(AX + 3, top + 5, SERGAL_EYE);
-          pc.region = P.HEAD;
-          pc.hline(AX - 1, top + 11, 2, DARK);
-          pc.rect(AX - 2, top + 7, 4, 3, K[3]);
-        }
-        return;
-      }
-      shaded(pc, AX - 5, top + 1, 7, 8, KR);
-      for (let c = 0; c < 9; c++) {
-        const y0 = top + 3 + Math.floor(c * 0.5);
-        const h = top + 9 - y0;
-        pc.vline(AX + 2 + c, y0, h, c === 0 ? K[2] : K[2]);
-        pc.set(AX + 2 + c, top + 8, K[3]);
-      }
-      pc.set(AX + 10, top + 7, DARK);
-      pc.region = P.EYE;
-      pc.set(AX + 3, top + 4, SERGAL_EYE);
-      pc.set(AX + 4, top + 4, SERGAL_EYE);
-      pc.region = P.EAR;
-      for (let r = 0; r < 6; r++) {
-        const w = Math.max(1, 3 - Math.floor(r / 2));
-        const x = AX - 5 - Math.floor(r / 2);
-        pc.hline(x, top - r, w, K[2]);
-        pc.set(x + w - 1, top - r, K[1]);
-      }
-      pc.set(AX - 4, top - 1, K[0]);
-      pc.region = P.HEAD;
-    },
+    headY: 12.5,
+    neck: { top: 16, bottom: 22, r: 2.4 },
+    shoulderX: 8.2,
+    shoulderY: 22.4,
+    delt: 3.0,
+    chest: { y: 25.8, rx: 7.2, ry: 4.9, side: 4.8 },
+    belly: { y: 31.4, rx: 5.0, ry: 4.6, side: 4 },
+    pelvis: { y: 36.4, rx: 5.6, ry: 3.3, side: 4.4 },
+    hipX: 3.3,
+    hipY: 37.4,
+    upperArm: { len: 8.6, r0: 2.6, r1: 2.0 },
+    foreArm: { len: 8.0, r0: 2.1, r1: 1.6 },
+    hand: 2.0,
+    thigh: { len: 8.0, r0: 3.6, r1: 2.5 },
+    shin: { len: 8.6, r0: 2.3, r1: 1.6 },
+    meta: { len: 7.4, r0: 1.6, r1: 1.4 },
+    foot: 1.6,
+    hide: KEY,
+  },
+  lizardman: {
+    headY: 14,
+    neck: { top: 17, bottom: 22.5, r: 3.0 },
+    shoulderX: 8.4,
+    shoulderY: 23,
+    delt: 3.3,
+    chest: { y: 26.2, rx: 7.4, ry: 5.0, side: 5 },
+    belly: { y: 31.6, rx: 5.6, ry: 4.6, side: 4.6 },
+    pelvis: { y: 36.6, rx: 5.9, ry: 3.3, side: 4.6 },
+    hipX: 3.5,
+    hipY: 37.6,
+    upperArm: { len: 8.4, r0: 2.9, r1: 2.3 },
+    foreArm: { len: 7.6, r0: 2.4, r1: 1.8 },
+    hand: 2.1,
+    thigh: { len: 8.0, r0: 3.9, r1: 2.8 },
+    shin: { len: 8.4, r0: 2.6, r1: 1.8 },
+    meta: { len: 7.2, r0: 1.9, r1: 1.6 },
+    foot: 1.8,
+    hide: KEY,
   },
 };
 
-function disc(pc: PixelCanvas, cx: number, cy: number, r: number, c: RGB): void {
-  const ri = Math.ceil(r);
-  for (let y = -ri; y <= ri; y++) {
-    for (let x = -ri; x <= ri; x++) if (x * x + y * y <= r * r + 0.3) pc.set(cx + x, cy + y, c);
-  }
+// ---- skeleton -----------------------------------------------------------------------
+
+interface Leg {
+  hip: V;
+  knee: V;
+  /** Ankle (plantigrade) or hock (digitigrade). */
+  ankle: V;
+  /** Ball of the foot / toe joint (digitigrade), or the foot center. */
+  ball: V;
+  toe: V;
 }
 
-function drawTail(pc: PixelCanvas, style: RaceStyle, dir: Direction, p: Pose): void {
-  const tail = style.tail;
-  if (!tail) return;
-  pc.region = P.TAIL;
-  const fluffy = tail.thick >= 5;
-  // Start and end points of the tail curve, per facing.
-  let from: [number, number];
-  let to: [number, number];
-  let bend: [number, number];
-  if (dir === 'up') {
-    // Hangs toward the viewer, in front of the legs.
-    from = [AX - 0.5, AY - 13];
-    to = [AX - 0.5 + p.sway * 2, AY + 1];
-    bend = [AX - 0.5 + p.sway, AY - 6];
-  } else if (dir === 'down') {
-    // Behind the body, curling out to one side.
-    from = [AX + 3, AY - 13];
-    to = fluffy ? [AX + 11, AY - 1 + p.sway] : [AX + 14, AY - 3 + p.sway];
-    bend = fluffy ? [AX + 10, AY - 10] : [AX + 9, AY - 10];
+interface Arm {
+  shoulder: V;
+  elbow: V;
+  hand: V;
+}
+
+/** Two-bone IK: the joint between `root` and `end`, bent toward `bendX` sign (side view) . */
+function ik(root: V, end: V, a: number, b: number, bend: 1 | -1): V {
+  const dx = end.x - root.x;
+  const dy = end.y - root.y;
+  const d = Math.min(Math.hypot(dx, dy), a + b - 0.01);
+  const ang = Math.atan2(dy, dx);
+  const cosA = (a * a + d * d - b * b) / (2 * a * d);
+  const off = Math.acos(Math.max(-1, Math.min(1, cosA)));
+  const c1 = { x: root.x + Math.cos(ang + off) * a, y: root.y + Math.sin(ang + off) * a };
+  const c2 = { x: root.x + Math.cos(ang - off) * a, y: root.y + Math.sin(ang - off) * a };
+  return (c1.x - c2.x) * bend >= 0 ? c1 : c2;
+}
+
+/** A leg seen from the side (facing +x). `fwd` moves the foot forward, `lift` raises it. */
+function sideLeg(b: Build, hip: V, fwd: number, lift: number): Leg {
+  const groundY = GROUND - b.foot;
+  if (!b.meta) {
+    const ankle = v(hip.x + fwd, groundY - 1.2 - lift);
+    const knee = ik(hip, ankle, b.thigh.len, b.shin.len, 1);
+    const ball = v(ankle.x + 2, groundY + 0.2 - lift * 0.6);
+    return { hip, knee, ankle, ball, toe: v(ankle.x + 3.6, groundY + 0.4 - lift * 0.4) };
+  }
+  // Digitigrade: the ball of the foot is planted; the hock sits up and behind it.
+  const ball = v(hip.x + fwd + 1.5, groundY - lift);
+  const tilt = lift > 0.5 ? 0.5 : 0.28; // metatarsus leans back from the ball
+  const ankle = v(ball.x - Math.sin(tilt) * b.meta.len, ball.y - Math.cos(tilt) * b.meta.len);
+  const knee = ik(hip, ankle, b.thigh.len, b.shin.len, 1);
+  return { hip, knee, ankle, ball, toe: v(ball.x + 3, ball.y + 0.6 + lift * 0.2) };
+}
+
+/** A leg seen from the front/back: straight down, shortened when lifted. */
+function frontLeg(b: Build, hip: V, lift: number, outward: number): Leg {
+  const groundY = GROUND - b.foot;
+  const footX = hip.x + outward * 0.6;
+  if (!b.meta) {
+    const ankle = v(footX, groundY - 1.2 - lift);
+    const knee = v(hip.x + outward * 0.5, hip.y + b.thigh.len - lift * 0.55);
+    return { hip, knee, ankle, ball: v(footX, groundY + 0.1 - lift), toe: v(footX, groundY + 0.4 - lift) };
+  }
+  const ball = v(footX, groundY - lift);
+  const ankle = v(footX, ball.y - b.meta.len * 0.92);
+  const knee = v(hip.x + outward * 0.7, hip.y + b.thigh.len * 0.82 - lift * 0.4);
+  return { hip, knee, ankle, ball, toe: v(footX, ball.y + 0.8) };
+}
+
+// ---- drawing helpers ------------------------------------------------------------------
+
+function legShapes(b: Build, l: Leg, side: boolean): Shape[] {
+  const s: Shape[] = [
+    cap(l.hip, l.knee, b.thigh.r0, b.thigh.r1 + 0.2, { region: P.LEG }),
+    cap(l.knee, l.ankle, b.shin.r0, b.shin.r1, { region: P.LEG }),
+  ];
+  if (b.meta) {
+    s.push(cap(l.ankle, l.ball, b.meta.r0, b.meta.r1, { region: P.LEG }));
+    // Hock bump: the heel joint sticks out behind.
+    s.push(ell(side ? v(l.ankle.x - 0.3, l.ankle.y) : l.ankle, b.meta.r0 + 0.3, b.meta.r0 + 0.3, { region: P.LEG }));
+    s.push(side ? cap(l.ball, l.toe, b.foot, b.foot - 0.5, { region: P.FOOT }) : ell(v(l.ball.x, l.ball.y + 0.3), b.foot + 1.2, b.foot, { region: P.FOOT }));
   } else {
-    // Facing right: trails out behind to the left.
-    from = [AX - 3, AY - 12];
-    to = fluffy ? [AX - 13, AY - 3 + p.sway] : [AX - 16, AY - 4 + p.sway];
-    bend = fluffy ? [AX - 11, AY - 12] : [AX - 10, AY - 9];
+    s.push(
+      side
+        ? cap(v(l.ankle.x - 1.2, l.ankle.y + 1), l.toe, b.foot, b.foot - 0.4, { region: P.FOOT })
+        : ell(v(l.ball.x, l.ball.y), b.foot + 1, b.foot, { region: P.FOOT }),
+    );
   }
-  const steps = tail.len * 2;
-  const point = (t: number): [number, number] => {
-    const u = 1 - t; // quadratic bezier
-    return [u * u * from[0] + 2 * u * t * bend[0] + t * t * to[0], u * u * from[1] + 2 * u * t * bend[1] + t * t * to[1]];
+  return s;
+}
+
+function armShapes(b: Build, a: Arm): Shape[] {
+  return [
+    ell(v(a.shoulder.x, a.shoulder.y + 1), b.delt * 0.85, b.delt, { region: P.ARM, z: 0.2 }),
+    cap(a.shoulder, a.elbow, b.upperArm.r0, b.upperArm.r1, { region: P.ARM }),
+    cap(a.elbow, a.hand, b.foreArm.r0, b.foreArm.r1, { region: P.ARM }),
+    ell(v(a.hand.x, a.hand.y + b.hand * 0.6), b.hand * 0.9, b.hand * 1.1, { region: P.HAND }),
+  ];
+}
+
+/** A tapering chain of capsules through `pts` (tails, tufts). */
+function chain(pts: V[], r0: number, r1: number, region: number, z = 0): Shape[] {
+  const out: Shape[] = [];
+  const n = pts.length - 1;
+  for (let i = 0; i < n; i++) {
+    const ra = r0 + ((r1 - r0) * i) / n;
+    const rb = r0 + ((r1 - r0) * (i + 1)) / n;
+    out.push(cap(pts[i]!, pts[i + 1]!, ra, rb, { region, z }));
+  }
+  return out;
+}
+
+function flipX(p: V): V {
+  return v(AX * 2 - p.x, p.y);
+}
+
+type Dir = 'down' | 'up' | 'right';
+
+// ---- the figure ----------------------------------------------------------------------
+
+function drawFigure(rig: Rig, race: PlaceholderRace, dir: Dir, p: Pose): void {
+  const b = BUILDS[race];
+  // Walk: body bobs, legs alternate (A = screen-left in front view, far leg in side view).
+  const swingA = p.walk ? Math.cos(p.phase) : 0;
+  const swingB = -swingA;
+  const liftA = p.walk ? Math.max(0, -Math.sin(p.phase)) : 0;
+  const liftB = p.walk ? Math.max(0, Math.sin(p.phase)) : 0;
+  const bob = p.walk ? 0.8 - 0.8 * Math.abs(Math.sin(p.phase)) - 0.3 : 0;
+  const rise = p.breath * 0.45;
+  const y = (n: number) => n + bob;
+
+  if (dir === 'right') return drawSide(rig, race, b, p, { swingA, swingB, liftA, liftB, bob, rise });
+
+  const front = dir === 'down';
+  const hipL = v(AX - b.hipX, y(b.hipY));
+  const hipR = v(AX + b.hipX, y(b.hipY));
+  const legL = frontLeg(b, hipL, (front ? liftA : liftB) * 3.2, -1);
+  const legR = frontLeg(b, hipR, (front ? liftB : liftA) * 3.2, 1);
+  const shY = y(b.shoulderY) - rise;
+  const armFor = (sx: number, swing: number): Arm => {
+    const shoulder = v(AX + sx * b.shoulderX, shY);
+    const elbow = v(shoulder.x + sx * 1.2, shoulder.y + b.upperArm.len);
+    const hand = v(elbow.x + sx * 0.3, elbow.y + b.foreArm.len - Math.abs(swing) * 1.2 + swing * 1.2);
+    return { shoulder, elbow, hand };
   };
-  const radius = (t: number) =>
-    fluffy ? 1.2 + (tail.thick / 2) * Math.sin(Math.PI * Math.min(1, 0.15 + t * 0.95)) : (tail.thick / 2) * (1 - t * 0.8);
-  // Shadow pass then fill pass gives the tail some volume.
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const [x, y] = point(t);
-    disc(pc, Math.round(x), Math.round(y + 0.6), radius(t), K[1]);
-  }
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const [x, y] = point(t);
-    const tip = fluffy && t > 0.72;
-    const stripe = !fluffy && i % 5 === 0;
-    disc(pc, Math.round(x - 0.4), Math.round(y - 0.4), Math.max(0.5, radius(t) - 0.9), tip ? K[3] : stripe ? K[1] : K[2]);
-  }
+  const armL = armFor(-1, front ? swingB : swingA);
+  const armR = armFor(1, front ? swingA : swingB);
+
+  if (front) tail(rig, race, 'down', p, bob);
+  rig.add({ region: P.LEG, ramp: b.hide }, legShapes(b, legL, false));
+  rig.add({ region: P.LEG, ramp: b.hide }, legShapes(b, legR, false));
+  const torso = rig.add({ region: P.TORSO, ramp: b.hide }, [
+    cap(v(AX, y(b.neck.top)), v(AX, y(b.neck.bottom)), b.neck.r, b.neck.r + 0.6, { region: P.NECK }),
+    // Trapezius: slopes from the neck down to the shoulders.
+    cap(v(AX - 1.5, y(b.neck.bottom) - 0.8), v(AX - b.shoulderX + 1.2, shY + 0.6), 2.2, 2.4, { region: P.TORSO, z: -0.6 }),
+    cap(v(AX + 1.5, y(b.neck.bottom) - 0.8), v(AX + b.shoulderX - 1.2, shY + 0.6), 2.2, 2.4, { region: P.TORSO, z: -0.6 }),
+    ell(v(AX, y(b.chest.y) - rise * 0.5), b.chest.rx + rise * 0.15, b.chest.ry, { region: P.TORSO }),
+    ell(v(AX, y(b.belly.y)), b.belly.rx, b.belly.ry, { region: P.TORSO, z: -0.5 }),
+    ell(v(AX, y(b.pelvis.y)), b.pelvis.rx, b.pelvis.ry, { region: P.HIP }),
+  ]);
+  bodyMarkings(rig, race, dir, b, torso, bob);
+  rig.add({ region: P.ARM, ramp: b.hide }, armShapes(b, armL));
+  rig.add({ region: P.ARM, ramp: b.hide }, armShapes(b, armR));
+  armMarkings(rig, race, dir, [armL, armR]);
+  if (front) muscleLines(rig, b, bob, rise);
+  head(rig, race, dir, b, p, bob);
+  if (!front) tail(rig, race, 'up', p, bob);
+  feetDetails(rig, race, [legL, legR], false);
 }
 
-function drawLeg(pc: PixelCanvas, style: RaceStyle, x: number, lift: number, dark: boolean): void {
-  const top = AY - 10;
-  const h = 10 - lift;
-  const suit = dark ? ([SUIT[0], SUIT[0], SUIT[1]] as const) : SUIT;
-  pc.region = P.LEG;
-  if (style.bareLegs) {
-    shaded(pc, x, top, 4, 4, suit);
-    const k = dark ? ([K[0], K[1], K[2]] as const) : KR;
-    shaded(pc, x, top + 4, 4, h - 4, k);
-    pc.hline(x - 1, top + h - 1, 5, k[0]);
-    pc.tag(x - 1, top + h - 2, 6, 2, P.FOOT);
-  } else {
-    shaded(pc, x, top, 4, h - 3, suit);
-    pc.region = P.FOOT;
-    pc.rect(x, top + h - 3, 4, 3, dark ? BOOT[0] : BOOT[1]);
-    pc.hline(x, top + h - 1, 4, BOOT[0]);
-  }
+interface Gait {
+  swingA: number;
+  swingB: number;
+  liftA: number;
+  liftB: number;
+  bob: number;
+  rise: number;
 }
 
-function drawArm(pc: PixelCanvas, style: RaceStyle, x: number, top: number, len: number, dark: boolean): void {
-  const ramp = dark ? ([style.arm[0], style.arm[0], style.arm[1]] as const) : style.arm;
-  pc.region = P.ARM;
-  shaded(pc, x, top, 3, len - 2, ramp);
-  pc.region = P.HAND;
-  pc.rect(x, top + len - 2, 3, 2, style.hand);
-  pc.region = P.ARM;
-  if (style.arm !== SUIT) pc.hline(x, top, 3, SUIT[1]); // short sleeve
-}
-
-function drawFrame(pc: PixelCanvas, race: PlaceholderRace, dir: Direction, p: Pose): void {
-  const s = STYLES[race];
-  const tw = s.torsoW;
-  const torsoTop = AY - 21 + p.bob;
-  const headTop = AY - 33 + p.bob;
-
-  const torso = (x: number, w: number) => {
-    pc.region = P.TORSO;
-    shaded(pc, x, torsoTop, w, 12, SUIT);
-    pc.hline(x, AY - 12 + p.bob, w, BELT);
-    if (dir === 'down') pc.rect(AX - 1, AY - 12 + p.bob, 2, 1, BUCKLE);
-    s.chest?.(pc, dir, x, torsoTop, w);
+function drawSide(rig: Rig, race: PlaceholderRace, b: Build, p: Pose, g: Gait): void {
+  const y = (n: number) => n + g.bob;
+  const hip = v(AX - 0.5, y(b.hipY));
+  const stride = 5.2;
+  const far = sideLeg(b, v(hip.x + 0.6, hip.y), g.swingA * stride, g.liftA * 3);
+  const near = sideLeg(b, v(hip.x - 0.2, hip.y), g.swingB * stride, g.liftB * 3);
+  const sh = v(AX - 0.6, y(b.shoulderY) - g.rise);
+  const armFor = (swing: number, dx: number): Arm => {
+    const shoulder = v(sh.x + dx, sh.y);
+    const elbow = v(shoulder.x + swing * 2.6 - 0.4, shoulder.y + b.upperArm.len - Math.abs(swing) * 0.3);
+    const hand = v(elbow.x + swing * 3.4 + 1.4, elbow.y + b.foreArm.len - Math.abs(swing) * 0.9);
+    return { shoulder, elbow, hand };
   };
+  // Arms swing opposite to the leg on the same side.
+  const farArm = armFor(-g.swingA, 0.8);
+  const nearArm = armFor(-g.swingB, -0.4);
 
-  if (dir === 'down' || dir === 'up') {
-    if (dir === 'down') drawTail(pc, s, dir, p);
-    drawLeg(pc, s, AX - 5, p.liftL, false);
-    drawLeg(pc, s, AX + 1, p.liftR, false);
-    torso(AX - tw / 2, tw);
-    drawArm(pc, s, AX - tw / 2 - 3, torsoTop + 1, 10 + p.swing, false);
-    drawArm(pc, s, AX + tw / 2, torsoTop + 1, 10 - p.swing, false);
-    pc.region = P.HEAD;
-    s.head(pc, dir, headTop, p);
-    if (dir === 'up') drawTail(pc, s, dir, p);
-    pc.region = P.NONE;
+  rig.add({ region: P.ARM, ramp: b.hide, toneShift: -1 }, armShapes(b, farArm));
+  tail(rig, race, 'right', p, g.bob);
+  rig.add({ region: P.LEG, ramp: b.hide, toneShift: -1 }, legShapes(b, far, true));
+  const lean = race === 'human' ? 0 : 0.6; // beast-folk carry their chest a bit forward
+  const torso = rig.add({ region: P.TORSO, ramp: b.hide }, [
+    cap(v(AX + 0.4 + lean, y(b.neck.top)), v(AX - 0.2, y(b.neck.bottom)), b.neck.r, b.neck.r + 0.5, { region: P.NECK }),
+    ell(v(AX + 0.6 + lean, y(b.chest.y) - g.rise * 0.5), b.chest.side + g.rise * 0.2, b.chest.ry, { region: P.TORSO }),
+    ell(v(AX + 0.4, y(b.belly.y)), b.belly.side, b.belly.ry, { region: P.TORSO, z: -0.4 }),
+    ell(v(AX - 0.6, y(b.pelvis.y)), b.pelvis.side, b.pelvis.ry, { region: P.HIP }),
+  ]);
+  rig.add({ region: P.LEG, ramp: b.hide }, legShapes(b, near, true));
+  bodyMarkings(rig, race, 'right', b, torso, g.bob);
+  legMarkings(rig, race, near);
+  rig.add({ region: P.ARM, ramp: b.hide }, armShapes(b, nearArm));
+  armMarkings(rig, race, 'right', [nearArm]);
+  head(rig, race, 'right', b, p, g.bob);
+  feetDetails(rig, race, [far, near], true);
+}
+
+// ---- race details ----------------------------------------------------------------------
+
+/** Pale bellies, shorts, loincloths. */
+function bodyMarkings(rig: Rig, race: PlaceholderRace, dir: Dir, b: Build, torso: number, bob: number): void {
+  const y = (n: number) => n + bob;
+  const side = dir === 'right';
+  if (race === 'human') {
+    // Shorts over the pelvis (the legs get theirs below).
+    const top = y(b.pelvis.y - 2.2);
+    const hem = y(b.hipY + 5.6);
+    // Big capsules whose top edge sits on the waistline.
+    const shorts: Shape[] = side
+      ? [cap(v(AX - 0.6, top + 6.2), v(AX - 0.6, hem - 5.4), 6.2, 5.4)]
+      : [cap(v(AX - 2.2, top + 5), v(AX - 3.4, hem - 3.6), 5, 3.6), cap(v(AX + 2.2, top + 5), v(AX + 3.4, hem - 3.6), 5, 3.6)];
+    rig.decal(SHORTS, shorts, { regions: [P.HIP, P.LEG, P.TORSO] });
+    // Waistband and hem.
+    for (let x = AX - 8; x <= AX + 8; x++) {
+      if (rig.isPainted(x, Math.round(top)) && rig.regionAt(x, Math.round(top)) !== P.ARM && rig.regionAt(x, Math.round(top)) !== P.HAND) rig.mark(x, top, 1);
+    }
     return;
   }
+  const pale = race === 'sergal' ? PALE : BELLY;
+  if (dir === 'down') {
+    // Chest-to-belly underside, plus throat.
+    rig.decal(pale, [ell(v(AX, y(b.chest.y + 1.6)), b.chest.rx - 2.3, b.chest.ry), ell(v(AX, y(b.belly.y)), b.belly.rx - 1.6, b.belly.ry + 0.8), cap(v(AX, y(b.neck.top)), v(AX, y(b.neck.bottom)), b.neck.r - 0.7)], { parts: [torso] });
+  } else if (side) {
+    rig.decal(pale, [ell(v(AX + 3.8, y(b.chest.y + 1.5)), 2.6, b.chest.ry + 0.5), ell(v(AX + 3.2, y(b.belly.y)), 2.4, b.belly.ry + 0.6), cap(v(AX + 2.2, y(b.neck.top)), v(AX + 2.8, y(b.neck.bottom)), 1.4)], { parts: [torso] });
+  }
+  if (race === 'lizardman' && dir === 'down') {
+    // Belly plates.
+    for (let r = 0; r < 4; r++) rig.markLine(v(AX - 2.5, y(b.belly.y - 2.5 + r * 2)), v(AX + 2.5, y(b.belly.y - 2.5 + r * 2)), 2);
+  }
+  // Loincloth.
+  const cloth = race === 'sergal' ? LOIN : WRAP;
+  if (side) rig.decal(cloth, [ell(v(AX - 0.6, y(b.pelvis.y + 0.4)), b.pelvis.side + 1, 2.2)], { parts: [torso] });
+  else rig.decal(cloth, [ell(v(AX, y(b.pelvis.y + 0.4)), b.pelvis.rx + 1, 2.2)], { parts: [torso] });
+}
 
-  // Facing right.
-  const sideW = tw - 4;
-  drawTail(pc, s, dir, p);
-  drawArm(pc, s, AX - 2 - p.swing * 2, torsoTop + 1, 10, true);
-  drawLeg(pc, s, AX - 3 - Math.round(p.stride / 2), 0, true);
-  drawLeg(pc, s, AX - 1 + Math.round(p.stride / 2), p.stride > 0 ? 1 : 0, false);
-  torso(AX - sideW / 2, sideW);
-  drawArm(pc, s, AX - 1 + p.swing * 2, torsoTop + 1, 10, false);
-  pc.region = P.HEAD;
-  s.head(pc, dir, headTop, p);
-  pc.region = P.NONE;
+function armMarkings(rig: Rig, race: PlaceholderRace, dir: Dir, arms: Arm[]): void {
+  if (race !== 'sergal' || dir === 'up') return;
+  // Pale forearms and hands.
+  for (const a of arms) rig.decal(PALE, [cap(v((a.elbow.x * 2 + a.shoulder.x) / 3, (a.elbow.y * 2 + a.shoulder.y) / 3), a.hand, 2.4, 2.6)], { regions: [P.ARM, P.HAND] });
+}
+
+function legMarkings(rig: Rig, race: PlaceholderRace, l: Leg): void {
+  if (race !== 'sergal') return;
+  rig.decal(PALE, [cap(l.knee, l.ball, 2.6, 2.4), cap(l.ball, l.toe, 2.4)], { regions: [P.LEG, P.FOOT] });
+}
+
+function muscleLines(rig: Rig, b: Build, bob: number, rise: number): void {
+  const y = (n: number) => n + bob;
+  const cy = y(b.chest.y) - rise * 0.5;
+  // Pectoral line and sternum, a hint of abs.
+  rig.markLine(v(AX - 4.5, cy + 2.5), v(AX - 1, cy + 3.2), 2);
+  rig.markLine(v(AX + 1, cy + 3.2), v(AX + 4.5, cy + 2.5), 2);
+  rig.markLine(v(AX, cy - 1), v(AX, cy + 2), 2);
+  rig.markLine(v(AX, y(b.belly.y - 2)), v(AX, y(b.belly.y + 2)), 2);
+}
+
+function feetDetails(rig: Rig, race: PlaceholderRace, legs: Leg[], side: boolean): void {
+  if (race === 'human') return;
+  // Dark claws on the toes.
+  for (const l of legs) {
+    if (side) {
+      rig.dot(l.toe.x + 1.2, l.toe.y + 0.4, CLAW[1]);
+    } else {
+      for (const dx of [-1.6, 0, 1.6]) rig.dot(l.ball.x + dx, l.ball.y + 2, CLAW[1]);
+    }
+  }
+}
+
+function tail(rig: Rig, race: PlaceholderRace, dir: Dir, p: Pose, bob: number): void {
+  if (race === 'human') return;
+  const s = p.sway;
+  const y = (n: number) => n + bob;
+  if (race === 'sergal') {
+    // Long and slender, curling at the ground into a fluffy pale tip.
+    let pts: V[];
+    if (dir === 'right') pts = [v(28.5, y(37.5)), v(24, y(40.5)), v(19.5, y(45)), v(16.5 + s * 0.5, 50.5), v(16 + s, 55), v(18.5 + s, 57.4), v(22 + s, 57.2)];
+    else if (dir === 'down') pts = [v(35, y(37)), v(40, y(41)), v(44, y(46.5)), v(46 + s * 0.5, 52), v(45.5 + s, 56.6), v(42.5 + s, 58.2), v(39.5 + s, 57.4)];
+    else pts = [v(32, y(38)), v(32.5, y(44)), v(34 + s * 0.6, 50), v(37 + s, 55), v(41 + s, 57.6), v(44.5 + s, 57)];
+    const part = rig.add({ region: P.TAIL, ramp: KEY }, [...chain(pts, 2.1, 2.9, P.TAIL), ell(pts[pts.length - 2]!, 3, 2.6, { region: P.TAIL, z: 0.4 })]);
+    rig.decal(PALE, [...chain(pts.slice(3), 3.2, 3.4, P.TAIL)], { parts: [part] });
+    return;
+  }
+  // Lizardman: thick, heavy, tapering to a point on the ground.
+  let pts: V[];
+  if (dir === 'right') pts = [v(28.5, y(36.5)), v(23, y(41)), v(17.5, y(46.5)), v(12.5 + s * 0.4, 52), v(8 + s, 56.4), v(3.5 + s, 58.6)];
+  else if (dir === 'down') pts = [v(35, y(37.5)), v(39.5, y(43)), v(43, y(49)), v(45.5 + s * 0.5, 54.5), v(47.5 + s, 58.6)];
+  else pts = [v(32, y(37.5)), v(32.2, y(44)), v(31.5 + s * 0.4, 50), v(29 + s, 55.4), v(24.5 + s, 58.6), v(20 + s, 59.4)];
+  const part = rig.add({ region: P.TAIL, ramp: KEY }, chain(pts, 3.8, 0.8, P.TAIL));
+  if (dir === 'right') rig.decal(BELLY, chain(pts.map((q) => v(q.x + 0.6, q.y + 2.6)), 1.6, 0.4, P.TAIL), { parts: [part] });
+}
+
+// ---- heads ------------------------------------------------------------------------------
+
+function head(rig: Rig, race: PlaceholderRace, dir: Dir, b: Build, p: Pose, bob: number): void {
+  const hy = b.headY + bob;
+  if (race === 'human') return humanHead(rig, dir, hy);
+  if (race === 'sergal') return sergalHead(rig, dir, hy, p);
+  return lizardHead(rig, dir, hy, p);
+}
+
+function humanHead(rig: Rig, dir: Dir, hy: number): void {
+  if (dir === 'right') {
+    rig.add({ region: P.HEAD, ramp: SKIN }, [
+      ell(v(31.6, hy), 4.3, 5.2),
+      ell(v(33.2, hy + 2.6), 3.2, 2.6, { region: P.HEAD }), // jaw
+      tri(v(35.4, hy - 0.4), v(37.2, hy + 1.6), v(35.2, hy + 1.9), { region: P.HEAD }), // nose
+      ell(v(30.4, hy + 0.6), 1.2, 1.7, { region: P.EAR, z: 3 }),
+    ]);
+    rig.dot(34.4, hy - 0.2, EYE_HUMAN, P.EYE);
+    rig.markLine(v(33.6, hy - 1.6), v(35, hy - 1.7), 1); // brow
+    // Hair: swept, with a messy fringe; beard along the jaw.
+    rig.add({ region: P.HAIR, ramp: KEY }, [
+      ell(v(31, hy - 2.6), 4.6, 3.4),
+      cap(v(28.8, hy - 1.5), v(28.4, hy + 2.6), 2.6, 2),
+      tri(v(33.5, hy - 5.5), v(36.5, hy - 2.6), v(33, hy - 2.4)),
+      tri(v(29, hy - 5.6), v(31.5, hy - 7.6), v(32.6, hy - 5)),
+      tri(v(26.6, hy - 3), v(28.4, hy - 5.2), v(28.6, hy - 1)),
+    ]);
+    rig.add({ region: P.HAIR, ramp: KEY, line: false }, [ell(v(33.8, hy + 3.4), 2.6, 1.6), cap(v(31.4, hy + 1.2), v(33, hy + 3.4), 1.1)]);
+    rig.dot(35.6, hy + 2.6, MOUTH_IN[1], P.MOUTH);
+    return;
+  }
+  const front = dir === 'down';
+  rig.add({ region: P.HEAD, ramp: SKIN }, [
+    ell(v(AX, hy), 4.5, 5.3),
+    ell(v(AX - 4.6, hy + 0.6), 1.1, 1.6, { region: P.EAR }),
+    ell(v(AX + 4.6, hy + 0.6), 1.1, 1.6, { region: P.EAR }),
+  ]);
+  if (front) {
+    for (const sx of [-1, 1]) {
+      rig.dot(AX + sx * 1.9, hy + 0.4, EYE_HUMAN, P.EYE);
+      rig.mark(AX + sx * 2.2, hy - 1, 1);
+    }
+    rig.mark(AX, hy + 1.8, 1);
+    rig.add({ region: P.HAIR, ramp: KEY }, [
+      ell(v(AX, hy - 3.6), 5, 2.7),
+      tri(v(AX - 5.2, hy - 2.2), v(AX - 3.6, hy - 6.8), v(AX - 0.8, hy - 4)),
+      tri(v(AX - 1.8, hy - 4), v(AX + 0.8, hy - 7.8), v(AX + 3, hy - 4)),
+      tri(v(AX + 1.6, hy - 4), v(AX + 5.6, hy - 6.4), v(AX + 5.4, hy - 1.2)),
+      tri(v(AX - 4, hy - 3), v(AX - 0.4, hy - 2.4), v(AX - 3, hy - 1.4)),
+      cap(v(AX - 4.6, hy - 2), v(AX - 4.4, hy + 1.4), 0.9),
+      cap(v(AX + 4.6, hy - 2), v(AX + 4.4, hy + 1.4), 0.9),
+    ]);
+    // Short beard along the jaw.
+    rig.add({ region: P.HAIR, ramp: KEY, line: false }, [ell(v(AX, hy + 4.2), 2.8, 1.3), cap(v(AX - 3.8, hy + 1.6), v(AX - 2, hy + 4), 0.8), cap(v(AX + 3.8, hy + 1.6), v(AX + 2, hy + 4), 0.8)]);
+    rig.dot(AX - 0.5, hy + 3, MOUTH_IN[1], P.MOUTH);
+    rig.dot(AX + 0.5, hy + 3, MOUTH_IN[1], P.MOUTH);
+    return;
+  }
+  rig.add({ region: P.HAIR, ramp: KEY }, [ell(v(AX, hy - 1.2), 5, 4.8), ell(v(AX, hy + 2.6), 3.6, 2.2), tri(v(AX - 4, hy - 4), v(AX - 1.6, hy - 7.4), v(AX + 0.8, hy - 4.6)), tri(v(AX + 1.2, hy - 4.6), v(AX + 4.2, hy - 6.6), v(AX + 4.8, hy - 2.4))]);
+}
+
+function sergalHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
+  const twitch = p.earTwitch ? 1 : 0;
+  if (dir === 'right') {
+    // Long wedge muzzle, ears swept back, spiky mane down the neck.
+    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(26.6, hy - 1), v(29.6, hy - 2.6), v(23.4 - twitch, hy - 9.6))]);
+    rig.add({ region: P.HAIR, ramp: KEY }, [
+      tri(v(29, hy), v(25, hy + 2.4), v(29.6, hy + 4)),
+      tri(v(28.6, hy + 3), v(25.4, hy + 7.2), v(30, hy + 6.4)),
+      tri(v(29.4, hy + 6), v(26.6, hy + 10.4), v(31, hy + 9)),
+    ]);
+    const h = rig.add({ region: P.HEAD, ramp: KEY }, [
+      ell(v(30.6, hy), 4.2, 3.8),
+      tri(v(30.8, hy - 2.6), v(31.4, hy + 3.8), v(42, hy + 2.4), { region: P.SNOUT, dome: 0.8 }),
+      tri(v(30.6, hy + 1.8), v(31.4, hy + 5.2), v(40.4, hy + 3.6), { region: P.SNOUT, dome: 0.6 }),
+    ]);
+    rig.decal(PALE, [tri(v(30.4, hy + 2.4), v(31.2, hy + 5.6), v(41, hy + 3.4)), ell(v(31, hy + 3.4), 2, 1.8)], { parts: [h] });
+    rig.dot(33.6, hy - 0.6, EYE_SERGAL, P.EYE);
+    rig.dot(34.6, hy - 0.4, EYE_SERGAL, P.EYE);
+    rig.dot(33.6, hy - 1.6, KEY[0], P.EYE);
+    rig.dot(41.2, hy + 2, PUPIL, P.SNOUT);
+    rig.markLine(v(34.4, hy + 3), v(39.4, hy + 2.8), 0);
+    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(28.2, hy - 1.8), v(31, hy - 2.8), v(26.2 - twitch, hy - 10.4))]);
+    rig.decal(PALE, [tri(v(28.6, hy - 2.4), v(29.8, hy - 2.8), v(27 - twitch, hy - 7.6))], { regions: [P.EAR] });
+    return;
+  }
+  const front = dir === 'down';
+  // Ears: tall and pointed, a little outward.
+  for (const sx of [-1, 1]) {
+    const tw = sx === 1 ? twitch : 0;
+    rig.add({ region: P.EAR, ramp: KEY }, [tri(v(AX + sx * 1.2, hy - 2.6), v(AX + sx * 4.8, hy - 1), v(AX + sx * (5.6 + tw), hy - 11 + tw))]);
+    if (front) rig.decal(PALE, [tri(v(AX + sx * 2.6, hy - 2.6), v(AX + sx * 4.4, hy - 1.8), v(AX + sx * 5, hy - 8))], { regions: [P.EAR] });
+  }
+  // Mane: spiky ruff around the cheeks and neck.
+  rig.add({ region: P.HAIR, ramp: KEY }, [
+    tri(v(AX - 3, hy + 1), v(AX - 7.6, hy + 3.6), v(AX - 3, hy + 5)),
+    tri(v(AX - 3, hy + 3.4), v(AX - 6.4, hy + 8.6), v(AX - 1.6, hy + 6.6)),
+    tri(v(AX + 3, hy + 1), v(AX + 7.6, hy + 3.6), v(AX + 3, hy + 5)),
+    tri(v(AX + 3, hy + 3.4), v(AX + 6.4, hy + 8.6), v(AX + 1.6, hy + 6.6)),
+  ]);
+  if (front) {
+    // The muzzle points at the viewer: a wedge narrowing to the nose.
+    const h = rig.add({ region: P.HEAD, ramp: KEY }, [
+      ell(v(AX, hy - 0.4), 4.6, 3.8),
+      tri(v(AX - 4.4, hy), v(AX + 4.4, hy), v(AX, hy + 7.6), { region: P.SNOUT, dome: 0.9 }),
+    ]);
+    rig.decal(PALE, [tri(v(AX - 2.6, hy + 3), v(AX + 2.6, hy + 3), v(AX, hy + 7.6))], { parts: [h] });
+    for (const sx of [-1, 1]) {
+      rig.dot(AX + sx * 2.6, hy + 0.2, EYE_SERGAL, P.EYE);
+      rig.dot(AX + sx * 1.8, hy + 0.8, EYE_SERGAL_HI, P.EYE);
+      rig.markLine(v(AX + sx * 1.4, hy - 1), v(AX + sx * 3.6, hy - 0.8), 0);
+    }
+    rig.dot(AX, hy + 7, PUPIL, P.SNOUT);
+    rig.dot(AX - 1.5, hy + 5.4, TOOTH, P.MOUTH);
+    rig.dot(AX + 1.5, hy + 5.4, TOOTH, P.MOUTH);
+    return;
+  }
+  rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.4), 4.6, 4.2), ell(v(AX, hy + 2.6), 3.2, 2.6)]);
+  rig.add({ region: P.HAIR, ramp: KEY }, [tri(v(AX - 2.4, hy + 1), v(AX + 2.4, hy + 1), v(AX, hy + 9.4)), tri(v(AX - 4, hy + 2), v(AX - 0.6, hy + 2.6), v(AX - 2.6, hy + 8))]);
+}
+
+function lizardHead(rig: Rig, dir: Dir, hy: number, p: Pose): void {
+  if (dir === 'right') {
+    // Blunt snout, heavy jaw, a crest of spikes down the back of the head.
+    rig.add({ region: P.HAIR, ramp: KEY }, [
+      tri(v(28, hy - 3.4), v(26.2, hy - 6.2), v(30, hy - 4.4)),
+      tri(v(27, hy - 1), v(24.4, hy - 2.6), v(27.6, hy + 1.2)),
+      tri(v(27.4, hy + 2.4), v(25, hy + 2.6), v(28.4, hy + 4.6)),
+    ]);
+    const h = rig.add({ region: P.HEAD, ramp: KEY }, [
+      ell(v(30.8, hy - 0.4), 4.2, 4.2),
+      cap(v(32.6, hy + 0.6), v(38.2, hy + 1.4), 3, 2.3, { region: P.SNOUT }),
+      cap(v(31.6, hy + 3), v(36.6, hy + 3.4), 2.4, 1.6, { region: P.SNOUT, z: -0.5 }),
+    ]);
+    rig.decal(BELLY, [cap(v(30.6, hy + 4), v(36.2, hy + 4.1), 1.8, 1.2)], { parts: [h] });
+    rig.dot(33.4, hy - 1, EYE_LIZARD, P.EYE);
+    rig.dot(34.2, hy - 1, PUPIL, P.EYE);
+    rig.dot(33.4, hy - 0.2, EYE_LIZARD_HI, P.EYE);
+    rig.markLine(v(32.6, hy - 2.4), v(34.6, hy - 2.2), 1);
+    rig.dot(38.6, hy + 0.2, KEY[0], P.SNOUT);
+    rig.markLine(v(33.4, hy + 2.6), v(39.4, hy + 2.6), 0);
+    if (p.tongue) {
+      for (let i = 0; i < 4; i++) rig.dot(40 + i, hy + 2.6, TONGUE, P.MOUTH);
+      rig.dot(44, hy + 1.8, TONGUE, P.MOUTH);
+      rig.dot(44, hy + 3.4, TONGUE_DARK, P.MOUTH);
+    }
+    return;
+  }
+  const front = dir === 'down';
+  // Crest.
+  rig.add({ region: P.HAIR, ramp: KEY }, front
+    ? [tri(v(AX - 2.2, hy - 3.4), v(AX - 0.4, hy - 7), v(AX + 0.6, hy - 3.8)), tri(v(AX - 0.4, hy - 3.8), v(AX + 1.4, hy - 6.4), v(AX + 2.6, hy - 3.4))]
+    : [tri(v(AX - 1.4, hy - 3), v(AX, hy - 7), v(AX + 1.4, hy - 3)), tri(v(AX - 1.4, hy + 1), v(AX, hy - 2.6), v(AX + 1.4, hy + 1)), tri(v(AX - 1.4, hy + 4.4), v(AX, hy + 1.4), v(AX + 1.4, hy + 4.4))]);
+  if (front) {
+    const h = rig.add({ region: P.HEAD, ramp: KEY }, [
+      ell(v(AX, hy - 0.6), 5, 4.4),
+      ell(v(AX, hy + 2.6), 4.4, 2.8, { region: P.SNOUT }),
+    ]);
+    rig.decal(BELLY, [ell(v(AX, hy + 4.6), 3.2, 1.6)], { parts: [h] });
+    for (const sx of [-1, 1]) {
+      rig.dot(AX + sx * 3.6, hy - 1, EYE_LIZARD, P.EYE);
+      rig.dot(AX + sx * 3, hy - 1, PUPIL, P.EYE);
+      rig.dot(AX + sx * 3.6, hy - 0.2, EYE_LIZARD_HI, P.EYE);
+      rig.markLine(v(AX + sx * 2.4, hy - 2.6), v(AX + sx * 4.6, hy - 2.2), 1);
+      rig.dot(AX + sx * 1, hy + 1.6, KEY[0], P.SNOUT);
+    }
+    rig.markLine(v(AX - 3, hy + 3.6), v(AX + 3, hy + 3.6), 0);
+    if (p.tongue) {
+      rig.dot(AX, hy + 4.6, TONGUE, P.MOUTH);
+      rig.dot(AX, hy + 5.6, TONGUE, P.MOUTH);
+      rig.dot(AX - 1, hy + 6.6, TONGUE, P.MOUTH);
+      rig.dot(AX + 1, hy + 6.6, TONGUE_DARK, P.MOUTH);
+    }
+    return;
+  }
+  rig.add({ region: P.HEAD, ramp: KEY }, [ell(v(AX, hy - 0.4), 5, 4.6), ell(v(AX, hy + 2.4), 4.2, 2.6)]);
+}
+
+// ---- public API ---------------------------------------------------------------------
+
+/** A rig with one body frame drawn (before finishing), for armor fitting. */
+export function rigBodyFrame(race: PlaceholderRace, dir: Dir, pose: Pose): Rig {
+  const rig = new Rig(FRAME, FRAME);
+  drawFigure(rig, race, dir, pose);
+  return rig;
 }
 
 /**
- * One 48x48 body frame with per-pixel body-part tags, before outlining. Only
- * down / up / right are drawn; left is right mirrored at sheet assembly.
+ * One 64x64 body frame with per-pixel body-part tags, finished (lit and
+ * outlined). Only down / up / right are drawn; left is right mirrored at sheet
+ * assembly.
  */
-export function drawBodyFrame(race: PlaceholderRace, dir: 'down' | 'up' | 'right', pose: Pose): PixelCanvas {
-  const pc = new PixelCanvas(48, 48).enableRegions();
-  drawFrame(pc, race, dir, pose);
-  return pc;
+export function drawBodyFrame(race: PlaceholderRace, dir: Dir, pose: Pose): PixelCanvas {
+  return rigBodyFrame(race, dir, pose).finish();
 }
-
-export { OUTLINE as PLACEHOLDER_OUTLINE };
 
 /** Draws one full sheet for `race` following `layout`. Left frames mirror right frames. */
 export function generateCharacterSheet(race: PlaceholderRace, layout: SpriteLayoutDef): PixelCanvas {
@@ -413,16 +692,22 @@ export function generateCharacterSheet(race: PlaceholderRace, layout: SpriteLayo
     layout.directions.forEach((dir, d) => {
       for (let f = 0; f < anim.frames; f++) {
         const frame = drawBodyFrame(race, dir === 'left' ? 'right' : dir, poseFor(anim.id, f));
-        frame.outline(OUTLINE);
-        // Center the 48px drawing in frames of other sizes.
-        const off = (size - 48) / 2;
-        sheet.blit(frame, f * size + off, (a * layout.directions.length + d) * size + off, dir === 'left');
+        // Center the drawing in frames of other sizes (anchor stays put).
+        const ox = layout.anchor[0] - AX;
+        const oy = layout.anchor[1] - GROUND;
+        sheet.blit(frame, f * size + ox, (a * layout.directions.length + d) * size + oy, dir === 'left');
       }
     });
   });
   return sheet;
 }
 
+/** Generic dark outline for small generated art (items, weapons). */
+export const PLACEHOLDER_OUTLINE: RGB = [28, 20, 26];
+
 export function isPlaceholderRace(id: string): id is PlaceholderRace {
   return (PLACEHOLDER_RACES as readonly string[]).includes(id);
 }
+
+export type { Direction };
+void flipX;

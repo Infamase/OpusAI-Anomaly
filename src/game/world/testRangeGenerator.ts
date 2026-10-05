@@ -1,4 +1,4 @@
-import { fbm2D, deriveSeed, Rng } from '../../core/rng';
+import { fbm2D, deriveSeed, hashInts, Rng } from '../../core/rng';
 import { parseOrThrow, v } from '../../content/schema';
 import type { TileSet } from './TileSet';
 import { registerGenerator, type CampSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
@@ -23,6 +23,11 @@ const paramsSchema = v.object({
     width: v.number({ int: true, min: 8 }),
     height: v.number({ int: true, min: 8 }),
   }),
+  /** Scattered decorations (trees, boulders...), replacing `on` tiles. Denser where the "forest" noise is high. */
+  decor: v.optional(
+    v.array(v.object({ tile: v.id(), on: v.id(), density: v.number({ min: 0, max: 1 }) })),
+    [],
+  ),
   camps: v.optional(
     v.array(
       v.object({
@@ -49,6 +54,7 @@ interface Params {
   rockThreshold: number;
   border: number;
   outpost: { floor: number; grate: number; wall: number; hazard: number; width: number; height: number };
+  decor: { tile: number; on: number; density: number }[];
   camps: CampParams[];
 }
 
@@ -81,8 +87,19 @@ function classify(seed: number, p: Params, gx: number, gy: number, W: number, H:
 
   const nearOutpost = gx >= o.x - 4 && gy >= o.y - 4 && gx < o.x + o.w + 4 && gy < o.y + o.h + 4;
   if (!nearOutpost && fbm2D(deriveSeed(seed, 'rock'), gx / 10, gy / 10, 4) > p.rockThreshold) return p.rock;
-  if (fbm2D(deriveSeed(seed, 'grass'), gx / 7, gy / 7, 3) > p.grassThreshold) return p.grass;
-  return p.ground;
+  const ground = fbm2D(deriveSeed(seed, 'grass'), gx / 7, gy / 7, 3) > p.grassThreshold ? p.grass : p.ground;
+  // Decorations keep a clear ring around the outpost so its doors stay reachable.
+  const clearing = gx >= o.x - 7 && gy >= o.y - 7 && gx < o.x + o.w + 7 && gy < o.y + o.h + 7;
+  if (clearing || gx < 4 || gy < 4 || gx >= W - 4 || gy >= H - 4) return ground;
+  const forest = fbm2D(deriveSeed(seed, 'forest'), gx / 14, gy / 14, 3);
+  const roll = (hashInts(seed, gx, gy) >>> 0) / 4294967296;
+  let acc = 0;
+  for (const d of p.decor) {
+    if (d.on !== ground) continue;
+    acc += d.density * Math.max(0, forest - 0.3) * 3;
+    if (roll < acc) return d.tile;
+  }
+  return ground;
 }
 
 export const testRangeGenerator: WorldGenerator<Params> = {
@@ -105,6 +122,7 @@ export const testRangeGenerator: WorldGenerator<Params> = {
         wall: tiles.index(r.outpost.wall),
         hazard: tiles.index(r.outpost.hazard),
       },
+      decor: r.decor.map((d) => ({ tile: tiles.index(d.tile), on: tiles.index(d.on), density: d.density })),
       camps: r.camps,
     };
   },

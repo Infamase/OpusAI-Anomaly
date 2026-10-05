@@ -8,7 +8,7 @@ import { World } from '../src/ecs/World';
 import { buildCharacterStats } from '../src/game/characters';
 import { Character, Equipment, Stats } from '../src/game/components';
 import { armorFor, createItem, equipArmor, fitProblem, startingEquipment, unequipArmor } from '../src/game/equipment';
-import { ARMOR_STYLES, drawArmorFrame, type ArmorSlot } from '../src/render/placeholder/armor';
+import { ARMOR_OUTLINES, ARMOR_STYLES, drawArmorFrame, type ArmorSlot } from '../src/render/placeholder/armor';
 import { BodyPart, drawBodyFrame, PLACEHOLDER_RACES, poseFor } from '../src/render/placeholder/characters';
 import { hexToRgb, KEY_COLORS, rgbToHex } from '../src/render/palette';
 import type { SpriteSheetCache } from '../src/render/SpriteSheets';
@@ -68,8 +68,8 @@ describe('placeholder armor art', () => {
           const armor = drawArmorFrame(race, slot, style as never, dir, 'walk', 2);
           let painted = 0;
           let dye = 0;
-          for (let y = 0; y < 48; y++) {
-            for (let x = 0; x < 48; x++) {
+          for (let y = 0; y < 64; y++) {
+            for (let x = 0; x < 64; x++) {
               if (!armor.alpha(x, y)) continue;
               painted++;
               if (secondary.has(rgbToHex(armor.get(x, y)))) dye++;
@@ -83,7 +83,7 @@ describe('placeholder armor art', () => {
           // Mostly dye-colored, scaled to how much of the body part is visible (a sergal's tail hides its legs from behind).
           const parts = { head: [BodyPart.HEAD, BodyPart.EYE], torso: [BodyPart.TORSO, BodyPart.ARM], legs: [BodyPart.LEG] }[slot] as number[];
           let visible = 0;
-          for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) if (body.alpha(x, y) && parts.includes(body.regionAt(x, y))) visible++;
+          for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (body.alpha(x, y) && parts.includes(body.regionAt(x, y))) visible++;
           expect(dye, `${race} ${slot}/${style} ${dir} dyeable`).toBeGreaterThan(Math.min(5, visible / 4));
         }
       }
@@ -95,12 +95,11 @@ describe('placeholder armor art', () => {
     for (const slot of ['torso', 'legs'] as ArmorSlot[]) {
       for (const style of ARMOR_STYLES[slot]) {
         const armor = drawArmorFrame(race, slot, style, 'up', 'idle', 0);
-        const outline = hexToRgb('#141018');
-        for (let y = 0; y < 48; y++) {
-          for (let x = 0; x < 48; x++) {
+        for (let y = 0; y < 64; y++) {
+          for (let x = 0; x < 64; x++) {
             if (body.regionAt(x, y) !== BodyPart.TAIL || !armor.alpha(x, y)) continue;
             // Only the armor's 1px outline may touch the tail edge.
-            expect(armor.get(x, y), `${race} ${style} covers tail at ${x},${y}`).toEqual(outline);
+            expect(ARMOR_OUTLINES.has(rgbToHex(armor.get(x, y))), `${race} ${style} covers tail at ${x},${y}`).toBe(true);
           }
         }
       }

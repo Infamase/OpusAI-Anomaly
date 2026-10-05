@@ -72,11 +72,11 @@ export class MainMenuScene implements Scene {
 
   render(): void {
     const { width: W, height: H } = this.game.renderer;
-    const scale = Math.max(2, Math.floor(Math.min(H / 170, W / 210)));
-    const gap = 40 * scale;
+    const scale = Math.max(2, Math.floor(Math.min(H / 200, W / 230)));
+    const gap = 44 * scale;
     // To the right of the menu column.
     const cx = W * 0.66;
-    const y = H * 0.62;
+    const y = H * 0.7;
     this.previews.forEach((p, i) => {
       p.place(cx + (i - 1) * gap, y, scale);
       p.render();

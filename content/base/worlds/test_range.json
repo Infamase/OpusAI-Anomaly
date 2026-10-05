@@ -20,6 +20,13 @@
       "width": 16,
       "height": 12
     },
+    "decor": [
+      { "tile": "pine_tree", "on": "grass", "density": 0.09 },
+      { "tile": "bush", "on": "grass", "density": 0.05 },
+      { "tile": "boulder", "on": "grass", "density": 0.012 },
+      { "tile": "dead_tree", "on": "dirt", "density": 0.025 },
+      { "tile": "bush", "on": "dirt", "density": 0.015 }
+    ],
     "camps": [
       {
         "id": "outpost_loners",

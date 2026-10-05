@@ -208,7 +208,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
       heightChunks: genDef.heightChunks,
       deltas: this.deltas,
     });
-    this.tileRenderer = new TilemapRenderer(g.renderer.ground, this.map, new TileAtlas(tiles));
+    this.tileRenderer = new TilemapRenderer(g.renderer.ground, this.map, new TileAtlas(tiles), g.renderer.entities);
     g.renderer.overlay.addChild(this.fx.layer);
     g.renderer.screen.addChild(this.crosshair.g);
 
@@ -583,7 +583,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
         lootTable: obj.lootTable,
         items: saved ? structuredClone(saved.data as ItemInstance[]) : null,
       });
-      this.addProp(e, this.crateTexture(obj.variant), obj.x, obj.y, 9);
+      this.addProp(e, this.crateTexture(obj.variant), obj.x, obj.y, 13);
       list.push(e);
     }
     for (const { key: k, record } of deltas.entitiesOfKind('item')) {

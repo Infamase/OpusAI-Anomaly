@@ -114,8 +114,8 @@ export class CharacterCreatorScene implements Scene {
     const pr = this.game.renderer.pixelRatio;
     const r = this.stage.getBoundingClientRect();
     if (r.width < 10 || r.height < 10) return;
-    const scale = Math.max(2, Math.min(12, Math.floor((r.height * pr * 0.6) / 48)));
-    this.preview.place((r.left + r.width / 2) * pr, (r.top + r.height * 0.7) * pr, scale);
+    const scale = Math.max(2, Math.min(12, Math.floor((r.height * pr * 0.62) / 60)));
+    this.preview.place((r.left + r.width / 2) * pr, (r.top + r.height * 0.78) * pr, scale);
     this.preview.render();
   }
 

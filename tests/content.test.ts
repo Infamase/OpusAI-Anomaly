@@ -21,14 +21,14 @@ describe('base content pack', () => {
     expect(reg.has('tile', 'void')).toBe(true);
   });
 
-  it('uses the 48px, 4-direction humanoid layout', () => {
+  it('uses the 64px, 4-direction humanoid layout', () => {
     const reg = fresh();
     loadContent(reg, bundledContentFiles);
-    const layout = reg.get('spriteLayout', 'humanoid48');
-    expect(layout.frameSize).toBe(48);
+    const layout = reg.get('spriteLayout', 'humanoid64');
+    expect(layout.frameSize).toBe(64);
     expect(layout.directions).toEqual(['down', 'left', 'right', 'up']);
     expect(layoutRow(layout, 'walk', 'up')).toBe(7);
-    expect(layoutSheetSize(layout)).toEqual({ width: 6 * 48, height: 8 * 48 });
+    expect(layoutSheetSize(layout)).toEqual({ width: 6 * 64, height: 8 * 64 });
   });
 });
 

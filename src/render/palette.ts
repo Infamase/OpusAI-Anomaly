@@ -11,11 +11,16 @@
 export const PALETTE_CHANNELS = ['primary', 'secondary'] as const;
 export type PaletteChannel = (typeof PALETTE_CHANNELS)[number];
 
-/** Reserved key colors, dark -> light. Never use these anywhere else in sprite art. */
+/**
+ * Reserved key colors, dark -> light: outline, shadow, mid, BASE, highlight.
+ * The chosen color replaces shade 3. Never use these anywhere else in sprite art.
+ */
 export const KEY_COLORS: Record<PaletteChannel, readonly string[]> = {
-  primary: ['#400040', '#800080', '#c000c0', '#ff00ff'],
-  secondary: ['#004040', '#008080', '#00c0c0', '#00ffff'],
+  primary: ['#200020', '#400040', '#800080', '#c000c0', '#ff00ff'],
+  secondary: ['#002020', '#004040', '#008080', '#00c0c0', '#00ffff'],
 };
+/** Index of the chosen ("base") color within a ramp. */
+export const BASE_SHADE = 3;
 
 export type RGB = [number, number, number];
 export type ChannelColors = Partial<Record<PaletteChannel, string>>;
@@ -68,18 +73,23 @@ function shiftHue(h: number, target: number, amount: number): number {
 }
 
 /**
- * Builds a 4-shade pixel-art ramp from one base color (base = shade 2).
- * Shadows drift toward blue and highlights toward yellow, a classic pixel-art
- * technique that keeps recolors from looking flat.
+ * Builds a 5-shade pixel-art ramp from one base color (base = shade 3):
+ * outline, shadow, mid, base, highlight. Shadows drift toward blue/purple and
+ * highlights toward yellow, a classic pixel-art technique that keeps recolors
+ * from looking flat. The outline is a deep, saturated version of the color
+ * (colored line art), not black.
  */
 export function buildRamp(baseHex: string): RGB[] {
   const [h, s, l] = rgbToHsl(hexToRgb(baseHex));
+  // Very light colors need bigger steps down to keep their outline readable.
+  const k = l > 0.75 ? 1.25 : 1;
   const shades: [number, number, number, number][] = [
     // [lightness offset, hue target, hue shift, saturation scale]
-    [-0.26, 240, 14, 1.1],
-    [-0.13, 240, 7, 1.05],
+    [-0.42 * k, 255, 22, 1.25],
+    [-0.24 * k, 245, 14, 1.12],
+    [-0.12 * k, 240, 7, 1.05],
     [0, h, 0, 1],
-    [0.13, 55, 7, 0.95],
+    [0.11, 55, 8, 0.95],
   ];
   return shades.map(([dl, target, amount, ss]) => {
     // Greys have no meaningful hue; don't tint them.
