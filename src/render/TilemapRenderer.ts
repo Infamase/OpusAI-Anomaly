@@ -92,7 +92,7 @@ export class TileAtlas {
       const ramp = tileRamp(def);
       for (let v = 0; v < VARIANTS; v++) {
         for (const front of [false, true]) {
-          if (front && (!def.solid || def.prop)) continue;
+          if (front && (!def.solid || def.prop || def.low)) continue;
           const pc = generateTile(def, v, front);
           ctx.putImageData(new ImageData(pc.data, T, T), (v * 2 + (front ? 1 : 0)) * T, row * T);
           if (front || !def.blend) continue;
@@ -287,15 +287,34 @@ export class TilemapRenderer {
     this.pendingRedraw.add(key);
   }
 
+  /** The ground around a prop: the first plain neighbor (W, N, E, S), else the prop tile's own ground. */
+  private groundUnderProp(tx: number, ty: number, wallLike: (t: number) => boolean): number {
+    const map = this.map;
+    for (const [dx, dy] of [
+      [-1, 0],
+      [0, -1],
+      [1, 0],
+      [0, 1],
+    ] as const) {
+      if (!map.inBounds(tx + dx, ty + dy)) continue;
+      const t = map.getTile(tx + dx, ty + dy);
+      const d = map.tiles.defs[t]!;
+      if (!d.prop && !wallLike(t) && !d.solid) return t;
+    }
+    return map.getTile(tx, ty);
+  }
+
   private drawTile(view: ChunkView, tx: number, ty: number, lx: number, ly: number): void {
     const map = this.map;
     const atlas = this.atlas;
     const tiles = map.tiles;
-    const tile = map.getTile(tx, ty);
-    const def = tiles.defs[tile]!;
-    const wallLike = (t: number) => tiles.solid[t] === 1 && !tiles.defs[t]!.prop;
+    const def = tiles.defs[map.getTile(tx, ty)]!;
+    // Walls get a front face, cast shadows and aren't blended over; water and props don't.
+    const wallLike = (t: number) => tiles.solid[t] === 1 && tiles.low[t] === 0 && !tiles.defs[t]!.prop;
+    // A prop stands on whatever ground surrounds it (a boulder on gravel shows gravel, not its own grass).
+    const tile = def.prop ? this.groundUnderProp(tx, ty, wallLike) : map.getTile(tx, ty);
     const wall = wallLike(tile);
-    const front = wall && ty + 1 < map.heightTiles && !map.isSolid(tx, ty + 1);
+    const front = wall && ty + 1 < map.heightTiles && !wallLike(map.getTile(tx, ty + 1));
     const variant = hashInts(tx, ty) % VARIANTS;
     const ctx = view.ctx;
     const x0 = lx * T;
@@ -334,7 +353,7 @@ export class TilemapRenderer {
     // A soft contact shadow under props (drawn on the ground, offset away from the light).
     if (def.prop) {
       ctx.fillStyle = 'rgba(8, 10, 4, 0.32)';
-      const big = def.prop === 'pine' || def.prop === 'dead_tree';
+      const big = def.prop === 'pine' || def.prop === 'dead_tree' || def.prop === 'leafy_tree' || def.prop === 'wreck';
       const rx = big ? 12 : 9;
       const ry = big ? 5 : 4;
       ctx.beginPath();

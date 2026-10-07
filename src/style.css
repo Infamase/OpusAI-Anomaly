@@ -912,6 +912,25 @@ body {
   height: 164px;
   image-rendering: pixelated;
 }
+.hud-where {
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  top: calc(100% + 4px);
+  padding: 2px 6px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #f3e4b0;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-line);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-where:empty {
+  display: none;
+}
 .hud-minimap-n {
   position: absolute;
   left: 50%;
@@ -1365,4 +1384,70 @@ body {
   .opt-note {
     margin-left: 0 !important;
   }
+}
+
+/* ---------- PDA map ---------- */
+.map-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+}
+.map-box {
+  padding: 12px 16px 10px;
+  background: #0b0d10;
+  border: 1px solid var(--accent);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
+}
+.map-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.map-head h2 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.map-where {
+  color: #f3e4b0;
+}
+.map-explored {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.map-frame {
+  position: relative;
+  border: 1px solid #2c3238;
+}
+.map-canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+.map-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.map-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 0 4px;
+  font-size: 10px;
+  color: #f3e4b0;
+  background: rgba(9, 11, 14, 0.75);
+  white-space: nowrap;
+}
+.map-hint {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: right;
 }

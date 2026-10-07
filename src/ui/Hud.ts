@@ -65,6 +65,7 @@ export class Hud {
   private wOther = el('div', 'hud-wother');
   private promptEl = el('div', 'hud-prompt');
   private messages = el('div', 'hud-messages');
+  private where = el('div', 'hud-where');
   private last = new Map<string, string>();
   private hurt = 0;
   private trail = 1;
@@ -82,8 +83,14 @@ export class Hud {
     );
     this.weaponBox.append(this.wOther, this.wName, el('div', 'hud-ammo-row', undefined, this.wPips, this.wAmmo), this.wInfo, el('div', 'hud-bar thin', undefined, this.wReload), this.wHint);
     this.weaponBox.className = 'hud-panel hud-weapon';
+    this.minimap.root.append(this.where);
     this.root.append(this.vignette, this.arcs, this.minimap.root, vitals, this.weaponBox, this.promptEl, this.messages);
     parent.append(this.root);
+  }
+
+  /** Where the player is, under the minimap ("Pine Forest", "Rookie Village"). */
+  location(text: string): void {
+    this.set('where', text, (v) => (this.where.textContent = v));
   }
 
   /** Interaction hint, e.g. "E  Pick up Bandage" (null hides it). The key before the double space becomes a keycap. */

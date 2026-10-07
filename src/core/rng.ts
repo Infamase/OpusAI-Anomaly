@@ -29,6 +29,23 @@ export function hashInts(...values: number[]): number {
   return h >>> 0;
 }
 
+/** hashInts(a, b, c) without the argument array: same result, much faster in hot loops (noise). */
+export function hash3(a: number, b: number, c: number): number {
+  let h = 0x9e3779b9;
+  h ^= Math.imul(a | 0, 0x85ebca6b);
+  h = Math.imul((h << 13) | (h >>> 19), 5) + 0xe6546b64;
+  h ^= Math.imul(b | 0, 0x85ebca6b);
+  h = Math.imul((h << 13) | (h >>> 19), 5) + 0xe6546b64;
+  h ^= Math.imul(c | 0, 0x85ebca6b);
+  h = Math.imul((h << 13) | (h >>> 19), 5) + 0xe6546b64;
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}
+
 /** Derives a child seed, e.g. deriveSeed(planetSeed, 'chunk', cx, cy). */
 export function deriveSeed(seed: number, label: string, ...values: number[]): number {
   return hashInts(seed, hashString(label), ...values);
@@ -103,9 +120,12 @@ export function valueNoise2D(seed: number, x: number, y: number): number {
   const fy = y - y0;
   const sx = fx * fx * (3 - 2 * fx);
   const sy = fy * fy * (3 - 2 * fy);
-  const corner = (cx: number, cy: number) => hashInts(seed, cx, cy) / 4294967296;
-  const top = corner(x0, y0) + (corner(x0 + 1, y0) - corner(x0, y0)) * sx;
-  const bottom = corner(x0, y0 + 1) + (corner(x0 + 1, y0 + 1) - corner(x0, y0 + 1)) * sx;
+  const c00 = hash3(seed, x0, y0) / 4294967296;
+  const c10 = hash3(seed, x0 + 1, y0) / 4294967296;
+  const c01 = hash3(seed, x0, y0 + 1) / 4294967296;
+  const c11 = hash3(seed, x0 + 1, y0 + 1) / 4294967296;
+  const top = c00 + (c10 - c00) * sx;
+  const bottom = c01 + (c11 - c01) * sx;
   return top + (bottom - top) * sy;
 }
 

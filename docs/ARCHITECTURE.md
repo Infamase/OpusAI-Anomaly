@@ -28,6 +28,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 9 Inventory | `src/game/items.ts`, `inventoryActions.ts`, `loot.ts`, `consumables.ts`, `scenes/InventoryScene.ts` | Backpack, weight limit, equip/use/drop, crates and bodies, consumables, item icons |
 | 10 AI & factions | `src/game/factions.ts`, `npcs.ts`, `population.ts`, `src/game/ai/` | Faction relations & reputation, NPC templates, camps, NPC brains, A* pathfinding, bodies that persist |
 | 11 Sound | `src/audio/`, `src/game/GameAudio.ts`, `content/*/sounds/` | Synthesized (or recorded) sounds as content, WebAudio mixer with positional audio, gameplay and UI sounds, ambience |
+| 13 Planets | `src/game/world/planetGenerator.ts`, `exploration.ts`, `scenes/MapScene.ts`, `content/*/biomes`, `content/*/structures` | Planet generation (biomes, lakes, rivers, structures, roads), explored-area map |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -211,6 +212,45 @@ over the canvas and draw animated characters with `CharacterPreview`.
 - `OptionsPanel` (title screen and pause menu): volume per bus, mute, camera
   zoom, renderer and the performance overlay, saved per device.
 
+## Planets (Module 13)
+
+- **A planet is a `worldGen` def** using the `planet` generator: which
+  `biomes`, the border cliffs, elevation and climate scales, `water` (lake
+  share, rivers), `roads` (tiles, width, extra loops), the `start` structure
+  (and the biomes it prefers), `structures` with counts, spacing and allowed
+  biomes, road `patrols`, and wild `crates`. Swap the lists to make a desert,
+  tundra or alien jungle planet without code.
+- **Biomes** (`content/*/biomes/`) sit at a point in climate space (moisture,
+  temperature). Two smooth, warped noise fields give every spot a climate and
+  the nearest biome wins, so neighbors are sensible (swamp next to forest, not
+  desert). A biome has a base ground, noise `patches` of other ground, rock
+  outcrops, swamp `pools`, `decor` (density + clumping into groves) and
+  optional ambience. Shares of area are exact: noise is converted to ranks
+  through sampled distribution tables, so `"cover": 0.2` really covers 20%.
+- **Structures** (`content/*/structures/`) are ASCII drawings with a legend:
+  tile ids, `terrain` (keep), `clear` (keep terrain, remove trees and rocks),
+  crates, the camp's home (`camp`), road connection (`entrance`) and the
+  player's arrival (`spawn`). They can be rotated and mirrored, decay into
+  ruins (`decay`, `rubble`) and house a camp (with a `chance`).
+- **The plan** (once per seed, ~0.2 s): elevation / moisture / temperature on
+  a 4-tile grid; rivers walk downhill from high ground into lakes (or end in a
+  pond); structures are placed by rule (the start near the middle); a minimum
+  spanning tree plus a few extra links joins their entrances, each link routed
+  with A* on a 2-tile grid that avoids walls and prefers dry, open ground
+  (bridges where it must cross water); river and road distances are stamped
+  into per-tile arrays. **Chunks** (~0.4 ms each) then read the plan and
+  per-tile noise, in priority order: border, structures, roads/bridges,
+  water, pools, rocks, ground, decorations.
+- **Tiles** gained `low` (blocks walking, not bullets: water) and `speed`
+  (mud 0.8, shallows 0.6).
+- **Map:** `Exploration` keeps a bit per chunk the player has been near
+  (base64 in the save's flags). The PDA map (`MapScene`, M) shows explored
+  terrain, discovered places and the player; the HUD shows the current place
+  or biome, and biomes switch the ambience.
+- **Worlds per character:** the save's `player.worldId` decides the world.
+  New characters start on `zone_north`; older saves stay where they were. The
+  dev panel can travel between worlds.
+
 ## Extension points
 
 ### Add a playable race
@@ -249,12 +289,21 @@ Gear, artifacts and cybernetics will add modifiers with `source` tags, and
 ### Add a tile
 Add it to `content/base/tiles/*.json` with `solid`, `opaque` and placeholder art
 settings. `blend` makes ground spill over lower-valued neighbors with a ragged
-edge; `prop` (`pine`, `dead_tree`, `boulder`, `bush`) stands a tall sprite on
-the tile. World params can scatter props with `decor` entries. Saves store tile **ids**, so adding or removing tiles never corrupts
+edge; `prop` (`pine`, `dead_tree`, `boulder`, `bush`, `leafy_tree`, `reeds`,
+`wreck`, `rubble`) stands a tall sprite on the tile; `low` makes a solid tile
+that bullets fly over; `speed` slows walking. World params can scatter props with `decor` entries. Saves store tile **ids**, so adding or removing tiles never corrupts
 existing worlds. A saved tile whose id no longer exists falls back to the
 generated tile.
 
+### Add a biome or a structure
+- **Biome:** a def in `content/base/biomes/` (copy one), then list its id in a
+  planet's `biomes`. Pick a climate point away from the others.
+- **Structure:** a def in `content/base/structures/`: draw `map` rows of equal
+  width, define every character in `legend`, give it an `entrance` cell, then
+  add `{ "id": ..., "count": [min, max] }` to a planet's `structures`.
+
 ### Add a world/planet type
+- **Another planet:** a new `worldGen` JSON with `"generator": "planet"` and its own biomes and structures.
 - **Same algorithm, different settings:** a new `worldGen` JSON with different `params`.
 - **New algorithm:** implement `WorldGenerator` (`src/game/world/generators.ts`)
   and call `registerGenerator()`. Generation must be a pure function of

@@ -317,6 +317,233 @@ function wall(t: Tex, rng: Rng, variant: number, front: boolean, accent: Ramp): 
   }
 }
 
+/** Water: murky body, slow ripple bands, a few glints; shallows show stones on the bottom. */
+function water(t: Tex, rng: Rng, accent: Ramp, shallow: boolean): void {
+  t.fill(2);
+  const m = mottle(rng, 7, 4, 9);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const n = m[y * S + x]!;
+      if (n < 0.36) t.tone(x, y, 1);
+      else if (n > 0.7) t.tone(x, y, 3);
+    }
+  }
+  if (shallow) {
+    for (let i = 0; i < 4; i++) {
+      const x = rng.int(0, S - 1);
+      const y = rng.int(0, S - 1);
+      for (const [dx, dy, tone] of [
+        [0, 0, 3],
+        [1, 0, 3],
+        [0, 1, 1],
+        [1, 1, 1],
+        [2, 1, 1],
+      ] as const)
+        t.tone(x + dx, y + dy, tone);
+    }
+  }
+  // Ripples: long, faint wavy crests; a few glints.
+  for (let i = 0; i < 4; i++) {
+    const x = rng.int(0, S - 1);
+    const y = rng.int(0, S - 1);
+    const len = rng.int(7, 14);
+    for (let k = 0; k < len; k++) t.tone(x + k, y + Math.round(Math.sin(k * 0.5) * 0.7), 3);
+  }
+  for (let i = 0; i < 2; i++) {
+    const x = rng.int(0, S - 1);
+    const y = rng.int(0, S - 1);
+    t.tone(x, y, 4, accent);
+    t.tone(x + 1, y, 3, accent);
+  }
+}
+
+/** Wet mud: dark, with sheen on puddles and boot-churned dents. */
+function mud(t: Tex, rng: Rng, accent: Ramp): void {
+  t.fill(2);
+  const m = mottle(rng, 9, 3, 7);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const n = m[y * S + x]! + (rng.next() - 0.5) * 0.1;
+      if (n < 0.33) t.tone(x, y, 1);
+      else if (n > 0.7) t.tone(x, y, 3);
+    }
+  }
+  for (let i = 0; i < 2; i++) {
+    const cx = rng.range(4, S - 4);
+    const cy = rng.range(4, S - 4);
+    const rx = rng.range(2.5, 5);
+    const ry = rx * 0.5;
+    for (let y = -3; y <= 3; y++) {
+      for (let x = -6; x <= 6; x++) {
+        const d = Math.hypot(x / rx, y / ry);
+        if (d < 1) t.tone(cx + x, cy + y, d < 0.5 && y < 0 ? 3 : 2, accent);
+        else if (d < 1.3 && y > 0) t.tone(cx + x, cy + y, 0);
+      }
+    }
+  }
+  for (let i = 0; i < 6; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), rng.chance(0.5) ? 0 : 4);
+}
+
+/** Fine sand with wind ripples. */
+function sand(t: Tex, rng: Rng): void {
+  t.fill(3);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const r = rng.next();
+      if (r < 0.08) t.tone(x, y, 2);
+      else if (r > 0.94) t.tone(x, y, 4);
+    }
+  }
+  // Ripples run across the tile and wrap, so they continue onto the next tile.
+  const phase = rng.range(0, Math.PI * 2);
+  for (let x = 0; x < S; x++) {
+    for (let k = 0; k < 4; k++) {
+      const y = Math.round(k * 8 + 3 + Math.sin((x / S) * Math.PI * 2 + phase + k) * 1.5);
+      t.tone(x, y, 4);
+      t.tone(x, y + 1, 2);
+    }
+  }
+}
+
+/** Loose gravel: a carpet of small lit stones. */
+function gravel(t: Tex, rng: Rng): void {
+  t.fill(2);
+  for (let i = 0; i < 60; i++) {
+    const x = rng.int(0, S - 1);
+    const y = rng.int(0, S - 1);
+    const lit = rng.chance(0.5) ? 4 : 3;
+    t.tone(x, y, lit);
+    if (rng.chance(0.6)) t.tone(x + 1, y, 3);
+    t.tone(x, y + 1, 1);
+    if (rng.chance(0.4)) t.tone(x + 1, y + 1, 0);
+  }
+}
+
+/** Dry, cracked earth: curling plates split by dark fissures. */
+function cracked(t: Tex, rng: Rng): void {
+  const pts: [number, number][] = [];
+  for (let i = 0; i < 6; i++) pts.push([rng.range(0, S), rng.range(0, S)]);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      let d1 = Infinity;
+      let d2 = Infinity;
+      for (const [px, py] of pts) {
+        for (const ox of [-S, 0, S]) {
+          for (const oy of [-S, 0, S]) {
+            const d = Math.hypot(x - px - ox, y - py - oy);
+            if (d < d1) {
+              d2 = d1;
+              d1 = d;
+            } else if (d < d2) d2 = d;
+          }
+        }
+      }
+      const edge = d2 - d1;
+      t.tone(x, y, edge < 0.8 ? 1 : edge < 1.8 ? 2 : rng.chance(0.06) ? 4 : 3);
+    }
+  }
+}
+
+/** Old asphalt: soft mottling, sparse aggregate, hairline cracks, flecks of paint. */
+function asphalt(t: Tex, rng: Rng, variant: number, accent: Ramp): void {
+  t.fill(3);
+  const m = mottle(rng, 6, 3, 8);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const r = rng.next();
+      const n = m[y * S + x]!;
+      if (n < 0.32 || r < 0.03) t.tone(x, y, 2);
+      else if (r > 0.975) t.tone(x, y, 4);
+    }
+  }
+  if (variant === 1 || variant === 3) {
+    let x = rng.int(0, S - 1);
+    let y = rng.int(0, S - 1);
+    for (let k = 0; k < rng.int(6, 12); k++) {
+      t.tone(x, y, 1);
+      x += rng.pick([1, 1, 0, -1]);
+      y += rng.pick([1, 0]);
+    }
+  }
+  if (variant === 3) for (let i = 0; i < 4; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), 2, accent);
+}
+
+/** Poured concrete: slabs with a lit lip and dark joint, stains and hairline cracks. */
+function concrete(t: Tex, rng: Rng, variant: number): void {
+  t.fill(3);
+  const m = mottle(rng, 6, 3, 8);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const n = m[y * S + x]! + (rng.next() - 0.5) * 0.12;
+      if (n < 0.34) t.tone(x, y, 2);
+      else if (n > 0.74) t.tone(x, y, 4);
+    }
+  }
+  for (let i = 0; i < S; i++) {
+    t.tone(i, 0, 4);
+    t.tone(i, S - 1, 1);
+    t.tone(0, i, 4);
+    t.tone(S - 1, i, 1);
+  }
+  if (variant >= 2) {
+    let x = rng.int(4, S - 4);
+    let y = rng.int(2, 6);
+    for (let k = 0; k < rng.int(6, 14); k++) {
+      t.tone(x, y, 1);
+      x += rng.pick([1, 0, -1]);
+      y += 1;
+    }
+  }
+}
+
+/** Wooden boards: wide, warm, soft seams, staggered joints and nail heads. */
+function planks(t: Tex, rng: Rng): void {
+  const rows = 3;
+  const bounds = [0, 11, 22, 32];
+  for (let r = 0; r < rows; r++) {
+    const y0 = bounds[r]!;
+    const y1 = bounds[r + 1]!;
+    const base = rng.chance(0.5) ? 3 : rng.chance(0.5) ? 4 : 2;
+    const joint = rng.int(4, S - 4);
+    for (let y = y0; y < y1; y++) {
+      for (let x = 0; x < S; x++) {
+        const ly = y - y0;
+        let tone = ly === y1 - y0 - 1 ? 1 : ly === 0 ? Math.min(4, base + 1) : base;
+        if (x === joint && ly < y1 - y0 - 1) tone = 1;
+        else if (tone === base && valueNoise2D(r * 7 + 3, x / 4, ly * 1.3) > 0.74) tone = Math.max(1, base - 1);
+        t.tone(x, y, tone);
+      }
+    }
+    for (const x of [joint - 2, joint + 3]) t.tone(x, y0 + Math.floor((y1 - y0) / 2), 1);
+  }
+}
+
+/** Brick walls: a rough brick course on top; a bricked front face with dark mortar. */
+function brick(t: Tex, rng: Rng, front: boolean, mortar: Ramp): void {
+  t.fill(2);
+  const course = (x: number, y: number, top: boolean, depth: number) => {
+    const row = Math.floor(y / 4);
+    const off = row % 2 ? 4 : 0;
+    const bx = (x + off) % 8;
+    const by = y % 4;
+    if (by === 3 || bx === 7) return t.tone(x, y, top ? 1 : 1, mortar);
+    let tone = by === 0 && top ? 4 : depth > 0.75 ? 1 : depth > 0.45 ? 2 : 3;
+    if (bx === 0 && tone < 4) tone = Math.min(4, tone + 1);
+    if (rng.chance(0.05)) tone = Math.max(0, tone - 1);
+    t.tone(x, y, tone);
+  };
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) course(x, y, true, 0);
+  if (!front) return;
+  const face = 18;
+  const top = S - face;
+  for (let y = top; y < S; y++) for (let x = 0; x < S; x++) course(x, y - top, false, (y - top) / face);
+  for (let x = 0; x < S; x++) {
+    t.pc.set(x, top - 1, t.ramp[0]!);
+    t.pc.set(x, top, t.ramp[4]!);
+    t.pc.set(x, S - 1, t.ramp[0]!);
+  }
+}
+
 export function generateTile(def: TileDef, variant: number, front: boolean): PixelCanvas {
   const ramp = buildRamp(def.placeholder.color);
   const accent = def.placeholder.accent ? buildRamp(def.placeholder.accent) : ramp;
@@ -346,6 +573,33 @@ export function generateTile(def: TileDef, variant: number, front: boolean): Pix
       break;
     case 'wall':
       wall(t, rng, variant, front, accent);
+      break;
+    case 'water':
+      water(t, rng, accent, !def.solid);
+      break;
+    case 'mud':
+      mud(t, rng, accent);
+      break;
+    case 'sand':
+      sand(t, rng);
+      break;
+    case 'gravel':
+      gravel(t, rng);
+      break;
+    case 'cracked':
+      cracked(t, rng);
+      break;
+    case 'asphalt':
+      asphalt(t, rng, variant, accent);
+      break;
+    case 'concrete':
+      concrete(t, rng, variant);
+      break;
+    case 'planks':
+      planks(t, rng);
+      break;
+    case 'brick':
+      brick(t, rng, front, accent);
       break;
   }
   return t.pc;

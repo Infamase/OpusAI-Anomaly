@@ -1,0 +1,32 @@
+{
+  "type": "worldGen",
+  "id": "zone_north",
+  "name": "The Northern Zone",
+  "generator": "planet",
+  "widthChunks": 32,
+  "heightChunks": 32,
+  "ambient": ["amb_wind", "amb_zone_hum"],
+  "params": {
+    "biomes": ["meadow", "pine_forest", "swamp", "wasteland", "highlands"],
+    "border": { "tile": "rock_wall", "width": 6 },
+    "elevationScale": 110,
+    "climateScale": 150,
+    "water": { "deep": "water_deep", "shallow": "water_shallow", "lakes": 0.09, "rivers": 3, "riverWidth": 2.2 },
+    "roads": { "tile": "asphalt", "shoulder": "gravel", "bridge": "planks", "width": 3, "extraLinks": 3 },
+    "start": "loner_village",
+    "startBiomes": ["meadow"],
+    "structures": [
+      { "id": "farmhouse", "count": [5, 8], "spacing": 22, "biomes": ["meadow", "pine_forest", "wasteland"] },
+      { "id": "roadside_shack", "count": [4, 7], "spacing": 16 },
+      { "id": "bandit_hideout", "count": [2, 3], "spacing": 40, "biomes": ["wasteland", "highlands", "meadow", "swamp"] },
+      { "id": "military_checkpoint", "count": [1, 2], "spacing": 50 },
+      { "id": "ruined_factory", "count": [1, 2], "spacing": 50, "biomes": ["wasteland", "meadow", "highlands"] },
+      { "id": "abandoned_outpost", "count": [1, 2], "spacing": 40 }
+    ],
+    "patrols": [
+      { "id": "bandit_patrol", "faction": "bandits", "templates": ["bandit_thug", "bandit_thug", "bandit_gunner"], "count": 2 },
+      { "id": "army_patrol", "faction": "military", "templates": ["military_rifleman", "military_rifleman", "military_marksman"], "count": 1 }
+    ],
+    "crates": { "chance": 0.12, "lootTable": "supply_crate" }
+  }
+}

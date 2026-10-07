@@ -18,6 +18,7 @@ export const BUTTON_ACTIONS = [
   'weapon2',
   'swapWeapon',
   'quickHeal',
+  'map',
 ] as const;
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];
 

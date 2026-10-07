@@ -33,6 +33,7 @@ export const DEFAULT_KEYBOARD: KeyboardBindings = {
     // "Wheel" is a virtual code for any mouse-wheel step.
     swapWeapon: ['KeyQ', 'Wheel'],
     quickHeal: ['KeyH'],
+    map: ['KeyM'],
   },
   mouse: { 0: 'fire', 2: 'altFire' },
 };
@@ -60,5 +61,6 @@ export const DEFAULT_GAMEPAD: GamepadBindings = {
     debugToggle: [8], // Select / Back
     swapWeapon: [5], // RB
     quickHeal: [13], // D-pad down
+    map: [12], // D-pad up
   },
 };

@@ -182,7 +182,7 @@ export function segmentBoxEntry(
  * Walks tile by tile (Amanatides–Woo), so fast bullets never skip a thin wall.
  */
 export function segmentHitsSolid(map: TileMap, x0: number, y0: number, x1: number, y1: number, opaqueOnly = false): number | null {
-  const blocked = (tx: number, ty: number) => (opaqueOnly ? map.tiles.opaque[map.getTile(tx, ty)] === 1 : map.isSolid(tx, ty));
+  const blocked = (tx: number, ty: number) => (opaqueOnly ? map.tiles.opaque[map.getTile(tx, ty)] === 1 : map.blocksShots(tx, ty));
   let tx = Math.floor(x0 / TILE_PX);
   let ty = Math.floor(y0 / TILE_PX);
   if (blocked(tx, ty)) return 0;

@@ -54,7 +54,7 @@ export class InputManager {
       this.move = { x: 0, y: 0 };
       this.aim = { kind: 'none' };
       // Keep menu/system buttons alive so overlays (pause, inventory) can be closed.
-      const ui = new Set<ButtonAction>(['pause', 'debugToggle', 'inventory', 'interact']);
+      const ui = new Set<ButtonAction>(['pause', 'debugToggle', 'inventory', 'interact', 'map']);
       this.down = new Set([...nextDown].filter((b) => ui.has(b)));
     }
   }

@@ -8,9 +8,9 @@ declare module '../Registry' {
   }
 }
 
-export const PLACEHOLDER_TILE_STYLES = ['noise', 'grass', 'plate', 'grate', 'wall', 'rock', 'hazard'] as const;
+export const PLACEHOLDER_TILE_STYLES = ['noise', 'grass', 'plate', 'grate', 'wall', 'rock', 'hazard', 'water', 'mud', 'sand', 'gravel', 'cracked', 'asphalt', 'concrete', 'planks', 'brick'] as const;
 /** Tall decorations drawn above the ground and depth-sorted with characters. */
-export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush'] as const;
+export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble'] as const;
 export type PropStyle = (typeof PROP_STYLES)[number];
 
 const schema = v.object({
@@ -20,6 +20,10 @@ const schema = v.object({
   solid: v.boolean(),
   /** Blocks line of sight (used by AI and fog of war later). */
   opaque: v.optional(v.boolean(), false),
+  /** A low obstacle (water, a fence): blocks walking but bullets fly over it. */
+  low: v.optional(v.boolean(), false),
+  /** Walking speed multiplier on this ground (mud, shallows < 1). */
+  speed: v.optional(v.number({ min: 0.1, max: 2 }), 1),
   /**
    * Ground blending: where this tile borders a tile with a lower value, it
    * spills over the edge with a ragged border (grass over dirt). 0 = hard edges.

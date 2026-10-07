@@ -1,0 +1,413 @@
+[
+  {
+    "type": "structure",
+    "id": "loner_village",
+    "name": "Rookie Village",
+    "label": "Rookie Village",
+    "rotate": false,
+    "camp": {
+      "faction": "loners",
+      "templates": [
+        "loner_rookie",
+        "loner_rookie",
+        "loner_rookie",
+        "loner_veteran"
+      ],
+      "behavior": "guard",
+      "radius": 9
+    },
+    "legend": {
+      "#": "brick_wall",
+      "+": "planks",
+      "-": {
+        "clear": true
+      },
+      "@": {
+        "tile": "concrete",
+        "camp": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "S": {
+        "clear": true,
+        "spawn": true
+      },
+      "_": "concrete",
+      "c": {
+        "tile": "planks",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "r": "rubble"
+    },
+    "map": [
+      "   ----------------------------   ",
+      "  -########-----------#######---  ",
+      " --#++++++#-----------#+++++#---- ",
+      "---#+c++++#-----------#+++c+#-----",
+      "---#++++++#-----------#+++++#-----",
+      "---#++++++#-----------##+####-----",
+      "---###++###-----------------------",
+      "----------------------------------",
+      "-------------_______--------------",
+      "------------_________-------r-----",
+      "-----------____@______------------",
+      "------------_________-------------",
+      "-------------_______--------------",
+      "----------------------------------",
+      "---######++######-----------------",
+      "---#++++++++++++#-----------------",
+      "---#++c+++++++++#---########------",
+      "---#++++++++++++#---#++++++#------",
+      "---#++++++++++++#---#+++c++#------",
+      "---##############---###++###------",
+      "----------------------------------",
+      " ---------------SE--------------- ",
+      "   ----------------------------   "
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "farmhouse",
+    "name": "Abandoned Farmhouse",
+    "decay": 0.18,
+    "rubble": "rubble",
+    "camp": {
+      "faction": "bandits",
+      "templates": [
+        "bandit_thug",
+        "bandit_thug"
+      ],
+      "behavior": "guard",
+      "radius": 6,
+      "chance": 0.3
+    },
+    "legend": {
+      "#": "brick_wall",
+      "*": {
+        "clear": true,
+        "camp": true
+      },
+      "+": "planks",
+      "-": {
+        "clear": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "c": {
+        "tile": "planks",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "r": "rubble"
+    },
+    "map": [
+      " ------------- ",
+      "--#####+#####--",
+      "--#+++++++++#--",
+      "--#++++++c++#--",
+      "--#+++++++++#--",
+      "--####+######--",
+      "--#+++++#------",
+      "--#+c+++#---r--",
+      "--###+###---*--",
+      "---------------",
+      " ------E------ "
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "bandit_hideout",
+    "name": "Bandit Hideout",
+    "label": "Bandit Hideout",
+    "decay": 0.08,
+    "rubble": "rubble",
+    "camp": {
+      "faction": "bandits",
+      "templates": [
+        "bandit_thug",
+        "bandit_thug",
+        "bandit_gunner",
+        "bandit_thug",
+        "bandit_gunner"
+      ],
+      "behavior": "guard",
+      "radius": 8
+    },
+    "legend": {
+      "%": "concrete_wall",
+      "-": {
+        "clear": true
+      },
+      "@": {
+        "tile": "concrete",
+        "camp": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "K": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "military_crate",
+          "variant": "military"
+        }
+      },
+      "_": "concrete",
+      "k": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "r": "rubble"
+    },
+    "map": [
+      "----------------------",
+      "-%%%%%%%%%%%%%%%%%%%%-",
+      "-%________%_________%-",
+      "-%__K_____%_____k___%-",
+      "-%________%_________%-",
+      "-%%%%__%%%%%%%__%%%%%-",
+      "-%__________________%-",
+      "-%______@___________%-",
+      "-%__________________%-",
+      "-%%%%%%%%%__%%%%%%%%%-",
+      "---r-----------r------",
+      "----------E-----------"
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "military_checkpoint",
+    "name": "Military Checkpoint",
+    "label": "Army Checkpoint",
+    "camp": {
+      "faction": "military",
+      "templates": [
+        "military_rifleman",
+        "military_rifleman",
+        "military_marksman"
+      ],
+      "behavior": "guard",
+      "radius": 7
+    },
+    "legend": {
+      "%": "concrete_wall",
+      "-": {
+        "clear": true
+      },
+      "=": "metal_wall",
+      "@": {
+        "tile": "concrete",
+        "camp": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "M": {
+        "tile": "metal_floor",
+        "crate": {
+          "lootTable": "military_crate",
+          "variant": "military"
+        }
+      },
+      "h": "hazard_floor",
+      "m": "metal_floor"
+    },
+    "map": [
+      "--------------------",
+      "-==========---------",
+      "-=mmmmmmmm=---%%----",
+      "-=mMmmmmmm=---------",
+      "-=mmmmmmmm=---------",
+      "-====hh====---------",
+      "--------------------",
+      "------@--------%%---",
+      "--%%----------------",
+      "--------------------",
+      "---------E----------"
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "ruined_factory",
+    "name": "Ruined Factory",
+    "label": "Old Factory",
+    "decay": 0.3,
+    "rubble": "rubble",
+    "camp": {
+      "faction": "bandits",
+      "templates": [
+        "bandit_thug",
+        "bandit_gunner",
+        "bandit_thug"
+      ],
+      "behavior": "guard",
+      "radius": 10,
+      "chance": 0.5
+    },
+    "legend": {
+      "%": "concrete_wall",
+      "-": {
+        "clear": true
+      },
+      "@": {
+        "tile": "concrete",
+        "camp": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "M": {
+        "tile": "metal_floor",
+        "crate": {
+          "lootTable": "military_crate",
+          "variant": "military"
+        }
+      },
+      "_": "concrete",
+      "a": "asphalt",
+      "g": "metal_grate",
+      "k": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "m": "metal_floor",
+      "r": "rubble"
+    },
+    "map": [
+      "--------------------------------",
+      "-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%-",
+      "-%mmmmmmmmmmmmmm%mmmmmmmmmmmmm%-",
+      "-%mMmmmmmmmmmmmm%mmmmmmmmmmmMm%-",
+      "-%mmmmggggmmmmmm%mmmmggggmmmmm%-",
+      "-%mmmmggggmmmmmmmmmmmggggmmmmm%-",
+      "-%mmmmmmmmmmmmmm%mmmmmmmmmmmmm%-",
+      "-%%%%%%%mm%%%%%%%%%%%%%mm%%%%%%-",
+      "-%______________________k_____%-",
+      "-%____r________@______________%-",
+      "-%_________________r__________%-",
+      "-%%%%%%%%%%%%%____%%%%%%%%%%%%%-",
+      "----------------aa--------------",
+      "----------------E---------------"
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "abandoned_outpost",
+    "name": "Abandoned Outpost",
+    "label": "Outpost",
+    "decay": 0.1,
+    "rubble": "rubble",
+    "camp": {
+      "faction": "military",
+      "templates": [
+        "military_rifleman",
+        "military_rifleman"
+      ],
+      "behavior": "guard",
+      "radius": 5,
+      "chance": 0.4
+    },
+    "legend": {
+      "-": {
+        "clear": true
+      },
+      "=": "metal_wall",
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "M": {
+        "tile": "metal_floor",
+        "crate": {
+          "lootTable": "military_crate",
+          "variant": "military"
+        }
+      },
+      "g": "metal_grate",
+      "h": "hazard_floor",
+      "k": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "m": "metal_floor"
+    },
+    "map": [
+      "------------------",
+      "-================-",
+      "-=Mmmmmmmmmmmmmk=-",
+      "-=mm==mmmmmm==mm=-",
+      "-=mm==mmmmmm==mm=-",
+      "-=mmmmmmmmmmmmmm=-",
+      "-=gggggggggggggghh",
+      "-=gggggggggggggghh",
+      "-=mmmmmmmmmmmmmm=-",
+      "-=mmmmmmmmmmmmmm=-",
+      "-=======hh=======-",
+      "------------------",
+      "--------E---------"
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "roadside_shack",
+    "name": "Roadside Shack",
+    "decay": 0.25,
+    "rubble": "rubble",
+    "legend": {
+      "#": "brick_wall",
+      "+": "planks",
+      "-": {
+        "clear": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "c": {
+        "tile": "planks",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "k": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      },
+      "r": "rubble"
+    },
+    "map": [
+      "-----------",
+      "-#####----r",
+      "-#+c+#-----",
+      "-#+++#--k--",
+      "-##+##-----",
+      "-----------",
+      "-----E-----"
+    ]
+  }
+]

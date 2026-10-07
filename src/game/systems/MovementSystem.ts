@@ -25,6 +25,10 @@ export class MovementSystem implements System {
         t.y += v.y * dt;
         continue;
       }
+      // Mud and shallows slow you down (controls set velocity afresh every tick).
+      const k = map.speedAt(t.x, t.y);
+      v.x *= k;
+      v.y *= k;
       t.x = moveAxis(map, t.x, t.y, v.x * dt, col, 'x');
       t.y = moveAxis(map, t.x, t.y, v.y * dt, col, 'y');
     }

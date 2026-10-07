@@ -25,6 +25,17 @@ const STONE = ramp('#7a7670');
 const MOSS = ramp('#6c6e34');
 const LEAVES = ramp('#5a6a2e');
 const LEAVES_DRY = ramp('#7a6a34');
+const BIRCH_BARK = ramp('#c8c2b0');
+const BIRCH_LEAVES = ramp('#6a7a34');
+const BIRCH_LEAVES_LIGHT = ramp('#86903e');
+const REED = ramp('#7a7a3a');
+const CATTAIL = ramp('#6a4428');
+const RUST = ramp('#7a4a30');
+const PAINT = ramp('#5a6a64');
+const GLASS = ramp('#2a3436');
+const TYRE = ramp('#2a2826');
+const CONCRETE = ramp('#7a766c');
+const REBAR = ramp('#6a4a36');
 
 export function generateProp(style: PropStyle, variant: number): PropArt {
   const rng = new Rng(hashInts(variant, style.length, style.charCodeAt(0)));
@@ -37,6 +48,14 @@ export function generateProp(style: PropStyle, variant: number): PropArt {
       return boulder(rng, variant);
     case 'bush':
       return bush(rng, variant);
+    case 'leafy_tree':
+      return leafyTree(rng, variant);
+    case 'reeds':
+      return reeds(rng, variant);
+    case 'wreck':
+      return wreck(rng, variant);
+    case 'rubble':
+      return rubble(rng, variant);
   }
 }
 
@@ -120,4 +139,87 @@ function bush(rng: Rng, variant: number): PropArt {
   for (let i = 0; i < 3; i++) top.push(ell(v(cx + rng.range(-6, 6), base - 9 - rng.range(0, 5)), rng.range(3, 4.5), rng.range(2.5, 3.5)));
   rig.add({ region: 0, ramp: r, relief: 1.2 }, top);
   return { pixels: rig.finish(), anchor: [cx, base - 2] };
+}
+
+/** A birch: pale trunk with dark marks, a rounded, layered canopy. */
+function leafyTree(rng: Rng, variant: number): PropArt {
+  const W = 56;
+  const H = 84;
+  const cx = 28;
+  const base = 80;
+  const rig = new Rig(W, H);
+  const lean = rng.range(-2, 2);
+  const trunk = rig.add({ region: 0, ramp: BIRCH_BARK }, [cap(v(cx, base), v(cx + lean, base - 50), 2.6, 1.8), ell(v(cx, base - 0.5), 3.4, 1.4)]);
+  for (let i = 0; i < 6; i++) {
+    const y = base - 6 - i * 7 - rng.range(0, 3);
+    rig.decal(ramp('#3a3630'), [ell(v(cx + lean * ((base - y) / 50) + rng.range(-1, 1), y), rng.range(1.2, 2.2), 0.7)], { parts: [trunk] });
+  }
+  const top = base - 42 - variant * 3;
+  const blobs = [];
+  for (let i = 0; i < 9; i++) blobs.push(ell(v(cx + lean + rng.range(-16, 16), top + rng.range(-14, 16)), rng.range(8, 12), rng.range(7, 10)));
+  rig.add({ region: 0, ramp: BIRCH_LEAVES, relief: 1.1 }, blobs);
+  const hi = [];
+  for (let i = 0; i < 4; i++) hi.push(ell(v(cx + lean + rng.range(-10, 6), top - 6 + rng.range(-5, 6)), rng.range(4, 7), rng.range(3.5, 5.5)));
+  rig.add({ region: 0, ramp: BIRCH_LEAVES_LIGHT, relief: 1.1 }, hi);
+  return { pixels: rig.finish(), anchor: [cx, base] };
+}
+
+/** A clump of reeds with a couple of cattail heads. */
+function reeds(rng: Rng, variant: number): PropArt {
+  const W = 30;
+  const H = 36;
+  const cx = 15;
+  const base = 32;
+  const rig = new Rig(W, H);
+  const stalks = [];
+  const heads = [];
+  const n = 11 + variant * 3;
+  for (let i = 0; i < n; i++) {
+    const x = cx + rng.range(-9, 9);
+    const h = rng.range(14, 26);
+    const tip = v(x + rng.range(-4, 4), base - h);
+    stalks.push(cap(v(x, base), tip, 1.1, 0.5));
+    if (i % 3 === 0) heads.push(cap(v(tip.x, tip.y + 2), v(tip.x, tip.y + 7), 1.4, 1.4));
+  }
+  rig.add({ region: 0, ramp: REED }, stalks);
+  if (heads.length) rig.add({ region: 0, ramp: CATTAIL }, heads);
+  return { pixels: rig.finish(), anchor: [cx, base - 1] };
+}
+
+/** A rusted-out car seen from the side and above: boxy body, cabin, dark windows, flat tyres. */
+function wreck(rng: Rng, variant: number): PropArt {
+  const W = 72;
+  const H = 44;
+  const cx = 36;
+  const base = 38;
+  const rig = new Rig(W, H);
+  const f = variant % 2 ? -1 : 1;
+  const box = (x0: number, y0: number, x1: number, y1: number, inset = 0) => [
+    tri(v(x0, y1), v(x1, y1), v(x1 - inset, y0), { dome: 0.25 }),
+    tri(v(x0, y1), v(x1 - inset, y0), v(x0 + inset, y0), { dome: 0.25 }),
+  ];
+  rig.add({ region: 0, ramp: TYRE }, [ell(v(cx - 18, base - 3), 4.6, 3.6), ell(v(cx + 18, base - 3), 4.6, 3.6)]);
+  const paint = variant === 2 ? RUST : PAINT;
+  // Lower body (bonnet at the front is lower), then the cabin on top, set back.
+  const body = rig.add({ region: 0, ramp: paint }, [...box(cx - 30, base - 15, cx + 30, base - 4, 2)]);
+  const cabin = rig.add({ region: 0, ramp: paint }, box(cx - 14 - 4 * f, base - 25, cx + 12 - 4 * f, base - 14, 5));
+  rig.decal(GLASS, box(cx - 11 - 4 * f, base - 23, cx - 1 - 4 * f, base - 16, 3), { parts: [cabin] });
+  rig.decal(GLASS, box(cx + 1 - 4 * f, base - 23, cx + 9 - 4 * f, base - 16, 3), { parts: [cabin] });
+  for (let i = 0; i < 6; i++) rig.decal(RUST, [ell(v(cx + rng.range(-26, 26), base - rng.range(6, 20)), rng.range(2.5, 5.5), rng.range(1.5, 3))], { parts: [body, cabin] });
+  rig.markLine(v(cx - 29, base - 9), v(cx + 29, base - 9), 1);
+  return { pixels: rig.finish(), anchor: [cx, base - 2] };
+}
+
+/** A low heap of broken concrete with a bent bar sticking out. */
+function rubble(rng: Rng, variant: number): PropArt {
+  const W = 40;
+  const H = 26;
+  const cx = 20;
+  const base = 22;
+  const rig = new Rig(W, H);
+  const chunks = [];
+  for (let i = 0; i < 7 + variant; i++) chunks.push(ell(v(cx + rng.range(-8, 8), base - rng.range(3, 8)), rng.range(4, 7), rng.range(3, 4.5)));
+  rig.add({ region: 0, ramp: CONCRETE }, chunks);
+  rig.add({ region: 0, ramp: REBAR }, [cap(v(cx + rng.range(-6, 2), base - 6), v(cx + rng.range(4, 10), base - 16), 0.7, 0.6)]);
+  return { pixels: rig.finish(), anchor: [cx, base - 1] };
 }

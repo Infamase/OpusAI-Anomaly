@@ -116,6 +116,17 @@ export class TileMap<P = unknown> {
     return this.tiles.solid[this.getTile(tx, ty)] === 1;
   }
 
+  /** Solid for bullets: walls yes, low obstacles like water no. */
+  blocksShots(tx: number, ty: number): boolean {
+    const t = this.getTile(tx, ty);
+    return this.tiles.solid[t] === 1 && this.tiles.low[t] === 0;
+  }
+
+  /** Walking speed multiplier of the ground at a world position (feet). */
+  speedAt(x: number, y: number): number {
+    return this.tiles.speed[this.getTile(Math.floor(x / TILE_PX), Math.floor((y - 1) / TILE_PX))]!;
+  }
+
   /** Changes a tile and records the difference from the generated world. */
   setTile(tx: number, ty: number, tileId: string): boolean {
     if (!this.inBounds(tx, ty)) return false;

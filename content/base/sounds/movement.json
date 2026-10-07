@@ -1,53 +1,448 @@
 [
   {
-    "type": "sound", "id": "step_dirt", "cue": "footstep", "range": 380, "volume": 0.32, "maxVoices": 8, "minInterval": 0, "pitchJitter": 0.1, "variants": 4,
+    "type": "sound",
+    "id": "step_dirt",
+    "cue": "footstep",
+    "range": 380,
+    "volume": 0.32,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.1,
+    "variants": 4,
     "synth": {
       "layers": [
-        { "wave": "noise", "length": 0.07, "attack": 0.004, "curve": 3, "filter": { "type": "lowpass", "freq": [1100, 300] } },
-        { "wave": "brown", "length": 0.06, "gain": 0.6, "curve": 2 }
+        {
+          "wave": "noise",
+          "length": 0.07,
+          "attack": 0.004,
+          "curve": 3,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1100,
+              300
+            ]
+          }
+        },
+        {
+          "wave": "brown",
+          "length": 0.06,
+          "gain": 0.6,
+          "curve": 2
+        }
       ],
       "vary": 0.2
     }
   },
   {
-    "type": "sound", "id": "step_grass", "range": 380, "volume": 0.28, "maxVoices": 8, "minInterval": 0, "pitchJitter": 0.12, "variants": 4,
+    "type": "sound",
+    "id": "step_grass",
+    "range": 380,
+    "volume": 0.28,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.12,
+    "variants": 4,
     "synth": {
       "layers": [
-        { "wave": "noise", "length": 0.11, "attack": 0.015, "curve": 2, "filter": { "type": "bandpass", "freq": [2600, 1700], "q": 0.7 } },
-        { "wave": "noise", "length": 0.05, "curve": 3, "gain": 0.5, "filter": { "type": "lowpass", "freq": [700, 250] } }
+        {
+          "wave": "noise",
+          "length": 0.11,
+          "attack": 0.015,
+          "curve": 2,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              2600,
+              1700
+            ],
+            "q": 0.7
+          }
+        },
+        {
+          "wave": "noise",
+          "length": 0.05,
+          "curve": 3,
+          "gain": 0.5,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              700,
+              250
+            ]
+          }
+        }
       ],
       "vary": 0.2
     }
   },
   {
-    "type": "sound", "id": "step_metal", "range": 440, "volume": 0.34, "maxVoices": 8, "minInterval": 0, "pitchJitter": 0.08, "variants": 4,
+    "type": "sound",
+    "id": "step_metal",
+    "range": 440,
+    "volume": 0.34,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.08,
+    "variants": 4,
     "synth": {
       "layers": [
-        { "wave": "noise", "length": 0.05, "curve": 3, "filter": { "type": "bandpass", "freq": [1300, 900], "q": 2 } },
-        { "wave": "sine", "freq": [430, 390], "length": 0.09, "curve": 4, "gain": 0.25 },
-        { "wave": "sine", "freq": [1020, 980], "length": 0.05, "curve": 4, "gain": 0.12 }
+        {
+          "wave": "noise",
+          "length": 0.05,
+          "curve": 3,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1300,
+              900
+            ],
+            "q": 2
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            430,
+            390
+          ],
+          "length": 0.09,
+          "curve": 4,
+          "gain": 0.25
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            1020,
+            980
+          ],
+          "length": 0.05,
+          "curve": 4,
+          "gain": 0.12
+        }
       ],
       "vary": 0.15
     }
   },
   {
-    "type": "sound", "id": "step_grate", "range": 440, "volume": 0.34, "maxVoices": 8, "minInterval": 0, "pitchJitter": 0.08, "variants": 4,
+    "type": "sound",
+    "id": "step_grate",
+    "range": 440,
+    "volume": 0.34,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.08,
+    "variants": 4,
     "synth": {
       "layers": [
-        { "wave": "noise", "length": 0.05, "curve": 3, "filter": { "type": "bandpass", "freq": [1600, 1100], "q": 2 } },
-        { "wave": "square", "freq": [190, 170], "length": 0.07, "curve": 3, "gain": 0.12, "filter": { "type": "lowpass", "freq": [1500, 800] } },
-        { "wave": "crackle", "freq": [300, 100], "length": 0.1, "curve": 2, "gain": 0.4, "filter": { "type": "highpass", "freq": [2000, 2000] } }
+        {
+          "wave": "noise",
+          "length": 0.05,
+          "curve": 3,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1600,
+              1100
+            ],
+            "q": 2
+          }
+        },
+        {
+          "wave": "square",
+          "freq": [
+            190,
+            170
+          ],
+          "length": 0.07,
+          "curve": 3,
+          "gain": 0.12,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1500,
+              800
+            ]
+          }
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            300,
+            100
+          ],
+          "length": 0.1,
+          "curve": 2,
+          "gain": 0.4,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2000,
+              2000
+            ]
+          }
+        }
       ],
       "vary": 0.15
     }
   },
   {
-    "type": "sound", "id": "rustle_bush", "range": 380, "volume": 0.3, "maxVoices": 4, "minInterval": 0.12, "variants": 4,
+    "type": "sound",
+    "id": "rustle_bush",
+    "range": 380,
+    "volume": 0.3,
+    "maxVoices": 4,
+    "minInterval": 0.12,
+    "variants": 4,
     "synth": {
       "layers": [
-        { "wave": "noise", "length": 0.3, "attack": 0.05, "curve": 2, "lfo": [22, 0.6], "filter": { "type": "bandpass", "freq": [3200, 2000], "q": 0.8 } }
+        {
+          "wave": "noise",
+          "length": 0.3,
+          "attack": 0.05,
+          "curve": 2,
+          "lfo": [
+            22,
+            0.6
+          ],
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              3200,
+              2000
+            ],
+            "q": 0.8
+          }
+        }
       ],
       "vary": 0.2
+    }
+  },
+  {
+    "type": "sound",
+    "id": "step_water",
+    "range": 400,
+    "volume": 0.36,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.1,
+    "variants": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.16,
+          "attack": 0.01,
+          "curve": 2,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              900,
+              2600
+            ],
+            "q": 1.2
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            300,
+            620
+          ],
+          "start": 0.04,
+          "length": 0.06,
+          "curve": 2,
+          "gain": 0.25
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            300,
+            80
+          ],
+          "length": 0.18,
+          "curve": 2,
+          "gain": 0.4,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2500,
+              2500
+            ]
+          }
+        }
+      ],
+      "vary": 0.18
+    }
+  },
+  {
+    "type": "sound",
+    "id": "step_mud",
+    "range": 400,
+    "volume": 0.34,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.1,
+    "variants": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.12,
+          "attack": 0.015,
+          "curve": 2,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              700,
+              250
+            ]
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            180,
+            90
+          ],
+          "start": 0.05,
+          "length": 0.07,
+          "curve": 2,
+          "gain": 0.35
+        }
+      ],
+      "vary": 0.18
+    }
+  },
+  {
+    "type": "sound",
+    "id": "step_gravel",
+    "range": 400,
+    "volume": 0.3,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.1,
+    "variants": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "crackle",
+          "freq": [
+            1400,
+            300
+          ],
+          "length": 0.1,
+          "curve": 2,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              2600,
+              1800
+            ],
+            "q": 0.8
+          }
+        },
+        {
+          "wave": "noise",
+          "length": 0.06,
+          "curve": 3,
+          "gain": 0.5,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1200,
+              400
+            ]
+          }
+        }
+      ],
+      "vary": 0.18
+    }
+  },
+  {
+    "type": "sound",
+    "id": "step_hard",
+    "range": 400,
+    "volume": 0.3,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.1,
+    "variants": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.04,
+          "curve": 4,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1800,
+              1200
+            ],
+            "q": 1.5
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            160,
+            110
+          ],
+          "length": 0.04,
+          "curve": 3,
+          "gain": 0.4
+        }
+      ],
+      "vary": 0.18
+    }
+  },
+  {
+    "type": "sound",
+    "id": "step_wood",
+    "range": 400,
+    "volume": 0.34,
+    "maxVoices": 8,
+    "minInterval": 0,
+    "pitchJitter": 0.1,
+    "variants": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.05,
+          "curve": 3,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              700,
+              500
+            ],
+            "q": 2
+          }
+        },
+        {
+          "wave": "triangle",
+          "freq": [
+            240,
+            200
+          ],
+          "length": 0.08,
+          "curve": 3,
+          "gain": 0.45
+        },
+        {
+          "wave": "triangle",
+          "freq": [
+            480,
+            400
+          ],
+          "length": 0.04,
+          "curve": 4,
+          "gain": 0.15
+        }
+      ],
+      "vary": 0.18
     }
   }
 ]

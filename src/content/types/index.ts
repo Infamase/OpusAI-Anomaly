@@ -1,5 +1,6 @@
 import type { ContentRegistry } from '../Registry';
 import { ammoType } from './ammo';
+import { biomeType } from './biome';
 import { armorType } from './armor';
 import { consumableType } from './consumable';
 import { factionType } from './faction';
@@ -9,6 +10,7 @@ import { raceType } from './race';
 import { soundType } from './sound';
 import { spriteLayoutType } from './spriteLayout';
 import { statType } from './stat';
+import { structureType } from './structure';
 import { tileType } from './tile';
 import { weaponType } from './weapon';
 import { worldGenType } from './worldGen';
@@ -31,10 +33,14 @@ export function defineCoreContentTypes(registry: ContentRegistry): void {
   registry.defineType(factionType);
   registry.defineType(npcTemplateType);
   registry.defineType(tileType);
+  registry.defineType(biomeType);
+  registry.defineType(structureType);
   registry.defineType(worldGenType);
 }
 
 export type { AmmoDef } from './ammo';
+export type { BiomeDef } from './biome';
+export type { StructureDef } from './structure';
 export type { ArmorDef } from './armor';
 export type { ConsumableDef } from './consumable';
 export type { FactionDef } from './faction';

@@ -27,6 +27,9 @@ export interface DevHooks {
   buildMode: boolean;
   saveNow(): Promise<void>;
   newWorld(): Promise<void>;
+  listWorlds(): { id: string; name: string; current: boolean }[];
+  /** Moves the character to another world. */
+  travel(worldId: string): Promise<void>;
   info(): Record<string, string | number>;
 }
 
@@ -114,7 +117,10 @@ export class DevTools {
     const reset = el('button', 'danger', 'New world');
     reset.title = 'Regenerate this world with a new seed (your character is kept)';
     reset.onclick = () => void hooks.newWorld();
-    saveRow.append(save, exp, reset);
+    const worldSelect = el('select');
+    for (const w of hooks.listWorlds()) worldSelect.append(new Option(w.current ? `${w.name} (here)` : `Travel: ${w.name}`, w.id, w.current, w.current));
+    worldSelect.onchange = () => void hooks.travel(worldSelect.value);
+    saveRow.append(save, exp, reset, worldSelect);
 
     const combat = el('div', 'dev-gear');
     const weaponSelect = el('select');

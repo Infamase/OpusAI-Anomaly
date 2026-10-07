@@ -18,7 +18,12 @@ import type { EquipmentSave, ItemInstance } from '../../save/types';
 import { chunkKey, type WorldDeltas } from '../../save/WorldDeltas';
 import { DevTools, type DevHooks } from '../../ui/DevTools';
 import { Hud, type HudState } from '../../ui/Hud';
-import { MINIMAP_RADIUS, type Blip } from '../../ui/Minimap';
+import type { RGB } from '../../render/palette';
+import type { WorldGenDef } from '../../content/types';
+import { Exploration } from '../exploration';
+import { MapScene, type MapHost } from './MapScene';
+import type { Landmark, WorldGenerator } from '../world/generators';
+import { minimapColor, MINIMAP_RADIUS, type Blip } from '../../ui/Minimap';
 import { WorldLabels } from '../../ui/WorldLabels';
 import { NpcBrainSystem, type BarkKind } from '../ai/NpcBrainSystem';
 import { addCombatComponents, prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
@@ -77,12 +82,14 @@ import { getGenerator } from '../world/generators';
 import { TILE_PX, TileMap } from '../world/TileMap';
 import { TileSet } from '../world/TileSet';
 import '../world/testRangeGenerator';
+import '../world/planetGenerator';
 import { DeathScene } from './DeathScene';
 import { PauseScene } from './PauseScene';
 
 /** Where new characters start. Becomes the real starting location once planets exist. */
-export const START_WORLD_ID = 'test_range';
-const WORLD_ID = START_WORLD_ID;
+export const START_WORLD_ID = 'zone_north';
+/** The player uncovers the map this far around them (px). */
+const REVEAL_RADIUS = TILE_PX * 22;
 const AUTOSAVE_SEC = 30;
 /** People this close show on the minimap even without line of sight (you'd hear them). */
 const SENSE_RADIUS = TILE_PX * 6;
@@ -138,7 +145,7 @@ export async function startNewGame(game: Game, who: NewCharacter): Promise<void>
  * faction camps. Everything persists through "seed + changes" saves.
  * The world is still the Phase 0 test range until planets (Phase 2) exist.
  */
-export class GameplayScene implements Scene, DevHooks, InventoryHost {
+export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   readonly id = 'gameplay';
   buildMode = false;
 
@@ -156,6 +163,19 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
   private devSquads = 0;
   private fx = new CombatFx();
   private sound!: GameAudio;
+  private worldId = START_WORLD_ID;
+  private genDef!: WorldGenDef;
+  private generator!: WorldGenerator<unknown>;
+  private genParams: unknown;
+  private seed = 0;
+  private places: Landmark[] = [];
+  private exploration!: Exploration;
+  readonly mapCanvas = document.createElement('canvas');
+  private mapColors: RGB[] = [];
+  private placeIn: Landmark | null = null;
+  private biomeName = '';
+  private locationIn = 0;
+  private revealIn = 0;
   private minimapIn = 0;
   private crosshair = new Crosshair();
   /** Which weapon each character view currently shows, to know when to swap textures. */
@@ -200,12 +220,16 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     };
 
     // --- World: regenerate from seed, then layer saved changes on top.
-    const genDef = g.content.get('worldGen', WORLD_ID);
-    const generator = getGenerator(genDef.generator);
-    const record = g.saves.ensureWorld(WORLD_ID, genDef.id, newSeed(), generator.version);
-    this.deltas = await g.saves.enterWorld(WORLD_ID);
+    // Each character remembers which world they're in (worlds removed from content fall back to the start).
+    this.worldId = g.content.has('worldGen', save.player.worldId) ? save.player.worldId : START_WORLD_ID;
+    save.player.worldId = this.worldId;
+    const genDef = (this.genDef = g.content.get('worldGen', this.worldId));
+    const generator = (this.generator = getGenerator(genDef.generator));
+    const record = g.saves.ensureWorld(this.worldId, genDef.id, newSeed(), generator.version);
+    this.seed = record.seed;
+    this.deltas = await g.saves.enterWorld(this.worldId);
     const tiles = new TileSet(g.content.all('tile'));
-    const params = generator.parseParams(genDef.params, tiles);
+    const params = (this.genParams = generator.parseParams(genDef.params, tiles, g.content));
     this.map = new TileMap({
       tiles,
       generator,
@@ -288,8 +312,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
         if (g.scenes.current === this) this.openPauseMenu();
       }),
     );
-    const ambientCue = g.audio.cue('ambient');
-    g.audio.setAmbient(genDef.ambient ?? (ambientCue ? [ambientCue] : []));
+    // --- Map: named places, explored area, the PDA map image.
+    this.places = generator.landmarks?.(record.seed, params, this.map.widthTiles, this.map.heightTiles) ?? [];
+    this.exploration = new Exploration(save.flags, this.worldId, this.map.widthChunks, this.map.heightChunks);
+    this.initMapCanvas();
+    this.updateLocation(true);
     this.ready = true;
     await this.save();
   }
@@ -329,6 +356,19 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     else if (alive && input.justPressed('interact') && this.focus !== null) this.interact(this.focus);
     else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
+    if (alive && this.game.scenes.current === this && input.justPressed('map')) void this.game.scenes.push(new MapScene(this.game, this));
+    this.revealIn -= dt;
+    if (this.revealIn <= 0) {
+      this.revealIn = 0.25;
+      const t = this.world.req(this.playerEntity, Transform);
+      const S = this.map!.chunkSize;
+      for (const c of this.exploration.reveal(t.x, t.y, REVEAL_RADIUS, S * TILE_PX)) this.paintMapChunk(c.cx, c.cy);
+    }
+    this.locationIn -= dt;
+    if (this.locationIn <= 0) {
+      this.locationIn = 1;
+      this.updateLocation(false);
+    }
     const hp = this.world.get(this.playerEntity, Health);
     this.sound.update(dt, hp ? hp.hp / this.world.req(this.playerEntity, Stats).get('max_health') : 1, alive);
 
@@ -576,6 +616,100 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     }
     const aim = this.world.get(this.playerEntity, Aim)?.dir;
     hud.minimap.draw(map, px, py, aim ? Math.atan2(aim.y, aim.x) : null, blips);
+  }
+
+  // ---- map & location ------------------------------------------------------
+
+  get worldName(): string {
+    return this.genDef.name;
+  }
+
+  playerOnMap(): { x: number; y: number; aim: number | null } {
+    const t = this.world.req(this.playerEntity, Transform);
+    const aim = this.world.get(this.playerEntity, Aim)?.dir;
+    return { x: t.x / TILE_PX, y: t.y / TILE_PX, aim: aim ? Math.atan2(aim.y, aim.x) : null };
+  }
+
+  /** Places show on the map once the chunk at their center has been seen. */
+  knownPlaces(): Landmark[] {
+    const S = this.map!.chunkSize;
+    return this.places.filter((p) => this.exploration.isExplored(Math.floor(p.x / S), Math.floor(p.y / S)));
+  }
+
+  exploredShare(): number {
+    return this.exploration.exploredCount / (this.map!.widthChunks * this.map!.heightChunks);
+  }
+
+  locationName(): string {
+    return this.placeIn?.name ?? this.biomeName ?? '';
+  }
+
+  private initMapCanvas(): void {
+    const map = this.map!;
+    this.mapCanvas.width = map.widthTiles;
+    this.mapCanvas.height = map.heightTiles;
+    this.mapColors = map.tiles.defs.map(minimapColor);
+    const ctx = this.mapCanvas.getContext('2d');
+    if (!ctx) return;
+    // Fog: dark, with a faint chunk grid like graph paper.
+    ctx.fillStyle = '#0d0f12';
+    ctx.fillRect(0, 0, map.widthTiles, map.heightTiles);
+    ctx.fillStyle = '#161a1f';
+    for (let x = 0; x < map.widthTiles; x += map.chunkSize) ctx.fillRect(x, 0, 1, map.heightTiles);
+    for (let y = 0; y < map.heightTiles; y += map.chunkSize) ctx.fillRect(0, y, map.widthTiles, 1);
+    for (let cy = 0; cy < map.heightChunks; cy++) for (let cx = 0; cx < map.widthChunks; cx++) if (this.exploration.isExplored(cx, cy)) this.paintMapChunk(cx, cy);
+  }
+
+  private paintMapChunk(cx: number, cy: number): void {
+    const map = this.map!;
+    const ctx = this.mapCanvas.getContext('2d');
+    const chunk = map.chunk(cx, cy);
+    if (!ctx || !chunk) return;
+    const S = map.chunkSize;
+    const img = ctx.createImageData(S, S);
+    for (let i = 0; i < S * S; i++) {
+      const c = this.mapColors[chunk.tiles[i]!]!;
+      img.data[i * 4] = c[0];
+      img.data[i * 4 + 1] = c[1];
+      img.data[i * 4 + 2] = c[2];
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, cx * S, cy * S);
+  }
+
+  /** Which place / biome the player is in: HUD label, arrival notices and the biome's ambience. */
+  private updateLocation(first: boolean): void {
+    const g = this.game;
+    const t = this.world.req(this.playerEntity, Transform);
+    const tx = Math.floor(t.x / TILE_PX);
+    const ty = Math.floor(t.y / TILE_PX);
+    const place = this.places.find((p) => Math.abs(tx + 0.5 - p.x) <= p.w / 2 + 3 && Math.abs(ty + 0.5 - p.y) <= p.h / 2 + 3) ?? null;
+    if (place !== this.placeIn) {
+      if (place && !first) this.message(`Entering ${place.name}`, '#e2c060');
+      this.placeIn = place;
+    }
+    const biome = this.generator.biomeAt?.(this.seed, this.genParams as never, this.map!.widthTiles, this.map!.heightTiles, tx, ty);
+    this.biomeName = biome?.name ?? this.genDef.name;
+    this.hud?.location(this.locationName());
+    const ambientCue = g.audio.cue('ambient');
+    const base = this.genDef.ambient ?? (ambientCue ? [ambientCue] : []);
+    g.audio.setAmbient([...new Set([...base, ...(biome?.ambient ?? [])])]);
+  }
+
+  // ---- DevHooks: worlds --------------------------------------------------------
+
+  listWorlds(): { id: string; name: string; current: boolean }[] {
+    return this.game.content.all('worldGen').map((w) => ({ id: w.id, name: w.name, current: w.id === this.worldId }));
+  }
+
+  /** Dev: moves the character to another world (arriving at its spawn point). */
+  async travel(worldId: string): Promise<void> {
+    const g = this.game;
+    if (worldId === this.worldId || !g.content.has('worldGen', worldId)) return;
+    this.world.req(this.playerEntity, Transform).x = NaN;
+    this.syncPlayerSave();
+    g.saves.data.player.worldId = worldId;
+    await g.scenes.change(new GameplayScene(g, this.slotId));
   }
 
   // ---- NPC labels & barks ------------------------------------------------------
@@ -935,7 +1069,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost {
     const g = this.game;
     this.world.req(this.playerEntity, Transform).x = NaN; // respawn at the new world's spawn point
     this.syncPlayerSave();
-    await g.saves.resetWorld(WORLD_ID);
+    await g.saves.resetWorld(this.worldId);
+    delete g.saves.data.flags[`explored:${this.worldId}`];
     await g.scenes.change(new GameplayScene(g, this.slotId));
   }
 

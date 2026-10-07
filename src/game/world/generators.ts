@@ -1,3 +1,5 @@
+import type { ContentRegistry } from '../../content/Registry';
+import type { BiomeDef } from '../../content/types/biome';
 import type { TileSet } from './TileSet';
 
 /**
@@ -45,6 +47,16 @@ export interface CampSpawn {
   waypoints: { x: number; y: number }[];
 }
 
+/** A named place, for the map. Tile coordinates (center) and size. */
+export interface Landmark {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface WorldGenerator<P = unknown> {
   readonly id: string;
   /**
@@ -52,14 +64,18 @@ export interface WorldGenerator<P = unknown> {
    * they were created with, so old saves can keep the old behaviour if needed.
    */
   readonly version: number;
-  /** Validates the worldGen def's params (throw with a clear message on problems). */
-  parseParams(raw: unknown, tiles: TileSet): P;
+  /** Validates the worldGen def's params (throw with a clear message on problems). Ids may refer to any content. */
+  parseParams(raw: unknown, tiles: TileSet, content?: ContentRegistry): P;
   /** Fills `out` (chunkSize * chunkSize, row-major) with tile indices. */
   generateChunk(ctx: ChunkGenContext<P>, out: Uint16Array): void;
   /** Objects in one chunk. Must be deterministic like generateChunk. */
   objects?(ctx: ChunkGenContext<P>, tiles: Uint16Array): WorldObjectSpawn[];
   /** NPC camps and patrols for the whole world. Deterministic from the seed. */
   population?(seed: number, params: P, widthTiles: number, heightTiles: number, walkable: (tx: number, ty: number) => boolean): CampSpawn[];
+  /** Named places, for the map. */
+  landmarks?(seed: number, params: P, widthTiles: number, heightTiles: number): Landmark[];
+  /** The biome at a tile, if this world has biomes (ambience, map). */
+  biomeAt?(seed: number, params: P, widthTiles: number, heightTiles: number, tx: number, ty: number): BiomeDef;
   /** Where the player appears on arrival, in tile coordinates. */
   spawnPoint(seed: number, params: P, widthTiles: number, heightTiles: number): { x: number; y: number };
 }
