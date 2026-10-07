@@ -33,6 +33,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 15 Interiors | `src/game/world/interiorGenerator.ts`, `drawings.ts`, `content/*/rooms`, `src/content/types/{room,legend}.ts` | Labs, ships and stations assembled from room drawings; portals between worlds |
 | 16 Doors & destructibles | `src/game/doors.ts`, `breakables.ts`, `src/render/CrackOverlay.ts`, `content/*/tiles/doors.json`, `content/*/keycards` | Doors, keycards and locked rooms, breakable walls / fences / barricades / crates |
 | 17 Explosives | `src/game/explosives.ts`, `src/content/types/explosive.ts`, `src/render/ExplosionFx.ts`, `content/*/explosives` | Grenades, placed charges, blasts, world hazards, NPC grenade use |
+| 18 Light & darkness | `src/game/lighting.ts`, `worldLighting.ts`, `src/render/LightRenderer.ts` | Clock and daylight, light sources and shadows, the lightmap, light levels for NPC eyes |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -400,6 +401,36 @@ over the canvas and draw animated characters with `CharacterPreview`.
   claymore or IED just inside some doorways with the wire across the way in.
   NPC routes avoid them (`HazardMap`).
 
+## Light & darkness (Module 18)
+
+- **The clock** lives in the save (`flags.clock`, minutes) and runs at
+  `CLOCK_RATE` (a day is 36 real minutes) in every world. `daylight()` maps
+  the time to a sky color (night blue, dawn rose, white day, amber dusk).
+- **Worlds** opt in with `lighting` in their `worldGen`: `dayCycle` follows the
+  clock (planets); otherwise a fixed `ambient` color (dim labs, a near-black
+  wreck). Without it a world is always fully lit and lighting is skipped.
+- **Light sources** (`WorldLighting`): generator lights (`lights()`: the
+  interior generator's ceiling `lamps`, some dead, some flickering), glowing
+  tiles (`light` on a tile: campfires, lamp posts; picked up as chunks stream
+  in), anomalies with `light` (burners, electros, acid), revealed artifacts,
+  flashlights (`Flashlight` component: a beam in the aim direction plus a
+  little spill), and brief flashes (gunfire, explosions). A faint glow around
+  the player keeps the dark from being total.
+- **Shadows:** each light's reach is a polygon cast against opaque tiles
+  (`lightPolygon`: rays stop a little into the first wall, so the face
+  catching the light is lit). Fixed lights cache theirs until a tile near
+  them changes (a door opens, a wall falls).
+- **The lightmap** (`LightRenderer`): a quarter-resolution render texture
+  filled with the ambient color, each light added as its polygon filled with
+  a radial gradient (`falloff`), then laid over the world with a multiply
+  blend. In daylight it isn't drawn at all. The brightness option lifts the
+  ambient.
+- **Eyes:** `WorldLighting.levelAt(x, y)` is the ambient plus every light
+  reaching a point (walls considered); holding a lit flashlight counts as
+  brightly lit. NPCs (`NpcBrainSystem.lightAt`) see an unlit target only
+  close up, and out to full range as the light on it rises. In the dark,
+  NPCs switch their flashlights on.
+
 ## Extension points
 
 ### Add a playable race
@@ -489,6 +520,12 @@ generated tile.
   `trigger`, `blast`, `art`, `sounds`. Put it in loot tables, NPC `carries`,
   a planet's `minefields`, an interior's `traps` or a drawing's legend
   (`{ "clear": true, "explosive": "<id>" }`).
+
+### Add a light
+- **Glowing tile:** `"light": { "color": "#ffa050", "radius": 6, "intensity": 1, "flicker": 0.5 }` on a tile (drawn into structures like any tile).
+- **Lamps in an interior:** `lamps` in its params (color, radius, how many work, how many flicker).
+- **Glowing anomaly:** `light` on the anomaly def.
+- **A dark world:** `"lighting": { "ambient": "#20242c" }` (or `"dayCycle": true`) on its `worldGen`.
 
 ### Add a new kind of content (weapons, armor, factions, station chunks…)
 1. `src/content/types/<kind>.ts`: a schema (`v.object({...})`), a `crossCheck` for

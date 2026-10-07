@@ -24,6 +24,12 @@ const schema = v.object({
   params: v.any(),
   /** Looping background sounds layered together (otherwise the ambient cue). */
   ambient: v.optional(v.array(v.id())),
+  /**
+   * Light: `dayCycle` worlds follow the clock (bright days, dark nights);
+   * others sit at a fixed `ambient` color (dim for a lab, near black for a
+   * dead ship). Without this, it's always broad daylight.
+   */
+  lighting: v.optional(v.object({ dayCycle: v.optional(v.boolean(), false), ambient: v.optional(v.color(), '#ffffff') })),
 });
 
 export type WorldGenDef = Infer<typeof schema>;

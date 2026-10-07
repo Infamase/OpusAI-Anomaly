@@ -79,6 +79,8 @@ export class NpcBrainSystem implements System {
 
   /** Known hazards (anomalies) to route around. */
   avoid?: Avoid;
+  /** How lit a spot is (0 dark .. 1 daylight); in the dark, people are only noticed close up or in a light. */
+  lightAt?: (x: number, y: number) => number;
 
   constructor(
     private content: ContentRegistry,
@@ -138,6 +140,11 @@ export class NpcBrainSystem implements System {
     const dy = ot.y - t.y;
     const dist = Math.hypot(dx, dy);
     if (dist > SIGHT) return { seen: false, dist };
+    // Darkness shortens sight: someone unlit is only made out close by.
+    if (dist > CLOSE_SENSE && this.lightAt) {
+      const lit = Math.max(0, Math.min(1, (this.lightAt(ot.x, ot.y - CHEST_HEIGHT * 0.5) - 0.12) / 0.55));
+      if (dist > CLOSE_SENSE + (SIGHT - CLOSE_SENSE) * lit) return { seen: false, dist };
+    }
     if (dist > CLOSE_SENSE && !anyDirection) {
       const aim = world.get(e, Aim)?.dir;
       const facing = aim ?? dirOf(world.req(e, Character).facing);

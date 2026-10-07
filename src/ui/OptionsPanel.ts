@@ -49,6 +49,10 @@ export class OptionsPanel {
     rows.push(el('h3', 'opt-section', 'Display'));
     rows.push(
       this.slider('Camera zoom', s.zoomBias, -3, 4, 1, (v) => (v === 0 ? 'auto' : v > 0 ? `+${v}` : `${v}`), (v) => game.setZoomBias(v)),
+      this.slider('Night brightness', Math.round(s.brightness * 10), 0, 10, 1, (v) => `${v * 10}%`, (v) => {
+        s.brightness = v / 10;
+        saveSettings(s);
+      }),
       this.select(
         'Renderer',
         [

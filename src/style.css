@@ -943,6 +943,17 @@ body {
   background: #0b0d10;
   border: 1px solid var(--hud-line);
 }
+/* Time of day under the minimap. */
+.hud-clock {
+  margin-top: 2px;
+  font-size: 11px;
+  text-align: center;
+  letter-spacing: 1px;
+  color: #e8dcb0;
+}
+.hud-clock.night {
+  color: #9ab0e0;
+}
 /* Throwables and charges under the weapon panel. */
 .hud-bombs {
   display: flex;

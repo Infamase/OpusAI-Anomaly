@@ -3,7 +3,7 @@ import { THEME_SLOTS, type ThemeSlot } from '../../content/types/legend';
 import type { RoomDef } from '../../content/types/room';
 import { deriveSeed, Rng } from '../../core/rng';
 import { orientedCell, orientedSize, resolveDrawing, type Cell, type Drawing } from './drawings';
-import { registerGenerator, type CampSpawn, type Landmark, type PortalSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
+import { registerGenerator, type CampSpawn, type Landmark, type PortalSpawn, type StaticLightSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
 import type { TileSet } from './TileSet';
 
 /**
@@ -53,6 +53,19 @@ const paramsSchema = v.object({
    * (a claymore beside the door with its tripwire across the way in, an IED).
    */
   traps: v.optional(v.object({ explosives: v.array(v.id(), { min: 1 }), chance: v.number({ min: 0, max: 1 }) })),
+  /**
+   * Ceiling lamps: one per room (two in long ones). `working` of them light
+   * up, and `flickering` of those stutter like failing tubes.
+   */
+  lamps: v.optional(
+    v.object({
+      color: v.color(),
+      radius: v.optional(v.number({ min: 1 }), 6),
+      intensity: v.optional(v.number({ min: 0, max: 2 }), 0.9),
+      working: v.optional(v.number({ min: 0, max: 1 }), 0.85),
+      flickering: v.optional(v.number({ min: 0, max: 1 }), 0.15),
+    }),
+  ),
 });
 
 interface RoomRes extends Drawing {
@@ -78,6 +91,7 @@ interface Params {
   locks: { tile: number; chance: number; key: string } | null;
   barricades: { tile: number; chance: number } | null;
   traps: { explosives: string[]; chance: number } | null;
+  lamps: { color: string; radius: number; intensity: number; working: number; flickering: number } | null;
   plans: Map<string, Plan>;
 }
 
@@ -491,6 +505,7 @@ export const interiorGenerator: WorldGenerator<Params> = {
       locks: r.locks ? { tile: lockTile, chance: r.locks.chance, key: key! } : null,
       barricades: r.barricades ? { tile: tiles.index(r.barricades.tile), chance: r.barricades.chance } : null,
       traps: r.traps ? { explosives: r.traps.explosives.map((id) => content.get('explosive', id).id), chance: r.traps.chance } : null,
+      lamps: r.lamps ?? null,
       plans: new Map(),
     };
   },
@@ -547,6 +562,39 @@ export const interiorGenerator: WorldGenerator<Params> = {
     const out: PortalSpawn[] = [];
     for (const { r, i, j, x, y, c } of roomCells(plan)) {
       if (c.portal) out.push({ id: `portal:${r.index}:${i},${j}`, x: (x + 0.5) * T, y: (y + 0.5) * T, world: c.portal.world, label: c.portal.label });
+    }
+    return out;
+  },
+
+  /** Ceiling lamps over the rooms: some dead, some flickering (fixed per seed). */
+  lights(seed, params, W, H): StaticLightSpawn[] {
+    const plan = planFor(params, seed, W, H);
+    const lamps = params.lamps;
+    if (!lamps) return [];
+    const rng = new Rng(deriveSeed(seed, 'lamps'));
+    const out: StaticLightSpawn[] = [];
+    for (const r of plan.placed) {
+      const long = Math.max(r.w, r.h) >= 12;
+      const spots = long
+        ? r.w >= r.h
+          ? [{ x: r.x + r.w * 0.28, y: r.y + r.h / 2 }, { x: r.x + r.w * 0.72, y: r.y + r.h / 2 }]
+          : [{ x: r.x + r.w / 2, y: r.y + r.h * 0.28 }, { x: r.x + r.w / 2, y: r.y + r.h * 0.72 }]
+        : [{ x: r.x + r.w / 2, y: r.y + r.h / 2 }];
+      for (const s of spots) {
+        if (!rng.chance(lamps.working)) continue;
+        // On the nearest floor cell (a lamp inside a wall would light nothing).
+        let best: { x: number; y: number; d: number } | null = null;
+        for (let j = 1; j < r.h - 1; j++) {
+          for (let i = 1; i < r.w - 1; i++) {
+            const c = cellAt(r, i, j);
+            if (!c || c.wall || c.tile < 0) continue;
+            const d = Math.hypot(r.x + i + 0.5 - s.x, r.y + j + 0.5 - s.y);
+            if (!best || d < best.d) best = { x: r.x + i + 0.5, y: r.y + j + 0.5, d };
+          }
+        }
+        if (!best) continue;
+        out.push({ x: best.x, y: best.y, color: lamps.color, radius: lamps.radius, intensity: lamps.intensity, flicker: rng.chance(lamps.flickering) ? 0.8 : 0 });
+      }
     }
     return out;
   },

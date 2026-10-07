@@ -408,3 +408,27 @@ describe('NPCs and grenades', () => {
     for (const seed of [1, 2, 3]) expect(flushOut(seed, 3, 15)).toBeLessThanOrEqual(1);
   });
 });
+
+describe('NPCs in the dark', () => {
+  it("don't make out an unlit enemy across a dark room, but do once there's light on them", () => {
+    let light = 0.05;
+    const rng = new Rng(3);
+    const map = testMap();
+    room(map, 10, 10, 30, 16);
+    const w = new World();
+    const events = new EventBus<CombatEvents>();
+    const relations = new Relations(content, defaultStanding());
+    const brain = new NpcBrainSystem(content, () => map, events, relations, () => {}, () => rng.next());
+    brain.lightAt = () => light;
+    const loner = npc(w, 'loners', 'loner_veteran', 13 * TILE_PX, 13.5 * TILE_PX, 'akr5_rifle', 'right');
+    npc(w, 'bandits', 'bandit_thug', 21 * TILE_PX, 13.5 * TILE_PX, 'akr5_rifle', 'left');
+    const run = (s: number) => {
+      for (let i = 0; i < s * 60; i++) brain.update(w, 1 / 60);
+    };
+    run(3);
+    expect(w.req(loner, Brain).state).not.toBe('combat');
+    light = 0.9;
+    run(2);
+    expect(w.req(loner, Brain).state).toBe('combat');
+  });
+});

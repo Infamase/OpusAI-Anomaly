@@ -37,6 +37,7 @@ export const DEFAULT_KEYBOARD: KeyboardBindings = {
     bolt: ['KeyG'],
     grenade: ['KeyF'],
     place: ['KeyV'],
+    light: ['KeyL'],
   },
   mouse: { 0: 'fire', 2: 'altFire' },
 };
@@ -68,5 +69,6 @@ export const DEFAULT_GAMEPAD: GamepadBindings = {
     bolt: [4], // LB
     grenade: [1], // B / Circle
     place: [14], // D-pad left
+    light: [15], // D-pad right
   },
 };

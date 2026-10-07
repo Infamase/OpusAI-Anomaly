@@ -31,6 +31,8 @@ export interface DevHooks {
   /** Moves the character to another world. */
   travel(worldId: string): Promise<void>;
   info(): Record<string, string | number>;
+  /** Moves the clock on by some hours. */
+  advanceTime(hours: number): void;
 }
 
 const SLOT_LABEL: Record<ArmorSlot, string> = { head: 'Helmet', torso: 'Top + gloves', legs: 'Pants + boots' };
@@ -120,7 +122,13 @@ export class DevTools {
     const worldSelect = el('select');
     for (const w of hooks.listWorlds()) worldSelect.append(new Option(w.current ? `${w.name} (here)` : `Travel: ${w.name}`, w.id, w.current, w.current));
     worldSelect.onchange = () => void hooks.travel(worldSelect.value);
-    saveRow.append(save, exp, reset, worldSelect);
+    const later = el('button', '', '+1h');
+    later.title = 'Move the clock on an hour';
+    later.onclick = () => hooks.advanceTime(1);
+    const night = el('button', '', '+6h');
+    night.title = 'Move the clock on six hours';
+    night.onclick = () => hooks.advanceTime(6);
+    saveRow.append(save, exp, reset, worldSelect, later, night);
 
     const combat = el('div', 'dev-gear');
     const weaponSelect = el('select');

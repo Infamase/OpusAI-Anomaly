@@ -86,6 +86,7 @@ export class Hud {
   private promptEl = el('div', 'hud-prompt');
   private messages = el('div', 'hud-messages');
   private where = el('div', 'hud-where');
+  private clockEl = el('div', 'hud-clock');
   private detectorBox = el('div', 'hud-detector');
   private last = new Map<string, string>();
   private hurt = 0;
@@ -104,7 +105,7 @@ export class Hud {
     );
     this.weaponBox.append(this.wOther, this.wName, el('div', 'hud-ammo-row', undefined, this.wPips, this.wAmmo), this.wInfo, el('div', 'hud-bar thin', undefined, this.wReload), this.wHint, this.wBombs);
     this.weaponBox.className = 'hud-panel hud-weapon';
-    this.minimap.root.append(this.where, this.detectorBox);
+    this.minimap.root.append(this.where, this.clockEl, this.detectorBox);
     this.arcs.append(this.grenades);
     this.root.append(this.vignette, this.arcs, this.minimap.root, vitals, this.weaponBox, this.promptEl, this.messages);
     parent.append(this.root);
@@ -113,6 +114,14 @@ export class Hud {
   /** Where the player is, under the minimap ("Pine Forest", "Rookie Village"). */
   location(text: string): void {
     this.set('where', text, (v) => (this.where.textContent = v));
+  }
+
+  /** The time of day under the minimap ("21:40"), dimmed at night. */
+  clock(text: string, night: boolean): void {
+    this.set('clock', `${text}|${night}`, () => {
+      this.clockEl.textContent = text;
+      this.clockEl.classList.toggle('night', night);
+    });
   }
 
   /** The detector widget under the minimap (null hides it). */

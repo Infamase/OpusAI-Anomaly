@@ -450,5 +450,47 @@
       "style": "noise",
       "color": "#5a5232"
     }
+  },
+  {
+    "type": "tile",
+    "id": "campfire",
+    "name": "Campfire",
+    "solid": true,
+    "low": true,
+    "prop": "campfire",
+    "light": {
+      "color": "#ffa050",
+      "radius": 6,
+      "intensity": 1.0,
+      "flicker": 0.55
+    },
+    "sounds": {
+      "impact": "impact_rock"
+    },
+    "placeholder": {
+      "style": "concrete",
+      "color": "#6e6a60"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "lamp_post",
+    "name": "Lamp Post",
+    "solid": true,
+    "low": true,
+    "prop": "lamp_post",
+    "light": {
+      "color": "#ffe0a0",
+      "radius": 7,
+      "intensity": 0.9,
+      "flicker": 0.04
+    },
+    "sounds": {
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "concrete",
+      "color": "#6e6a60"
+    }
   }
 ]

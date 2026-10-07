@@ -10,7 +10,7 @@ declare module '../Registry' {
 
 export const PLACEHOLDER_TILE_STYLES = ['noise', 'grass', 'plate', 'grate', 'wall', 'rock', 'hazard', 'water', 'mud', 'sand', 'gravel', 'cracked', 'asphalt', 'concrete', 'planks', 'brick', 'tiles', 'door', 'space', 'window', 'hatch', 'door_closed', 'door_open', 'wood_door', 'wood_door_open', 'debris', 'wall_cracked', 'brick_cracked'] as const;
 /** Tall decorations drawn above the ground and depth-sorted with characters. */
-export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble', 'console', 'machine', 'bunk', 'fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign'] as const;
+export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble', 'console', 'machine', 'bunk', 'fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign', 'campfire', 'lamp_post'] as const;
 export type PropStyle = (typeof PROP_STYLES)[number];
 
 const schema = v.object({
@@ -49,6 +49,15 @@ const schema = v.object({
       becomes: v.id(),
       resist: v.optional(v.number({ min: 0, max: 0.95 }), 0),
       debris: v.optional(v.color()),
+    }),
+  ),
+  /** It gives off light (a campfire, a lamp): color, reach in tiles, strength, and how much it flickers (0..1). */
+  light: v.optional(
+    v.object({
+      color: v.color(),
+      radius: v.number({ min: 0.5, max: 20 }),
+      intensity: v.optional(v.number({ min: 0, max: 2 }), 1),
+      flicker: v.optional(v.number({ min: 0, max: 1 }), 0),
     }),
   ),
   /** The tile to use when a drawing holding this one is turned a quarter turn (an east-west fence becomes a north-south one). */

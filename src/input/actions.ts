@@ -22,6 +22,7 @@ export const BUTTON_ACTIONS = [
   'bolt',
   'grenade',
   'place',
+  'light',
 ] as const;
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];
 

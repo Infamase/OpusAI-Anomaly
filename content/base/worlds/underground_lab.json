@@ -85,6 +85,16 @@
         "claymore"
       ],
       "chance": 0.12
+    },
+    "lamps": {
+      "color": "#e8f0ff",
+      "radius": 6.5,
+      "intensity": 0.95,
+      "working": 0.75,
+      "flickering": 0.25
     }
+  },
+  "lighting": {
+    "ambient": "#262c34"
   }
 }

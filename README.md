@@ -45,6 +45,15 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > fences and set off other charges. NPCs rarely throw grenades (only to flush
 > you out of cover, one at a time, shouting first) and run from yours.
 >
+> **Light & darkness:** a day/night clock (a day lasts about 36 minutes) takes
+> the Zone from morning light through amber dusk into dark nights, lit only by
+> campfires, lamp posts, glowing anomalies, muzzle flashes and explosions. Labs,
+> wrecks and stations are gloomy, with ceiling lamps (some dead, some
+> flickering) and red emergency lights on the freighter. Light stops at walls.
+> Your flashlight (L) shows the way but gives you away: in the dark, NPCs only
+> make you out up close or in a light, and at night they carry flashlights too.
+> Options has a night brightness slider.
+>
 > **Sound:** every sound is synthesized from recipes in content files
 > (gunshots per weapon, footsteps per surface, impacts, pain and death per
 > race, reloads, radio chatter, UI, wind and the hum of the Zone), positioned
@@ -95,6 +104,7 @@ dev panel, `?mute=1` starts muted. Sound, zoom and renderer settings are under
 | Throw a bolt (sets off anomalies and mines) | G | LB |
 | Throw a grenade (at the cursor) | F | B |
 | Place a claymore / mine / IED (facing the cursor) | V | D-pad left |
+| Flashlight on / off | L | D-pad right |
 | Pause | Esc | Start |
 | Dev panel | ` or F3 | Select |
 

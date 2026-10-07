@@ -50,6 +50,16 @@ export interface CampSpawn {
 }
 
 /** A way to another world (a hatch, a ladder, a shuttle). World pixels. */
+/** A fixed light placed by a generator (tile coords of its center; reach in tiles). */
+export interface StaticLightSpawn {
+  x: number;
+  y: number;
+  color: string;
+  radius: number;
+  intensity: number;
+  flicker: number;
+}
+
 export interface PortalSpawn {
   /** Stable id: arrivals from elsewhere use it to find where to appear. */
   id: string;
@@ -89,6 +99,8 @@ export interface WorldGenerator<P = unknown> {
   population?(seed: number, params: P, widthTiles: number, heightTiles: number, walkable: (tx: number, ty: number) => boolean): CampSpawn[];
   /** Named places, for the map. */
   landmarks?(seed: number, params: P, widthTiles: number, heightTiles: number): Landmark[];
+  /** Fixed lights (ceiling lamps), tile coords; reach in tiles. */
+  lights?(seed: number, params: P, widthTiles: number, heightTiles: number): StaticLightSpawn[];
   /** Ways to other worlds. */
   portals?(seed: number, params: P, widthTiles: number, heightTiles: number): PortalSpawn[];
   /** A name for the area at a tile (a room in a station), for the HUD. */

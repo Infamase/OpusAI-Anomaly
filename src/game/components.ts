@@ -354,3 +354,11 @@ export interface Explosive {
   spin: number;
 }
 export const Explosive = defineComponent<Explosive>('Explosive');
+
+// ---- Lighting (Module 18) ----------------------------------------------------------
+
+/** A flashlight: a beam in the direction the character aims (or faces). */
+export interface Flashlight {
+  on: boolean;
+}
+export const Flashlight = defineComponent<Flashlight>('Flashlight');

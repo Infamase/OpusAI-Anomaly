@@ -11,6 +11,8 @@ export interface Settings {
   showDebug: boolean;
   volume: AudioVolumes;
   muted: boolean;
+  /** Lifts the darkness of night and unlit places (0 = as dark as it gets, 1 = much lighter). */
+  brightness: number;
 }
 
 const KEY = 'sfa-settings';
@@ -20,6 +22,7 @@ const DEFAULTS: Settings = {
   showDebug: false,
   volume: { master: 0.8, sfx: 0.9, ambient: 0.7, ui: 0.7, voice: 0.9 },
   muted: false,
+  brightness: 0.25,
 };
 
 export function loadSettings(): Settings {

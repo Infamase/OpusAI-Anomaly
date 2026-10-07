@@ -10,6 +10,9 @@ import { CharacterView } from '../../render/CharacterView';
 import { CombatFx } from '../../render/CombatFx';
 import { CrackOverlay } from '../../render/CrackOverlay';
 import { ExplosionFx, type DangerMark } from '../../render/ExplosionFx';
+import { LightRenderer } from '../../render/LightRenderer';
+import { WorldLighting } from '../worldLighting';
+import { CLOCK_RATE, clockText, START_MINUTES } from '../lighting';
 import { detonate, ExplosiveSystem, liveGrenades, placeCharge, throwGrenade } from '../explosives';
 import type { ExplosiveDef } from '../../content/types';
 import { TileDamage } from '../breakables';
@@ -67,6 +70,7 @@ import {
   Bolt,
   Breakable,
   Explosive,
+  Flashlight,
 } from '../components';
 import { pickQuickHeal, useConsumable } from '../consumables';
 import { findItem } from '../../content/items';
@@ -215,6 +219,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private tileDamage: TileDamage | null = null;
   private cracks = new CrackOverlay();
   private explosionFx = new ExplosionFx();
+  /** Light and darkness: what shines where, and the lightmap drawn over the world. */
+  private lighting: WorldLighting | null = null;
+  private lightRenderer: LightRenderer | null = null;
+  private npcLightsIn = 0;
+  private flashlightHinted = false;
   /** When the last "you spot a mine" notice showed (one is enough for a whole field). */
   private spottedNoticeAt = -99;
   private leaving = false;
@@ -292,6 +301,15 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     g.renderer.world.addChildAt(this.explosionFx.under, g.renderer.world.getChildIndex(g.renderer.entities));
     g.renderer.overlay.addChild(this.explosionFx.over);
     this.tileDamage = new TileDamage(this.map);
+    this.lighting = new WorldLighting(g.content, this.world, this.map, genDef.lighting, generator.lights?.(record.seed, params, this.map.widthTiles, this.map.heightTiles) ?? []);
+    this.lightRenderer = new LightRenderer(g.renderer.pixi);
+    g.renderer.screen.addChildAt(this.lightRenderer.sprite, 0);
+    if (typeof save.flags.clock !== 'number') save.flags.clock = START_MINUTES;
+    const redraw = this.map.onTileChange;
+    this.map.onTileChange = (tx, ty) => {
+      redraw?.(tx, ty);
+      this.lighting?.tileChanged(tx, ty);
+    };
     g.renderer.overlay.addChild(this.anomalyFx.over);
     g.renderer.screen.addChild(this.crosshair.g);
 
@@ -299,7 +317,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const map = () => this.map;
     this.world
       .addSystem(new PlayerControlSystem(g.input, g.camera, () => g.renderer.pixelRatio))
-      .addSystem(Object.assign(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)), { avoid: (tx: number, ty: number) => this.hazards.has(tx, ty) }))
+      .addSystem(
+        Object.assign(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)), {
+          avoid: (tx: number, ty: number) => this.hazards.has(tx, ty),
+          lightAt: (x: number, y: number) => this.lighting?.levelAt(x, y) ?? 1,
+        }),
+      )
       .addSystem(new DoorSystem(map, this.combatEvents))
       .addSystem(new WeaponSystem(g.content, map, this.combatEvents))
       .addSystem(new AnomalySystem(g.content, map, this.combatEvents))
@@ -316,8 +339,14 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       this.world.get(e, PropViewC)?.destroy();
       this.shownWeapon.delete(e);
     };
-    this.tileRenderer.onChunkShown = (cx, cy) => this.spawnChunkObjects(cx, cy);
-    this.tileRenderer.onChunkHidden = (cx, cy) => this.despawnChunkObjects(cx, cy);
+    this.tileRenderer.onChunkShown = (cx, cy) => {
+      this.spawnChunkObjects(cx, cy);
+      this.lighting?.chunkShown(cx, cy);
+    };
+    this.tileRenderer.onChunkHidden = (cx, cy) => {
+      this.despawnChunkObjects(cx, cy);
+      this.lighting?.chunkHidden(cx, cy);
+    };
     this.listenToCombat();
     this.sound = new GameAudio(g.audio, g.content, this.world, map, () => this.playerEntity);
     this.sound.listen(this.combatEvents);
@@ -347,6 +376,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       facing: save.player.facing,
     });
     this.world.add(this.playerEntity, PlayerControlled, true);
+    this.world.add(this.playerEntity, Flashlight, { on: save.flags.flashlight === true });
     addCombatComponents(this.world, this.playerEntity, {
       faction: PLAYER_FACTION,
       active: save.player.activeWeapon,
@@ -401,6 +431,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.anomalyFx.destroy();
     this.cracks.destroy();
     this.explosionFx.destroy();
+    this.lightRenderer?.destroy();
+    this.lightRenderer = null;
     this.hazards.clear();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
@@ -430,6 +462,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
     if (alive && this.game.scenes.current === this && input.justPressed('bolt')) this.throwBolt();
     if (alive && this.game.scenes.current === this && input.justPressed('grenade')) this.throwPlayerGrenade();
+    if (alive && this.game.scenes.current === this && input.justPressed('light')) this.toggleFlashlight();
+    this.updateLight(dt);
     if (alive && this.game.scenes.current === this && input.justPressed('place')) {
       const def = this.carriedExplosive('place');
       const err = def ? this.placeExplosive(def.id) : 'Nothing to place.';
@@ -511,6 +545,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.fx.render(frameDt, tracers, bars);
     this.renderAnomalies(frameDt, alpha);
     this.renderExplosives(frameDt, alpha);
+    if (this.lighting && this.lightRenderer) {
+      const pt = this.world.req(this.playerEntity, Transform);
+      const b = g.camera.bounds;
+      this.lightRenderer.render(g.renderer.world, g.camera.viewportW, g.camera.viewportH, this.lighting.ambient, this.lighting.draws(b, { x: lerp(pt.prevX, pt.x, alpha), y: lerp(pt.prevY, pt.y, alpha) }));
+    }
     this.renderCrosshair(frameDt, px, py);
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
     const prompt =
@@ -536,6 +575,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const cam = this.game.camera;
     ev.on('shot', (s) => {
       this.fx.muzzle(s.x, s.y, s.angle);
+      this.lighting?.flash(s.x + Math.cos(s.angle) * 8, s.y + 12, TILE_PX * 3.5, [1, 0.85, 0.55], 1.1, 0.07);
       this.world.get(s.shooter, View)?.fire();
       if (s.shooter === this.playerEntity) cam.kick(-Math.cos(s.angle) * s.recoil, -Math.sin(s.angle) * s.recoil);
     });
@@ -928,6 +968,47 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.world.destroy(e);
   }
 
+  // ---- light & darkness -------------------------------------------------------------
+
+  private toggleFlashlight(): void {
+    const f = this.world.req(this.playerEntity, Flashlight);
+    f.on = !f.on;
+    this.game.saves.data.flags.flashlight = f.on;
+    this.game.audio.playCue('ui_click');
+  }
+
+  /** The clock runs, the light follows it; NPCs switch their flashlights on in the dark. */
+  private updateLight(dt: number): void {
+    const flags = this.game.saves.data.flags;
+    flags.clock = (flags.clock as number) + dt * CLOCK_RATE;
+    const lighting = this.lighting;
+    if (!lighting) return;
+    lighting.setTime(flags.clock as number, this.game.settings.brightness);
+    lighting.update(dt);
+    this.hud?.clock(clockText(flags.clock as number), lighting.ambientLevel < 0.5);
+    this.npcLightsIn -= dt;
+    if (this.npcLightsIn <= 0) {
+      this.npcLightsIn = 1;
+      const dark = lighting.ambientLevel < 0.45;
+      for (const e of this.world.query(Npc, Health)) {
+        const on = dark && !this.world.req(e, Health).dead;
+        const f = this.world.get(e, Flashlight);
+        if (f) f.on = on;
+        else this.world.add(e, Flashlight, { on });
+      }
+      if (dark && !this.flashlightHinted && !this.world.req(this.playerEntity, Flashlight).on) {
+        this.flashlightHinted = true;
+        this.message('It\'s dark. Press L for your flashlight.', '#c8d8ff');
+      }
+    }
+  }
+
+  /** Dev: moves the clock on. */
+  advanceTime(hours: number): void {
+    const flags = this.game.saves.data.flags;
+    flags.clock = (flags.clock as number) + hours * 60;
+  }
+
   // ---- explosives -----------------------------------------------------------------
 
   /** The first grenade / charge in the backpack. */
@@ -1016,6 +1097,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
 
   private onExplosion(x: CombatEvents['explosion']): void {
     const def = this.game.content.tryGet('explosive', x.defId);
+    this.lighting?.flash(x.x, x.y, x.radius * 2.2, [1, 0.75, 0.45], 1.8, 0.6);
     this.forgetCharge(x);
     this.hazards.remove(x.entity);
     this.explosionFx.burst(x.x, x.y, x.radius, (def?.blast.shatter ?? 0) > 180 || (def?.blast.damage ?? 0) >= 140);

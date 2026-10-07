@@ -11,7 +11,7 @@ import { cap, ell, Rig, tri, v, type Ramp, type Shape } from './rig';
  */
 export const PROP_VARIANTS = 3;
 /** Props that line up with their neighbors (fences): drawn exactly on the tile, never nudged or mirrored. */
-export const ALIGNED_PROPS: ReadonlySet<PropStyle> = new Set(['fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign']);
+export const ALIGNED_PROPS: ReadonlySet<PropStyle> = new Set(['fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign', 'campfire', 'lamp_post']);
 
 export interface PropArt {
   pixels: PixelCanvas;
@@ -81,6 +81,10 @@ export function generateProp(style: PropStyle, variant: number): PropArt {
       return barricade(rng, variant);
     case 'sign':
       return mineSign(variant);
+    case 'campfire':
+      return campfire(rng);
+    case 'lamp_post':
+      return lampPost(variant);
   }
 }
 
@@ -433,4 +437,63 @@ function mineSign(variant: number): PropArt {
   pc.set(13 + lean, 9, [226, 222, 206]);
   pc.set(15 + lean, 9, [226, 222, 206]);
   return { pixels: pc, anchor: [14, base] };
+}
+
+/** A campfire: a ring of stones, crossed logs, flames and embers. */
+function campfire(rng: Rng): PropArt {
+  const W = 30;
+  const H = 30;
+  const base = 24;
+  const pc = new PixelCanvas(W, H);
+  const STONE_R = buildRamp('#7a7670');
+  const LOG = buildRamp('#5a3a24');
+  // Stones round the pit.
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    const x = Math.round(15 + Math.cos(a) * 11);
+    const y = Math.round(base - 2 + Math.sin(a) * 4);
+    pc.rect(x - 1, y - 1, 3, 2, STONE_R[a > Math.PI ? 3 : 2]!);
+    pc.set(x - 1, y - 1, STONE_R[4]!);
+  }
+  // Logs, crossed.
+  for (let i = 0; i < 14; i++) {
+    pc.set(8 + i, base - 2 - Math.round(i * 0.25), LOG[i % 3 ? 3 : 1]!);
+    pc.set(8 + i, base - 1 - Math.round(i * 0.25), LOG[1]!);
+    pc.set(21 - i, base - 2 - Math.round(i * 0.25), LOG[i % 3 ? 2 : 1]!);
+    pc.set(21 - i, base - 1 - Math.round(i * 0.25), LOG[0]!);
+  }
+  // Flames: layered tongues, hot at the core.
+  const FIRE: [number, number, number][] = [[200, 60, 20], [240, 120, 30], [255, 190, 60], [255, 240, 170]];
+  for (let k = 0; k < 4; k++) {
+    const h = 14 - k * 3;
+    const w = 6 - k;
+    for (let y = 0; y < h; y++) {
+      const half = Math.max(0, Math.round(w * (1 - y / h) + (rng.next() - 0.5)));
+      for (let x = -half; x <= half; x++) pc.set(15 + x + (y > h / 2 ? Math.round(Math.sin(y + k) * 1) : 0), base - 4 - y, FIRE[k]!);
+    }
+  }
+  for (let i = 0; i < 5; i++) pc.set(rng.int(10, 20), rng.int(2, 8), [255, 170, 60]);
+  return { pixels: pc, anchor: [15, base] };
+}
+
+/** A lamp post: a pole with a hooded lamp, glowing. */
+function lampPost(variant: number): PropArt {
+  const W = 20;
+  const H = 66;
+  const base = 62;
+  const pc = new PixelCanvas(W, H);
+  const POLE = buildRamp(variant === 1 ? '#4a5a4a' : '#55595c');
+  for (let y = 8; y <= base; y++) {
+    pc.set(9, y, POLE[3]!);
+    pc.set(10, y, POLE[1]!);
+  }
+  pc.rect(7, base - 2, 6, 3, POLE[2]!);
+  // Arm and hood.
+  for (let x = 10; x <= 15; x++) pc.set(x, 8, POLE[3]!);
+  pc.rect(12, 6, 6, 3, POLE[2]!);
+  pc.hline(12, 6, 6, POLE[4]!);
+  // The lamp itself, lit.
+  pc.rect(13, 9, 4, 2, [255, 236, 170]);
+  pc.hline(13, 11, 4, [255, 210, 120]);
+  return { pixels: pc, anchor: [10, base] };
 }
