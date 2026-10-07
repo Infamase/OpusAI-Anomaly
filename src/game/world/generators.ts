@@ -19,17 +19,15 @@ export interface ChunkGenContext<P> {
   params: P;
 }
 
-/** A world object placed by a generator (crates now; anomalies, NPC camps... later). */
-export interface WorldObjectSpawn {
-  /** Stable id: same seed + chunk always gives the same ids, so saved changes can refer to them. */
-  id: string;
-  kind: 'crate';
-  /** World pixels (feet / base). */
-  x: number;
-  y: number;
-  variant: 'supply' | 'military';
-  lootTable: string;
-}
+/**
+ * A world object placed by a generator. `id` is stable (same seed + chunk
+ * always gives the same ids) so saved changes can refer to it; x/y are world
+ * pixels (feet / base / center).
+ */
+export type WorldObjectSpawn =
+  | { id: string; kind: 'crate'; x: number; y: number; variant: 'supply' | 'military'; lootTable: string }
+  | { id: string; kind: 'anomaly'; x: number; y: number; anomaly: string }
+  | { id: string; kind: 'artifact'; x: number; y: number; artifact: string };
 
 /** A group of NPCs living in the world (a camp guarding a spot, or a patrol). */
 export interface CampSpawn {
@@ -55,6 +53,8 @@ export interface Landmark {
   y: number;
   w: number;
   h: number;
+  /** A danger zone (anomaly field) rather than a settlement. */
+  hazard?: boolean;
 }
 
 export interface WorldGenerator<P = unknown> {

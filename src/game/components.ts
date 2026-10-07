@@ -69,6 +69,10 @@ export interface Health {
   god?: boolean;
   /** Active heal-over-time effects (medkits, food). */
   regen: { rate: number; left: number }[];
+  /** Radiation dose in the body (see game/radiation.ts). */
+  rads: number;
+  /** What last hurt it when there's no attacker (death screen). */
+  cause?: string;
 }
 export const Health = defineComponent<Health>('Health');
 
@@ -152,6 +156,10 @@ export interface WorldItem {
   item: ItemInstance;
   recordId: string;
   chunkKey: string;
+  /** Placed by the world generator (taking it is saved as a removal) rather than dropped. */
+  generated?: boolean;
+  /** Artifacts: invisible until a detector reveals them. */
+  hidden?: boolean;
 }
 export const WorldItem = defineComponent<WorldItem>('WorldItem');
 
@@ -264,3 +272,27 @@ export function newBrain(behavior: 'guard' | 'patrol', x: number, y: number, rad
     lookAt: null,
   };
 }
+
+/** A fixed hazard (see content/types/anomaly.ts). Position is its Transform. */
+export interface Anomaly {
+  defId: string;
+  state: 'idle' | 'windup' | 'cooldown';
+  /** Seconds left in the current state. */
+  timer: number;
+  /** For effects: seconds since it last went off. */
+  sinceBurst: number;
+}
+export const Anomaly = defineComponent<Anomaly>('Anomaly');
+
+/** A thrown bolt: flies in an arc, then lies on the ground (and sets off anomalies it touches). */
+export interface Bolt {
+  /** Ground position it flies over, and its height above the ground. */
+  vx: number;
+  vy: number;
+  z: number;
+  vz: number;
+  landed: boolean;
+  /** Seconds until it disappears. */
+  life: number;
+}
+export const Bolt = defineComponent<Bolt>('Bolt');

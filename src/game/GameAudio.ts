@@ -1,4 +1,6 @@
 import type { AudioEngine } from '../audio/AudioEngine';
+import type { AnomalyDef } from '../content/types/anomaly';
+import { decayRate } from './radiation';
 import type { ContentRegistry } from '../content/Registry';
 import type { EventBus } from '../core/EventBus';
 import type { Entity, World } from '../ecs/World';
@@ -21,6 +23,9 @@ const HURT_CHANCE = 0.45;
  */
 export class GameAudio {
   private heartbeatIn = 0;
+  private idleIn = new Map<string, number>();
+  private lastRads = 0;
+  private radRate = 0;
 
   constructor(
     private audio: AudioEngine,
@@ -55,6 +60,28 @@ export class GameAudio {
       a.play(this.race(d.entity)?.sounds?.death, this.at(d.entity), 'death');
       if (d.entity === this.player()) a.playCue('player_death');
     });
+    events.on('anomaly', (an) => {
+      if (an.phase === 'burst') a.play(this.content.tryGet('anomaly', an.defId)?.sounds?.trigger, { x: an.x, y: an.y }, 'anomaly_burst');
+    });
+    events.on('boltThrown', (b) => a.playCue('bolt_throw', { x: b.x, y: b.y }));
+    events.on('boltLanded', (b) => a.playCue('bolt_land', { x: b.x, y: b.y }));
+  }
+
+  /** Idle hum, crackle and bubbling of anomalies near the player, each on its own rhythm. */
+  anomalies(dt: number, near: Iterable<{ x: number; y: number; def: AnomalyDef }>): void {
+    for (const n of near) {
+      const id = n.def.sounds?.idle;
+      if (!id) continue;
+      const key = `${Math.round(n.x)},${Math.round(n.y)}`;
+      const left = (this.idleIn.get(key) ?? Math.random()) - dt;
+      if (left > 0) {
+        this.idleIn.set(key, left);
+        continue;
+      }
+      this.idleIn.set(key, 1.2 + Math.random() * 1.5);
+      this.audio.play(id, { x: n.x, y: n.y });
+    }
+    if (this.idleIn.size > 400) this.idleIn.clear();
   }
 
   /** A foot came down. */
@@ -70,7 +97,8 @@ export class GameAudio {
   }
 
   /** Low-health heartbeat, quicker the closer to death. */
-  update(dt: number, hpFrac: number, alive: boolean): void {
+  update(dt: number, hpFrac: number, alive: boolean, rads = 0): void {
+    this.geiger(dt, alive ? rads : 0);
     if (!alive || hpFrac >= 0.3) {
       this.heartbeatIn = 0;
       return;
@@ -79,6 +107,25 @@ export class GameAudio {
     if (this.heartbeatIn <= 0) {
       this.audio.playCue('heartbeat', { volume: 0.6 + (0.3 - hpFrac) * 2 });
       this.heartbeatIn = 0.55 + hpFrac * 2;
+    }
+  }
+
+  /**
+   * Geiger counter: clicks at a rate that follows how fast the player is
+   * taking in radiation (the dose rising), from a few a second to a buzz.
+   */
+  private geiger(dt: number, rads: number): void {
+    if (dt <= 0) return;
+    // Intake = change in dose + what the body cleared meanwhile; a small floor ignores the trickle from artifacts.
+    const rising = Math.max(0, (rads - this.lastRads) / dt + decayRate(rads) - 2);
+    this.lastRads = rads;
+    this.radRate += (rising - this.radRate) * Math.min(1, dt * 3);
+    if (this.radRate < 0.3) return;
+    const clicksPerSec = Math.min(30, this.radRate * 1.2);
+    let n = clicksPerSec * dt;
+    while (n > 0) {
+      if (Math.random() < Math.min(1, n)) this.audio.playCue('geiger', { volume: 0.6 + Math.random() * 0.4 });
+      n -= 1;
     }
   }
 

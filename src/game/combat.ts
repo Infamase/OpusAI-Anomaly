@@ -60,6 +60,7 @@ export function applyDamage(world: World, content: ContentRegistry, target: Enti
   const dealt = health.god ? 0 : hit.amount * (1 - blocked);
   health.hp -= dealt;
   health.sinceHit = 0;
+  if (hit.attacker !== null) health.cause = undefined;
 
   const eq = world.get(target, Equipment);
   if (eq && stats) {
@@ -181,8 +182,15 @@ export function segmentBoxEntry(
  * First solid tile along a segment, as a fraction 0..1 (or null if clear).
  * Walks tile by tile (Amanatides–Woo), so fast bullets never skip a thin wall.
  */
-export function segmentHitsSolid(map: TileMap, x0: number, y0: number, x1: number, y1: number, opaqueOnly = false): number | null {
-  const blocked = (tx: number, ty: number) => (opaqueOnly ? map.tiles.opaque[map.getTile(tx, ty)] === 1 : map.blocksShots(tx, ty));
+export type SegmentMode = 'shots' | 'sight' | 'walk';
+
+/**
+ * `mode`: what counts as blocking: walls for bullets (`shots`, water doesn't
+ * stop them), opaque tiles for `sight`, anything solid for `walk`.
+ */
+export function segmentHitsSolid(map: TileMap, x0: number, y0: number, x1: number, y1: number, mode: SegmentMode = 'shots'): number | null {
+  const blocked = (tx: number, ty: number) =>
+    mode === 'sight' ? map.tiles.opaque[map.getTile(tx, ty)] === 1 : mode === 'walk' ? map.isSolid(tx, ty) : map.blocksShots(tx, ty);
   let tx = Math.floor(x0 / TILE_PX);
   let ty = Math.floor(y0 / TILE_PX);
   if (blocked(tx, ty)) return 0;
@@ -213,5 +221,5 @@ export function segmentHitsSolid(map: TileMap, x0: number, y0: number, x1: numbe
 
 /** True if nothing opaque lies between two points. */
 export function lineOfSight(map: TileMap, x0: number, y0: number, x1: number, y1: number): boolean {
-  return segmentHitsSolid(map, x0, y0, x1, y1, true) === null;
+  return segmentHitsSolid(map, x0, y0, x1, y1, 'sight') === null;
 }

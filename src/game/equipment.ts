@@ -4,7 +4,8 @@ import { WEAPON_SLOTS, type WeaponSlot } from '../content/types/weapon';
 import type { Entity, World } from '../ecs/World';
 import { ARMOR_SLOTS, type ArmorSlot } from '../render/placeholder/armor';
 import { placeholderArmorSrc, type SpriteSheetCache } from '../render/SpriteSheets';
-import type { EquipmentSave, ItemInstance } from '../save/types';
+import type { BeltSlotId, EquipmentSave, ItemInstance } from '../save/types';
+import type { ArtifactDef } from '../content/types';
 import type { StatBlock, StatModifier } from '../stats/Stats';
 import { Character, Equipment, Stats, View } from './components';
 import { addItem, createItem, createLoadedWeapon } from './items';
@@ -50,6 +51,15 @@ export function armorModifiers(content: ContentRegistry, item: ItemInstance, arm
   });
 }
 
+/** Artifact belt slots, in order. */
+export const BELT_SLOTS = ['belt1', 'belt2', 'belt3'] as const satisfies readonly BeltSlotId[];
+export const isBeltSlot = (slot: string): slot is BeltSlotId => (BELT_SLOTS as readonly string[]).includes(slot);
+
+/** An artifact's stat modifiers (they don't wear out). */
+export function artifactModifiers(item: ItemInstance, def: ArtifactDef): StatModifier[] {
+  return def.modifiers.map((m) => ({ ...m, source: itemSource(item) }));
+}
+
 /** Adds the modifiers of every recognised worn item to a stat block. */
 export function applyEquipmentStats(stats: StatBlock, content: ContentRegistry, equipment: EquipmentSave): void {
   for (const slot of ARMOR_SLOTS) {
@@ -57,6 +67,34 @@ export function applyEquipmentStats(stats: StatBlock, content: ContentRegistry, 
     const def = item && content.tryGet('armor', item.defId);
     if (item && def) stats.addModifiers(armorModifiers(content, item, def));
   }
+  for (const slot of BELT_SLOTS) {
+    const item = equipment[slot];
+    const def = item && content.tryGet('artifact', item.defId);
+    if (item && def) stats.addModifiers(artifactModifiers(item, def));
+  }
+}
+
+/** Puts an artifact on the belt: in `slot`, else the first free slot, else swapping out the first. */
+export function equipArtifact(world: World, content: ContentRegistry, e: Entity, item: ItemInstance, slot?: BeltSlotId): EquipResult {
+  const def = content.tryGet('artifact', item.defId);
+  if (!def) return { ok: false, reason: `Unknown artifact "${item.defId}".` };
+  const eq = world.req(e, Equipment);
+  const stats = world.req(e, Stats);
+  const target = slot ?? BELT_SLOTS.find((s) => !eq[s]) ?? 'belt1';
+  const replaced = eq[target];
+  if (replaced) stats.removeSource(itemSource(replaced));
+  eq[target] = item;
+  stats.addModifiers(artifactModifiers(item, def));
+  return { ok: true, replaced };
+}
+
+export function unequipArtifact(world: World, e: Entity, slot: BeltSlotId): ItemInstance | undefined {
+  const eq = world.req(e, Equipment);
+  const item = eq[slot];
+  if (!item) return undefined;
+  world.req(e, Stats).removeSource(itemSource(item));
+  delete eq[slot];
+  return item;
 }
 
 /** Re-applies one worn item's modifiers (after its condition changed). */

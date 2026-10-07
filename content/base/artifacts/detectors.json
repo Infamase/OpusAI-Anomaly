@@ -1,0 +1,6 @@
+[
+  { "type": "detector", "id": "echo_detector", "name": "Echo Detector", "description": "Beeps faster as an artifact gets close. Can't tell you which way.",
+    "weight": 0.5, "value": 1200, "range": 14, "reveal": 2.5, "direction": false, "color": "#6a6a4a" },
+  { "type": "detector", "id": "bear_detector", "name": "Bear Detector", "description": "Points toward the nearest artifact and reveals it from further away.",
+    "weight": 0.6, "value": 4500, "range": 22, "reveal": 4.5, "direction": true, "color": "#4a5a6a" }
+]

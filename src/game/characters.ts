@@ -122,6 +122,8 @@ export interface CombatOptions {
   inventory?: ItemInstance[];
   /** Starting hit points; defaults to full. */
   hp?: number;
+  /** Starting radiation dose. */
+  rads?: number;
   infiniteAmmo?: boolean;
 }
 
@@ -130,7 +132,7 @@ export function addCombatComponents(world: World, e: Entity, opts: CombatOptions
   const stats = world.req(e, Stats);
   const eq = world.req(e, Equipment);
   const maxHp = stats.get('max_health');
-  world.add(e, Health, { hp: Math.min(maxHp, opts.hp ?? maxHp), bleed: 0, dead: false, sinceHit: 99, regen: [] });
+  world.add(e, Health, { hp: Math.min(maxHp, opts.hp ?? maxHp), bleed: 0, dead: false, sinceHit: 99, regen: [], rads: opts.rads ?? 0 });
   world.add(e, Stamina, { current: stats.get('max_stamina'), exhausted: false, regenDelay: 0 });
   const active = opts.active !== undefined && opts.active !== null && eq[opts.active] ? opts.active : defaultActiveWeapon(eq);
   const combat = newCombatant(active);

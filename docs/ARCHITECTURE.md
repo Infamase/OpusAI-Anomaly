@@ -29,6 +29,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 10 AI & factions | `src/game/factions.ts`, `npcs.ts`, `population.ts`, `src/game/ai/` | Faction relations & reputation, NPC templates, camps, NPC brains, A* pathfinding, bodies that persist |
 | 11 Sound | `src/audio/`, `src/game/GameAudio.ts`, `content/*/sounds/` | Synthesized (or recorded) sounds as content, WebAudio mixer with positional audio, gameplay and UI sounds, ambience |
 | 13 Planets | `src/game/world/planetGenerator.ts`, `exploration.ts`, `scenes/MapScene.ts`, `content/*/biomes`, `content/*/structures` | Planet generation (biomes, lakes, rivers, structures, roads), explored-area map |
+| 14 Anomalies & artifacts | `src/game/systems/AnomalySystem.ts`, `ArtifactSystem.ts`, `radiation.ts`, `ai/hazards.ts`, `src/render/AnomalyFx.ts`, `content/*/anomalies`, `content/*/artifacts` | Hazards, bolts, radiation, artifacts on the belt, detectors |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -251,6 +252,44 @@ over the canvas and draw animated characters with `CharacterPreview`.
   New characters start on `zone_north`; older saves stay where they were. The
   dev panel can travel between worlds.
 
+## Anomalies & artifacts (Module 14)
+
+- **Anomalies** (`content/*/anomalies/`) combine four behaviors: a `burst`
+  (set off by anything alive or a thrown bolt coming within `radius`, after a
+  `windup`, then a `cooldown`; damage of `damageType` with knockback or
+  pull-in), `pull` (drag toward the center), `dot` (damage per second while
+  inside) and `radiation` (dose per second, strongest at the center). `style`
+  picks the look and sound; `visibility` how easy it is to see. The Zone has
+  burners, electros, vortexes, acid pools and invisible radiation hot spots.
+- **`AnomalySystem`** runs after the controls and AI (so pulls add to their
+  movement) and before movement; anomalies hurt NPCs too. Damage over time is
+  dealt in 0.4 s chunks (one hit event, not sixty). Deaths record a cause
+  ("Killed by a burner anomaly.") for the death screen.
+- **Bolts** (G): `throwBolt` + `BoltSystem` fly a bolt in an arc; it bounces,
+  lies there for a while, and sets off anomalies it lands in.
+- **Radiation** (`game/radiation.ts`): a dose in `Health.rads`, taken in
+  through `radiation_resist`, cleared at `0.5 + 1%` per second, and above
+  30 rads it costs health. A steady source settles at a predictable dose
+  (`equilibriumDose`). Anti-rad and vodka flush it (`antiRad` consumable
+  effect). The HUD shows the dose; a Geiger counter clicks with the intake.
+- **Artifacts** (`content/*/artifacts/`, item kind `artifact`) grow inside the
+  anomalies listed in `spawnsIn`, weighted by `rarity`. Worn on the three belt
+  slots (`belt1..3`), they add stat `modifiers` (like armor), and
+  `ArtifactSystem` applies their `radiation` (negative = cleansing) and
+  `regen` over time.
+- **Detectors** (item kind `detector`) work from the backpack (the best one
+  counts): the HUD shows signal strength and distance (and a direction arrow if
+  `direction`), they beep faster as you close in, and artifacts within
+  `reveal` become visible. Until then they're hidden (and off the minimap).
+- **On planets** the generator places anomaly `fields` (anomaly kinds, count,
+  members, spread, biomes, artifact chance) off roads, out of places and away
+  from the start, plus `stray` single anomalies; artifacts sit inside a
+  matching anomaly's reach. Fields are map landmarks (red rings). Taken
+  artifacts are saved as removals of generated objects.
+- **NPCs** know where anomalies are (`HazardMap`, filled as their chunks load):
+  paths treat those tiles as very expensive, straight-line shortcuts never
+  cross them, and they never pick a goal inside one.
+
 ## Extension points
 
 ### Add a playable race
@@ -323,6 +362,14 @@ generated tile.
    a tile, …) or give it a `"cue"` to make it the default for that moment.
 3. To audition recipes, render them to WAV with `synthesize()` (see
    `tests/audio.test.ts`).
+
+### Add an anomaly, artifact or detector
+- **Anomaly:** a def in `content/base/anomalies/` (behavior numbers + `style`),
+  then list it in a planet's `anomalies.fields` or `stray`.
+- **Artifact:** a def in `content/base/artifacts/` with `spawnsIn` anomaly ids,
+  `modifiers`, `radiation`, `regen` and `art` (shape + colors).
+- **Detector:** a def with `range`, `reveal` and `direction`; put it in loot
+  tables or starting inventories.
 
 ### Content packs (expansions / mods)
 `content/<pack>/pack.json` declares `id`, `version`, `dependencies`. Packs load

@@ -1,6 +1,7 @@
 import { buildRamp, hexToRgb, type RGB } from '../palette';
 import { PixelCanvas } from '../PixelCanvas';
 import { PLACEHOLDER_OUTLINE } from './characters';
+import { cap, ell, Rig, tri, v, type Ramp, type Shape } from './rig';
 
 /** Stand-in art for item icons and world props. All sprites are outlined like the characters. */
 
@@ -66,6 +67,28 @@ export function drawConsumable(icon: string, colorHex: string): PixelCanvas {
       pc.vline(9, 2, 9, [110, 114, 120]);
       return finish(pc);
     }
+    case 'pills': {
+      // A blister strip of capsules.
+      const pc = new PixelCanvas(14, 10);
+      pc.rect(1, 2, 12, 6, [190, 196, 200]);
+      pc.hline(1, 2, 12, [220, 224, 228]);
+      pc.hline(1, 7, 12, [140, 146, 150]);
+      for (const x of [2, 6, 10]) {
+        pc.rect(x, 3, 2, 3, c);
+        pc.set(x, 3, shade(c, 1.3));
+      }
+      return finish(pc);
+    }
+    case 'bottle': {
+      // Clear glass bottle with a label.
+      const pc = new PixelCanvas(8, 16);
+      pc.rect(3, 1, 2, 4, [120, 140, 130]);
+      pc.rect(2, 5, 4, 10, shade(c, 0.85));
+      pc.vline(2, 5, 10, shade(c, 1.15));
+      pc.rect(2, 8, 4, 4, [200, 60, 50]);
+      pc.hline(2, 8, 4, [230, 200, 120]);
+      return finish(pc);
+    }
     default: {
       const pc = new PixelCanvas(10, 14);
       pc.rect(2, 2, 6, 11, c);
@@ -76,6 +99,90 @@ export function drawConsumable(icon: string, colorHex: string): PixelCanvas {
       return finish(pc);
     }
   }
+}
+
+const rampOf = (hex: string) => buildRamp(hex) as unknown as Ramp;
+
+/**
+ * Artifacts: small, strange, glowing things. The same art is the inventory
+ * icon and the object lying in an anomaly field. 18x18.
+ */
+export function drawArtifact(shape: string, colorHex: string, glowHex: string): PixelCanvas {
+  const S = 18;
+  const c = S / 2;
+  const rig = new Rig(S, S);
+  const body = rampOf(colorHex);
+  const glow = rampOf(glowHex);
+  switch (shape) {
+    case 'crystal': {
+      const shards: Shape[] = [
+        tri(v(c - 5, c + 6), v(c - 1, c + 6), v(c - 3, c - 4), { dome: 0.4 }),
+        tri(v(c - 2, c + 6), v(c + 3, c + 6), v(c + 1, c - 7), { dome: 0.4 }),
+        tri(v(c + 1, c + 6), v(c + 6, c + 6), v(c + 4, c - 2), { dome: 0.4 }),
+      ];
+      const p = rig.add({ region: 0, ramp: body, relief: 1.2 }, shards);
+      rig.decal(glow, [ell(v(c + 1, c - 1), 1.2, 3)], { parts: [p] });
+      break;
+    }
+    case 'orb': {
+      const p = rig.add({ region: 0, ramp: body, relief: 1.3 }, [ell(v(c, c), 6, 6)]);
+      rig.decal(glow, [cap(v(c - 4, c + 1), v(c + 2, c - 3), 1, 0.6), ell(v(c + 2, c + 2), 1.4, 1.4)], { parts: [p] });
+      break;
+    }
+    case 'spiky': {
+      const spikes: Shape[] = [];
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        spikes.push(tri(v(c + Math.cos(a + 0.35) * 3, c + Math.sin(a + 0.35) * 3), v(c + Math.cos(a - 0.35) * 3, c + Math.sin(a - 0.35) * 3), v(c + Math.cos(a) * 8, c + Math.sin(a) * 8)));
+      }
+      rig.add({ region: 0, ramp: body }, spikes);
+      rig.add({ region: 1, ramp: glow, relief: 1.3 }, [ell(v(c, c), 3.4, 3.4)]);
+      break;
+    }
+    case 'shell': {
+      const coils: Shape[] = [];
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.3;
+        const r = 5.5 - i;
+        coils.push(ell(v(c + Math.cos(a) * (5 - i) * 0.6, c + Math.sin(a) * (5 - i) * 0.6), r, r * 0.85));
+      }
+      const p = rig.add({ region: 0, ramp: body, relief: 1.2 }, coils);
+      rig.decal(glow, [ell(v(c, c), 1.5, 1.5)], { parts: [p] });
+      break;
+    }
+    case 'flower': {
+      const petals: Shape[] = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        petals.push(ell(v(c + Math.cos(a) * 4.5, c + Math.sin(a) * 4.5), 3.2, 3.2));
+      }
+      rig.add({ region: 0, ramp: body, relief: 1.1 }, petals);
+      rig.add({ region: 1, ramp: glow, relief: 1.3 }, [ell(v(c, c), 2.6, 2.6)]);
+      break;
+    }
+    default: {
+      const p = rig.add({ region: 0, ramp: body, relief: 1.1 }, [ell(v(c - 1, c + 1), 6, 5), ell(v(c + 3, c - 2), 4, 3.5)]);
+      rig.decal(glow, [cap(v(c - 5, c + 2), v(c + 1, c - 1), 0.7, 0.7), cap(v(c + 1, c - 1), v(c + 5, c - 3), 0.7, 0.6)], { parts: [p] });
+    }
+  }
+  return rig.finish();
+}
+
+/** A handheld detector: a box with a lit screen and a stubby antenna. 14x16. */
+export function drawDetector(colorHex: string): PixelCanvas {
+  const pc = new PixelCanvas(14, 16);
+  const r = buildRamp(colorHex);
+  pc.vline(10, 1, 4, [70, 72, 70]);
+  pc.set(10, 0, [200, 60, 40]);
+  pc.rect(2, 4, 10, 11, r[3]!);
+  pc.hline(2, 4, 10, r[4]!);
+  pc.vline(11, 4, 11, r[1]!);
+  pc.hline(2, 14, 10, r[1]!);
+  pc.rect(4, 6, 6, 4, [30, 44, 34]);
+  pc.hline(4, 8, 6, [110, 220, 120]);
+  pc.set(6, 7, [110, 220, 120]);
+  for (const x of [4, 7]) pc.rect(x, 11, 2, 2, r[1]!);
+  return finish(pc);
 }
 
 /** World crates: wooden supply crate or olive military case, sized for 64px characters. */

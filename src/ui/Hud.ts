@@ -1,3 +1,4 @@
+import { DANGEROUS_DOSE, SAFE_DOSE } from '../game/radiation';
 import { el } from './dom';
 import { Minimap } from './Minimap';
 
@@ -14,10 +15,19 @@ export interface HudWeapon {
   reload: number | null;
 }
 
+/** What the carried detector says: nearest artifact distance in tiles (null = nothing in range), and which way (if it can tell). */
+export interface DetectorReading {
+  name: string;
+  distance: number | null;
+  angle: number | null;
+}
+
 export interface HudState {
   hp: number;
   maxHp: number;
   bleed: number;
+  /** Radiation dose. */
+  rads: number;
   /** A heal-over-time effect is running. */
   healing: boolean;
   stamina: number;
@@ -66,6 +76,7 @@ export class Hud {
   private promptEl = el('div', 'hud-prompt');
   private messages = el('div', 'hud-messages');
   private where = el('div', 'hud-where');
+  private detectorBox = el('div', 'hud-detector');
   private last = new Map<string, string>();
   private hurt = 0;
   private trail = 1;
@@ -83,7 +94,7 @@ export class Hud {
     );
     this.weaponBox.append(this.wOther, this.wName, el('div', 'hud-ammo-row', undefined, this.wPips, this.wAmmo), this.wInfo, el('div', 'hud-bar thin', undefined, this.wReload), this.wHint);
     this.weaponBox.className = 'hud-panel hud-weapon';
-    this.minimap.root.append(this.where);
+    this.minimap.root.append(this.where, this.detectorBox);
     this.root.append(this.vignette, this.arcs, this.minimap.root, vitals, this.weaponBox, this.promptEl, this.messages);
     parent.append(this.root);
   }
@@ -91,6 +102,32 @@ export class Hud {
   /** Where the player is, under the minimap ("Pine Forest", "Rookie Village"). */
   location(text: string): void {
     this.set('where', text, (v) => (this.where.textContent = v));
+  }
+
+  /** The detector widget under the minimap (null hides it). */
+  detector(r: DetectorReading | null): void {
+    const sig = r?.distance == null ? 0 : Math.max(1, Math.min(5, Math.ceil(5 - r.distance / 4.5)));
+    const key = r ? `${r.name}|${sig}|${r.distance == null ? '' : Math.round(r.distance)}|${r.angle == null ? '' : Math.round(r.angle * 8)}` : '';
+    this.set('detector', key, () => {
+      if (!r) {
+        this.detectorBox.replaceChildren();
+        return;
+      }
+      const bars = el('span', 'hud-det-bars');
+      for (let i = 1; i <= 5; i++) bars.append(el('i', i <= sig ? 'on' : ''));
+      // Model name only ("Echo"), the widget is narrow.
+      const name = el('span', 'hud-det-name', r.name.replace(/\s*detector\s*/i, '') || r.name);
+      name.title = r.name;
+      const parts: (HTMLElement | string)[] = [name, bars];
+      if (r.distance != null) parts.push(el('span', 'hud-det-dist', `${Math.round(r.distance)} m`));
+      else parts.push(el('span', 'hud-det-dist none', 'no signal'));
+      if (r.angle != null) {
+        const arrow = el('span', 'hud-det-arrow', '➤');
+        arrow.style.transform = `rotate(${r.angle}rad)`;
+        parts.push(arrow);
+      }
+      this.detectorBox.replaceChildren(...parts);
+    });
   }
 
   /** Interaction hint, e.g. "E  Pick up Bandage" (null hides it). The key before the double space becomes a keycap. */
@@ -150,6 +187,7 @@ export class Hud {
     // Status effects.
     const chips: [string, string][] = [];
     if (s.bleed > 0.05) chips.push(['bleed', `Bleeding ${s.bleed.toFixed(1)}/s`]);
+    if (s.rads >= 5) chips.push([s.rads >= DANGEROUS_DOSE ? 'rad danger' : s.rads > SAFE_DOSE ? 'rad' : 'rad low', `Radiation ${Math.round(s.rads)}`]);
     if (s.healing) chips.push(['heal', 'Healing']);
     if (s.exhausted) chips.push(['tired', 'Exhausted']);
     if (s.load.level > 0) chips.push(['load', `${s.load.level === 2 ? 'Immobile' : 'Overloaded'} ${s.load.weight.toFixed(1)}/${s.load.limit.toFixed(0)} kg`]);

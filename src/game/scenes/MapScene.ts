@@ -9,7 +9,7 @@ export interface MapHost {
   /** Player position in tiles and aim angle. */
   playerOnMap(): { x: number; y: number; aim: number | null };
   /** Named places the player has discovered (tile coords). */
-  knownPlaces(): { name: string; x: number; y: number; w: number; h: number }[];
+  knownPlaces(): { name: string; x: number; y: number; w: number; h: number; hazard?: boolean }[];
   /** 0..1 */
   exploredShare(): number;
   /** Where the player currently is ("Pine Forest", "Rookie Village"). */
@@ -51,10 +51,20 @@ export class MapScene implements Scene {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(src, 0, 0, view.width, view.height);
       for (const p of this.host.knownPlaces()) {
-        ctx.strokeStyle = '#e2c060';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(Math.round((p.x - p.w / 2) * k) + 0.5, Math.round((p.y - p.h / 2) * k) + 0.5, Math.round(p.w * k), Math.round(p.h * k));
-        const label = el('span', 'map-label', p.name);
+        if (p.hazard) {
+          // Anomaly fields: a red dashed ring.
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = '#e0573f';
+          ctx.beginPath();
+          ctx.ellipse(p.x * k, p.y * k, (p.w / 2) * k, (p.h / 2) * k, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else {
+          ctx.strokeStyle = '#e2c060';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(Math.round((p.x - p.w / 2) * k) + 0.5, Math.round((p.y - p.h / 2) * k) + 0.5, Math.round(p.w * k), Math.round(p.h * k));
+        }
+        const label = el('span', `map-label${p.hazard ? ' hazard' : ''}`, p.name);
         label.style.left = `${p.x * k}px`;
         label.style.top = `${(p.y - p.h / 2) * k - 4}px`;
         labels.append(label);

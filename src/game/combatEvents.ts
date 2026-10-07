@@ -19,4 +19,9 @@ export interface CombatEvents {
     killed: boolean;
   };
   death: { entity: Entity; killer: Entity | null };
+  /** An anomaly was set off (`trigger`) or went off (`burst`). */
+  anomaly: { entity: Entity; x: number; y: number; defId: string; phase: 'trigger' | 'burst' };
+  /** A bolt was thrown, or hit the ground. */
+  boltThrown: { thrower: Entity; x: number; y: number };
+  boltLanded: { x: number; y: number };
 }

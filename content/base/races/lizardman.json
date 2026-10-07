@@ -38,6 +38,13 @@
   ],
   "startingInventory": [
     {
+      "item": "echo_detector"
+    },
+    {
+      "item": "anti_rad",
+      "count": 2
+    },
+    {
       "item": "ammo_9x19",
       "count": 48
     },

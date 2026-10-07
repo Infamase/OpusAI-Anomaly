@@ -3,7 +3,7 @@ import type { TileDef } from '../content/types';
 import { TILE_PX, type TileMap } from '../game/world/TileMap';
 import { el } from './dom';
 
-export type BlipKind = 'hostile' | 'neutral' | 'friendly' | 'crate' | 'body' | 'item';
+export type BlipKind = 'hostile' | 'neutral' | 'friendly' | 'crate' | 'body' | 'item' | 'artifact';
 export interface Blip {
   x: number;
   y: number;
@@ -21,6 +21,7 @@ const BLIP_COLOR: Record<BlipKind, string> = {
   crate: '#c8a46a',
   body: '#9a9a92',
   item: '#f3eedc',
+  artifact: '#8ae8ff',
 };
 
 /** How a tile reads on the map: dark ground, bright walls, darker clumps for trees. */
@@ -107,6 +108,9 @@ export class Minimap {
         ctx.fillRect(bx + 1, by + 1, 1, 1);
       } else if (b.kind === 'item') {
         ctx.fillRect(bx - 1, by - 1, 2, 2);
+      } else if (b.kind === 'artifact') {
+        ctx.fillRect(bx - 1, by - 2, 2, 4);
+        ctx.fillRect(bx - 2, by - 1, 4, 2);
       } else {
         ctx.fillStyle = '#000';
         ctx.fillRect(bx - 3, by - 3, 6, 6);

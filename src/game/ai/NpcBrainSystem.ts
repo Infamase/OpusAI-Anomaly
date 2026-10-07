@@ -25,7 +25,7 @@ import { PLAYER_FACTION, type Relations } from '../factions';
 import { countItem } from '../items';
 import type { TileMap } from '../world/TileMap';
 import { TILE_PX } from '../world/TileMap';
-import { findPath, type Point } from './pathfinding';
+import { findPath, type Avoid, type Point } from './pathfinding';
 
 /** Vision: range, half-angle of the cone (cos), and the "feel someone right behind you" radius. */
 const SIGHT = 380;
@@ -63,6 +63,9 @@ export class NpcBrainSystem implements System {
   readonly name = 'npcBrain';
   private noises: Noise[] = [];
   private world: World | null = null;
+
+  /** Known hazards (anomalies) to route around. */
+  avoid?: Avoid;
 
   constructor(
     private content: ContentRegistry,
@@ -521,7 +524,13 @@ export class NpcBrainSystem implements System {
       return;
     }
     if (b.repathIn <= 0 || !b.path.length) {
-      const path = findPath(map, t, b.goal, b.state === 'combat' ? 1500 : 3000);
+      // Never head into an anomaly on purpose.
+      if (this.avoid?.(Math.floor(b.goal.x / TILE_PX), Math.floor(b.goal.y / TILE_PX))) {
+        b.goal = null;
+        b.path = [];
+        return;
+      }
+      const path = findPath(map, t, b.goal, b.state === 'combat' ? 1500 : 3000, this.avoid);
       b.repathIn = b.state === 'combat' ? 1.2 : 4;
       if (!path) {
         b.goal = null;

@@ -328,7 +328,8 @@ export class TilemapRenderer {
     const around = DIRS.map(([dx, dy]) => (map.inBounds(tx + dx, ty + dy) ? map.getTile(tx + dx, ty + dy) : tile));
     const spills: { d: number; t: number }[] = [];
     around.forEach((t, d) => {
-      if (wallLike(t) || atlas.blend[t]! <= own) return;
+      // Props don't spill their own ground onto neighbors (they borrow the neighbors' ground).
+      if (wallLike(t) || atlas.props[t] || atlas.blend[t]! <= own) return;
       // Corners only when neither side neighbor already spills the same ground over it.
       if (d >= 4) {
         const [a, b] = d === 4 ? [0, 1] : d === 5 ? [1, 2] : d === 6 ? [2, 3] : [3, 0];

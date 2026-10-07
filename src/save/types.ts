@@ -35,7 +35,9 @@ export interface ItemInstance {
 
 export type ArmorSlotId = 'head' | 'torso' | 'legs';
 export type WeaponSlotId = 'primary' | 'sidearm';
-export type EquipmentSlot = ArmorSlotId | WeaponSlotId;
+/** Artifact belt. */
+export type BeltSlotId = 'belt1' | 'belt2' | 'belt3';
+export type EquipmentSlot = ArmorSlotId | WeaponSlotId | BeltSlotId;
 export type EquipmentSave = Partial<Record<EquipmentSlot, ItemInstance>>;
 
 export interface PlayerSave {
@@ -53,6 +55,8 @@ export interface PlayerSave {
   activeWeapon: WeaponSlotId | null;
   /** Current hit points; missing means full. */
   health?: number;
+  /** Radiation dose. */
+  radiation?: number;
 }
 
 /**

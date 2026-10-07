@@ -46,7 +46,7 @@ function fighter(world: World, raceId: string, x: number, y: number, equipment: 
   world.add(e, Character, { raceId, colors: {}, facing: 'right', anim: 'idle', animTime: 0, sprinting: false });
   world.add(e, Equipment, equipment);
   world.add(e, Stats, buildCharacterStats(content, race, equipment));
-  world.add(e, Health, { hp: 100, bleed: 0, dead: false, sinceHit: 99, regen: [] });
+  world.add(e, Health, { hp: 100, bleed: 0, dead: false, sinceHit: 99, regen: [], rads: 0 });
   world.add(e, Stamina, { current: 100, exhausted: false, regenDelay: 0 });
   world.add(e, Combatant, newCombatant(equipment.primary ? 'primary' : equipment.sidearm ? 'sidearm' : null));
   world.add(e, Inventory, inventory);

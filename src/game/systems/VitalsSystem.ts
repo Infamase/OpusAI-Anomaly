@@ -1,3 +1,4 @@
+import { decayRate, sicknessDamage } from '../radiation';
 import type { EventBus } from '../../core/EventBus';
 import type { System, World } from '../../ecs/World';
 import type { CombatEvents } from '../combatEvents';
@@ -33,6 +34,13 @@ export class VitalsSystem implements System {
         r.left -= t;
       }
       if (h.regen.length) h.regen = h.regen.filter((r) => r.left > 0);
+      // Radiation sickness, while the body slowly clears the dose.
+      if (h.rads > 0) {
+        const sick = sicknessDamage(h.rads);
+        if (!h.god) h.hp -= sick * dt;
+        if (sick > h.bleed) h.cause = 'Radiation sickness killed you.';
+        h.rads = Math.max(0, h.rads - decayRate(h.rads) * dt);
+      }
       if (h.bleed > 0) {
         if (!h.god) h.hp -= h.bleed * dt;
         h.bleed = Math.max(0, h.bleed - BLEED_DECAY * dt);

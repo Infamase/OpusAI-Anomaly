@@ -22,6 +22,11 @@ export class PropView {
   }
 
   /** Outline shown when it's the thing E would interact with. */
+  /** Hidden props (undetected artifacts) aren't drawn at all. */
+  setHidden(hidden: boolean): void {
+    this.root.visible = !hidden;
+  }
+
   setHighlight(on: boolean): void {
     this.glow.visible = on;
   }

@@ -2,10 +2,10 @@ import { findItem } from '../content/items';
 import type { ContentRegistry } from '../content/Registry';
 import type { Entity, World } from '../ecs/World';
 import type { SpriteSheetCache } from '../render/SpriteSheets';
-import type { EquipmentSlot, ItemInstance } from '../save/types';
+import type { BeltSlotId, EquipmentSlot, ItemInstance } from '../save/types';
 import { Character, Combatant, Equipment, Inventory } from './components';
 import { useConsumable } from './consumables';
-import { equipArmor, equipWeapon, fitProblem, prepareArmorArt, unequipArmor, unequipWeapon } from './equipment';
+import { equipArmor, equipArtifact, equipWeapon, fitProblem, isBeltSlot, prepareArmorArt, unequipArmor, unequipArtifact, unequipWeapon } from './equipment';
 import { addItem, createItem, removeInstance } from './items';
 
 /**
@@ -20,10 +20,22 @@ export async function equipFromInventory(
   sheets: SpriteSheetCache,
   e: Entity,
   item: ItemInstance,
+  /** For artifacts: which belt slot (default: the first free one). */
+  beltSlot?: BeltSlotId,
 ): Promise<string | null> {
   const inv = world.req(e, Inventory);
   const info = findItem(content, item.defId);
   if (!info) return 'Unknown item.';
+  if (info.kind === 'artifact') {
+    removeInstance(inv, item.uid);
+    const res = equipArtifact(world, content, e, item, beltSlot);
+    if (!res.ok) {
+      addItem(content, inv, item);
+      return res.reason;
+    }
+    if (res.replaced) addItem(content, inv, res.replaced);
+    return null;
+  }
   if (info.kind === 'armor') {
     const problem = fitProblem(content, world.req(e, Character).raceId, info.def);
     if (problem) return problem;
@@ -57,6 +69,11 @@ export async function equipFromInventory(
 
 export function unequipToInventory(world: World, content: ContentRegistry, sheets: SpriteSheetCache, e: Entity, slot: EquipmentSlot): void {
   const inv = world.req(e, Inventory);
+  if (isBeltSlot(slot)) {
+    const item = unequipArtifact(world, e, slot);
+    if (item) addItem(content, inv, item);
+    return;
+  }
   if (slot === 'primary' || slot === 'sidearm') {
     const item = unequipWeapon(world, e, slot);
     if (!item) return;
@@ -91,5 +108,6 @@ export function slotFor(content: ContentRegistry, defId: string): EquipmentSlot 
   const info = findItem(content, defId);
   if (info?.kind === 'armor') return info.def.slot;
   if (info?.kind === 'weapon') return info.def.slot;
+  if (info?.kind === 'artifact') return 'belt1';
   return null;
 }

@@ -204,7 +204,7 @@ function npc(w: World, faction: string, templateId: string, x: number, y: number
   w.add(e, Character, { raceId: 'human', colors: {}, facing, anim: 'idle', animTime: 0, sprinting: false });
   w.add(e, Equipment, equipment);
   w.add(e, Stats, buildCharacterStats(content, race, equipment));
-  w.add(e, Health, { hp: 100, bleed: 0, dead: false, sinceHit: 99, regen: [] });
+  w.add(e, Health, { hp: 100, bleed: 0, dead: false, sinceHit: 99, regen: [], rads: 0 });
   w.add(e, Stamina, { current: 100, exhausted: false, regenDelay: 0 });
   w.add(e, Combatant, newCombatant('primary'));
   w.add(e, Inventory, [{ uid: `ammo${e}`, defId: content.get('weapon', weapon).ammo[0]!, condition: 1, count: 90 }]);

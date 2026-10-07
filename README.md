@@ -10,7 +10,14 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > pine forests, swamps, wasteland and rocky highlands, lakes and rivers,
 > farmhouses, bandit hideouts, an army checkpoint, a ruined factory, roads
 > (with bridges) joining them, and patrols walking the roads. The PDA map (M)
-> fills in as you explore. NPCs spot, hear and
+> fills in as you explore.
+>
+> **Anomalies & artifacts:** burners, electros, vortexes, acid pools and
+> invisible radiation hot spots, in fields away from the roads. Throw bolts (G)
+> to set them off safely. Artifacts grow inside them: find them with a
+> detector (it beeps faster as you close in, then reveals them), wear up to
+> three on your belt for bonuses, and watch your radiation: anti-rad and vodka
+> help, a Geiger counter tells you when you're taking it in. NPCs spot, hear and
 > hunt each other (and you), take cover, reload, heal and call out to their
 > squad. Dead NPCs stay dead and their bodies keep their loot. Five weapons,
 > six ammo types, a weight-limited backpack, saves you can move between PCs.
@@ -62,6 +69,7 @@ dev panel, `?mute=1` starts muted. Sound, zoom and renderer settings are under
 | Inventory | Tab or I | Y |
 | Quick heal (bandage if bleeding, else best medkit) | H | D-pad down |
 | PDA map | M | D-pad up |
+| Throw a bolt (sets off anomalies) | G | LB |
 | Pause | Esc | Start |
 | Dev panel | ` or F3 | Select |
 
@@ -87,7 +95,7 @@ whether to replace it or keep both.
 ## Project layout
 
 ```
-content/base/        game data: races, stats, tiles, biomes, structures, armor, weapons, ammo, consumables, loot tables, factions, NPC templates, sounds, worlds
+content/base/        game data: races, stats, tiles, biomes, structures, anomalies, artifacts & detectors, armor, weapons, ammo, consumables, loot tables, factions, NPC templates, sounds, worlds
 docs/                RUNNING.md (play it on your PC) · ARCHITECTURE.md (how it fits together, how to extend) · SPRITE_SPEC.md (art contract)
 public/              static files (icons, manifest; sprite PNGs go in public/sprites/)
 src/core/            game loop, scenes, events, RNG, settings
@@ -108,7 +116,7 @@ tests/               vitest unit tests
 | --- | --- | --- |
 | 0 Foundation | Core, renderer, input, ECS/content/stats, saves | ✅ |
 | 1 Vertical slice | Armor + creator + menus · combat · inventory · AI & factions · art overhaul · cutout animation · sound · HUD | ✅ |
-| 2 Worlds | ✅ Planet generation · station/ship chunk generation · alien fauna · anomalies & artifacts | in progress |
+| 2 Worlds | ✅ Planet generation · ✅ anomalies & artifacts · station/ship chunk generation · alien fauna | in progress |
 | 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, music & polish | |
 
 ## Deploying to GitHub Pages

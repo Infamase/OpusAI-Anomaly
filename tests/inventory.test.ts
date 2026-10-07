@@ -166,7 +166,7 @@ describe('world objects and saved changes', () => {
     const all = [];
     for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++) all.push(...m.objects(cx, cy));
     expect(all.length).toBeGreaterThan(10);
-    expect(all.filter((o) => o.variant === 'military').length).toBe(2);
+    expect(all.filter((o) => o.kind === 'crate' && o.variant === 'military').length).toBe(2);
     for (const o of all) expect(m.isSolid(Math.floor(o.x / 32), Math.floor(o.y / 32))).toBe(false);
     const again = map(99);
     expect(again.objects(3, 3)).toEqual(m.objects(3, 3));

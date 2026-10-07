@@ -27,6 +27,17 @@
       { "id": "bandit_patrol", "faction": "bandits", "templates": ["bandit_thug", "bandit_thug", "bandit_gunner"], "count": 2 },
       { "id": "army_patrol", "faction": "military", "templates": ["military_rifleman", "military_rifleman", "military_marksman"], "count": 1 }
     ],
-    "crates": { "chance": 0.12, "lootTable": "supply_crate" }
+    "crates": { "chance": 0.12, "lootTable": "supply_crate" },
+    "anomalies": {
+      "fields": [
+        { "anomalies": ["burner"], "count": [3, 5], "size": [3, 6], "spread": 6, "biomes": ["wasteland", "highlands", "meadow"] },
+        { "anomalies": ["electro"], "count": [3, 5], "size": [3, 5], "spread": 6 },
+        { "anomalies": ["vortex"], "count": [2, 4], "size": [2, 4], "spread": 8, "biomes": ["highlands", "wasteland", "meadow", "pine_forest"] },
+        { "anomalies": ["acid_pool"], "count": [3, 5], "size": [3, 6], "spread": 6, "biomes": ["swamp", "pine_forest"] },
+        { "anomalies": ["hot_spot", "burner"], "count": [2, 3], "size": [3, 5], "spread": 8, "biomes": ["wasteland"] },
+        { "anomalies": ["electro", "vortex", "burner"], "count": [1, 2], "size": [6, 9], "spread": 11, "artifacts": 0.9 }
+      ],
+      "stray": { "anomalies": ["burner", "electro", "acid_pool", "hot_spot"], "count": 60 }
+    }
   }
 }

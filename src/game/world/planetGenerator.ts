@@ -1,4 +1,6 @@
 import { parseOrThrow, v } from '../../content/schema';
+import type { AnomalyDef } from '../../content/types/anomaly';
+import type { ArtifactDef } from '../../content/types/artifact';
 import type { BiomeDef } from '../../content/types/biome';
 import type { LegendEntry, StructureDef } from '../../content/types/structure';
 import { deriveSeed, fbm2D, hashInts, Rng } from '../../core/rng';
@@ -63,6 +65,28 @@ const paramsSchema = v.object({
   ),
   /** Supply crates lying around in the wild. */
   crates: v.optional(v.object({ chance: v.number({ min: 0, max: 1 }), lootTable: v.id() })),
+  /**
+   * Anomaly fields: clusters of one or more anomaly kinds, kept away from roads
+   * and places, where artifacts grow. Plus `stray` lone anomalies in the wild.
+   */
+  anomalies: v.optional(
+    v.object({
+      fields: v.array(
+        v.object({
+          anomalies: v.array(v.id(), { min: 1 }),
+          count: v.tuple2(v.number({ int: true, min: 0 }), v.number({ int: true, min: 0 })),
+          /** Anomalies per field. */
+          size: v.tuple2(v.number({ int: true, min: 1 }), v.number({ int: true, min: 1 })),
+          /** How far members spread from the center, tiles. */
+          spread: v.optional(v.number({ min: 1 }), 6),
+          biomes: v.optional(v.array(v.id())),
+          /** Chance a field holds an artifact (rolled for each of up to 2). */
+          artifacts: v.optional(v.number({ min: 0, max: 1 }), 0.6),
+        }),
+      ),
+      stray: v.optional(v.object({ anomalies: v.array(v.id(), { min: 1 }), count: v.number({ int: true, min: 0 }) })),
+    }),
+  ),
 });
 
 // ---- resolved (tile indices) ----------------------------------------------
@@ -112,6 +136,8 @@ interface Params {
   structures: { s: Structure; count: [number, number]; spacing: number; biomes: Set<number> | null; road: boolean }[];
   patrols: { id: string; faction: string; templates: string[]; count: number }[];
   crates: { chance: number; lootTable: string } | null;
+  anomalyFields: { anomalies: AnomalyDef[]; count: [number, number]; size: [number, number]; spread: number; biomes: Set<number> | null; artifacts: number; growable: ArtifactDef[] }[];
+  strays: { anomalies: AnomalyDef[]; count: number } | null;
   plans: Map<string, Plan>;
 }
 
@@ -194,6 +220,10 @@ interface Plan {
   rivers: Segment[];
   /** Road polylines between places (tile coords), for patrol routes. */
   routes: { from: number; to: number; points: { x: number; y: number }[] }[];
+  /** Anomaly fields: members and artifacts (tile coords, centers). */
+  fields: { x: number; y: number; name: string; spread: number; members: { id: string; x: number; y: number }[]; artifacts: { id: string; x: number; y: number }[] }[];
+  /** Lone anomalies. */
+  strays: { id: string; x: number; y: number }[];
   chunkCache: Map<string, Placed[]>;
 }
 
@@ -319,7 +349,7 @@ class Terrain {
 function makePlan(p: Params, seed: number, W: number, H: number): Plan {
   const terrain = new Terrain(p, seed, W, H);
   const far = () => new Float32Array(W * H).fill(1e9);
-  const plan: Plan = { W, H, seed, terrain, riverEdge: far(), roadDist: far(), placed: [], roads: [], rivers: [], routes: [], chunkCache: new Map() };
+  const plan: Plan = { W, H, seed, terrain, riverEdge: far(), roadDist: far(), placed: [], roads: [], rivers: [], routes: [], fields: [], strays: [], chunkCache: new Map() };
   const margin = p.border.width + 6;
 
   // --- Rivers: start on high ground and walk downhill until they reach a lake.
@@ -450,7 +480,79 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
     for (let k = 1; k < path.length; k++) plan.roads.push({ ax: path[k - 1]!.x, ay: path[k - 1]!.y, bx: path[k]!.x, by: path[k]!.y, width: p.roads.width });
   }
   for (const s of plan.roads) stampDistance(plan.roadDist, W, H, s, s.width + 4, 0);
+  placeAnomalies(plan, p, margin);
   return plan;
+}
+
+/** Anomaly fields and strays: on dry land, clear of roads, places and each other. */
+function placeAnomalies(plan: Plan, p: Params, margin: number): void {
+  const { W, H, terrain } = plan;
+  const rng = new Rng(deriveSeed(plan.seed, 'anomalies'));
+  const k = (x: number, y: number) => Math.floor(y) * W + Math.floor(x);
+  // Keep the area around the arrival point safe.
+  const start = plan.placed[0];
+  const sx = start ? start.x + start.w / 2 : -1e9;
+  const sy = start ? start.y + start.h / 2 : -1e9;
+  const open = (x: number, y: number, clearance: number) =>
+    Math.hypot(x - sx, y - sy) > 30 &&
+    x > margin && y > margin && x < W - margin && y < H - margin &&
+    !terrain.isLake(x, y) && plan.riverEdge[k(x, y)]! > clearance && plan.roadDist[k(x, y)]! > clearance + 3 &&
+    !plan.placed.some((q) => x > q.x - clearance - 4 && x < q.x + q.w + clearance + 4 && y > q.y - clearance - 4 && y < q.y + q.h + clearance + 4);
+  for (const f of p.anomalyFields) {
+    const n = rng.int(f.count[0], Math.max(f.count[0], f.count[1]));
+    for (let i = 0; i < n; i++) {
+      for (let tries = 0; tries < 120; tries++) {
+        const x = rng.range(margin, W - margin);
+        const y = rng.range(margin, H - margin);
+        if (f.biomes && !f.biomes.has(terrain.biome(x, y).index)) continue;
+        if (!open(x, y, f.spread)) continue;
+        if (plan.fields.some((o) => Math.hypot(o.x - x, o.y - y) < o.spread + f.spread + 12)) continue;
+        const members: { id: string; x: number; y: number; r: number }[] = [];
+        const size = rng.int(f.size[0], Math.max(f.size[0], f.size[1]));
+        for (let m = 0; m < size * 6 && members.length < size; m++) {
+          const def = f.anomalies[rng.int(0, f.anomalies.length - 1)]!;
+          const a = rng.range(0, Math.PI * 2);
+          const d = members.length ? rng.range(1, f.spread) : 0;
+          const mx = x + Math.cos(a) * d;
+          const my = y + Math.sin(a) * d;
+          if (!open(mx, my, def.radius)) continue;
+          // Room to walk between them: no overlapping reaches.
+          if (members.some((o) => Math.hypot(o.x - mx, o.y - my) < o.r + def.radius + 1)) continue;
+          members.push({ id: def.id, x: mx, y: my, r: def.radius });
+        }
+        if (!members.length) continue;
+        // Artifacts grow inside the anomalies that make them: risky to fetch.
+        const artifacts: { id: string; x: number; y: number }[] = [];
+        for (let a = 0; a < 2; a++) {
+          if (!rng.chance(f.artifacts * (a ? 0.4 : 1))) continue;
+          const host = members[rng.int(0, members.length - 1)]!;
+          const can = f.growable.filter((d) => d.spawnsIn.includes(host.id));
+          if (!can.length) continue;
+          let roll = rng.range(0, can.reduce((t, d) => t + d.rarity, 0));
+          const pick = can.find((d) => (roll -= d.rarity) <= 0) ?? can[0]!;
+          const ang = rng.range(0, Math.PI * 2);
+          const dist = rng.range(0.2, 0.7) * host.r;
+          artifacts.push({ id: pick.id, x: host.x + Math.cos(ang) * dist, y: host.y + Math.sin(ang) * dist });
+        }
+        const main = f.anomalies[0]!;
+        plan.fields.push({ x, y, spread: f.spread, name: `${main.name} Field`, members: members.map(({ id, x, y }) => ({ id, x, y })), artifacts });
+        break;
+      }
+    }
+  }
+  if (p.strays) {
+    for (let i = 0; i < p.strays.count; i++) {
+      const def = p.strays.anomalies[rng.int(0, p.strays.anomalies.length - 1)]!;
+      for (let tries = 0; tries < 20; tries++) {
+        const x = rng.range(margin, W - margin);
+        const y = rng.range(margin, H - margin);
+        if (!open(x, y, def.radius + 1)) continue;
+        if (plan.fields.some((o) => Math.hypot(o.x - x, o.y - y) < o.spread + 6)) continue;
+        plan.strays.push({ id: def.id, x, y });
+        break;
+      }
+    }
+  }
 }
 
 /** Writes min(distance to segment - offset) into the tiles around it. */
@@ -783,6 +885,20 @@ export const planetGenerator: WorldGenerator<Params> = {
       }),
       patrols: r.patrols,
       crates: r.crates ?? null,
+      anomalyFields: (r.anomalies?.fields ?? []).map((f) => {
+        const anomalies = f.anomalies.map((id) => content.get('anomaly', id));
+        const ids = new Set(f.anomalies);
+        return {
+          anomalies,
+          count: f.count,
+          size: f.size,
+          spread: f.spread,
+          biomes: f.biomes ? new Set(f.biomes.map((b) => biomeIndex.get(b) ?? -1)) : null,
+          artifacts: f.artifacts,
+          growable: content.all('artifact').filter((a) => a.spawnsIn.some((s) => ids.has(s))),
+        };
+      }),
+      strays: r.anomalies?.stray ? { anomalies: r.anomalies.stray.anomalies.map((id) => content.get('anomaly', id)), count: r.anomalies.stray.count } : null,
       plans: new Map(),
     };
   },
@@ -810,6 +926,23 @@ export const planetGenerator: WorldGenerator<Params> = {
         }
       }
     }
+    // Anomalies and the artifacts they grew (skipping any that ended up on a tree or rock).
+    const local = (x: number, y: number) => {
+      const gx = Math.floor(x);
+      const gy = Math.floor(y);
+      return inChunk(gx, gy) && !ctx.tiles.solid[tiles[(gy - y0) * S + (gx - x0)]!];
+    };
+    plan.fields.forEach((f, fi) => {
+      f.members.forEach((m, mi) => {
+        if (local(m.x, m.y)) out.push({ id: `anomaly:${fi}:${mi}`, kind: 'anomaly', x: m.x * T, y: m.y * T, anomaly: m.id });
+      });
+      f.artifacts.forEach((a, ai) => {
+        if (local(a.x, a.y)) out.push({ id: `artifact:${fi}:${ai}`, kind: 'artifact', x: a.x * T, y: a.y * T, artifact: a.id });
+      });
+    });
+    plan.strays.forEach((m, i) => {
+      if (local(m.x, m.y)) out.push({ id: `anomaly:stray:${i}`, kind: 'anomaly', x: m.x * T, y: m.y * T, anomaly: m.id });
+    });
     // A few crates out in the wild, on open ground away from places.
     if (params.crates) {
       const rng = new Rng(deriveSeed(seed, 'crates', cx, cy));
@@ -864,7 +997,10 @@ export const planetGenerator: WorldGenerator<Params> = {
 
   landmarks(seed, params, W, H): Landmark[] {
     const plan = planFor(params, seed, W, H);
-    return plan.placed.filter((q) => q.s.def.label).map((q) => ({ id: `${q.s.def.id}_${q.index}`, name: q.s.def.label!, x: q.x + q.w / 2, y: q.y + q.h / 2, w: q.w, h: q.h }));
+    return [
+      ...plan.placed.filter((q) => q.s.def.label).map((q) => ({ id: `${q.s.def.id}_${q.index}`, name: q.s.def.label!, x: q.x + q.w / 2, y: q.y + q.h / 2, w: q.w, h: q.h })),
+      ...plan.fields.map((f, i) => ({ id: `field_${i}`, name: f.name, x: f.x, y: f.y, w: f.spread * 2, h: f.spread * 2, hazard: true })),
+    ];
   },
 
   biomeAt(seed, params, W, H, tx, ty) {

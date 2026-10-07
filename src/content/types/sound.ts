@@ -40,6 +40,11 @@ export const SOUND_CUES = [
   'bark',
   'player_death',
   'ambient',
+  'anomaly_burst',
+  'geiger',
+  'bolt_throw',
+  'bolt_land',
+  'detector_beep',
 ] as const;
 export type SoundCue = (typeof SOUND_CUES)[number];
 

@@ -1,0 +1,511 @@
+[
+  {
+    "type": "sound",
+    "id": "anom_burner_idle",
+    "range": 420,
+    "volume": 0.35,
+    "maxVoices": 3,
+    "minInterval": 0.5,
+    "variants": 3,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.9,
+          "attack": 0.2,
+          "curve": 1.5,
+          "lfo": [
+            7,
+            0.6
+          ],
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              700,
+              400
+            ]
+          }
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            30,
+            10
+          ],
+          "length": 0.8,
+          "curve": 1.5,
+          "gain": 0.4,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2500,
+              2500
+            ]
+          }
+        }
+      ],
+      "vary": 0.15
+    }
+  },
+  {
+    "type": "sound",
+    "id": "anom_burner_burst",
+    "cue": "anomaly_burst",
+    "range": 800,
+    "volume": 0.9,
+    "maxVoices": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.9,
+          "attack": 0.03,
+          "curve": 1.5,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              400,
+              1800
+            ],
+            "q": 0.7
+          }
+        },
+        {
+          "wave": "brown",
+          "length": 1.0,
+          "attack": 0.05,
+          "curve": 1.5,
+          "gain": 0.8,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              600,
+              250
+            ]
+          }
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            120,
+            40
+          ],
+          "length": 1.0,
+          "curve": 1.2,
+          "gain": 0.5,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2000,
+              2000
+            ]
+          }
+        }
+      ],
+      "drive": 2,
+      "vary": 0.1
+    }
+  },
+  {
+    "type": "sound",
+    "id": "anom_electro_idle",
+    "range": 420,
+    "volume": 0.3,
+    "maxVoices": 3,
+    "minInterval": 0.4,
+    "variants": 3,
+    "synth": {
+      "layers": [
+        {
+          "wave": "saw",
+          "freq": [
+            100,
+            100
+          ],
+          "length": 0.7,
+          "attack": 0.05,
+          "curve": 1,
+          "gain": 0.25,
+          "lfo": [
+            13,
+            0.7
+          ],
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              900,
+              900
+            ]
+          }
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            60,
+            20
+          ],
+          "length": 0.7,
+          "curve": 1,
+          "gain": 0.8,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              3000,
+              3000
+            ]
+          }
+        }
+      ],
+      "vary": 0.15
+    }
+  },
+  {
+    "type": "sound",
+    "id": "anom_electro_burst",
+    "range": 800,
+    "volume": 0.85,
+    "maxVoices": 4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.35,
+          "curve": 2,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              1500,
+              4000
+            ]
+          }
+        },
+        {
+          "wave": "square",
+          "freq": [
+            180,
+            60
+          ],
+          "length": 0.3,
+          "curve": 2,
+          "gain": 0.5,
+          "lfo": [
+            40,
+            0.8
+          ]
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            600,
+            100
+          ],
+          "length": 0.5,
+          "curve": 1.5,
+          "gain": 0.7
+        }
+      ],
+      "drive": 3,
+      "vary": 0.1
+    }
+  },
+  {
+    "type": "sound",
+    "id": "anom_vortex_idle",
+    "range": 480,
+    "volume": 0.35,
+    "maxVoices": 2,
+    "minInterval": 0.8,
+    "variants": 2,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 1.4,
+          "attack": 0.4,
+          "curve": 1.2,
+          "lfo": [
+            1.6,
+            0.7
+          ],
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              300,
+              900
+            ],
+            "q": 1.5
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            45,
+            60
+          ],
+          "length": 1.4,
+          "attack": 0.4,
+          "curve": 1.2,
+          "gain": 0.5
+        }
+      ],
+      "vary": 0.1
+    }
+  },
+  {
+    "type": "sound",
+    "id": "anom_vortex_burst",
+    "range": 900,
+    "volume": 1,
+    "maxVoices": 3,
+    "synth": {
+      "layers": [
+        {
+          "wave": "sine",
+          "freq": [
+            160,
+            30
+          ],
+          "length": 0.6,
+          "curve": 2,
+          "gain": 1
+        },
+        {
+          "wave": "noise",
+          "start": 0.02,
+          "length": 0.7,
+          "curve": 2,
+          "gain": 0.8,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1800,
+              200
+            ]
+          }
+        },
+        {
+          "wave": "noise",
+          "length": 0.25,
+          "attack": 0.2,
+          "curve": 0.5,
+          "gain": 0.4,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              300,
+              1500
+            ],
+            "q": 2
+          }
+        }
+      ],
+      "drive": 2.5,
+      "echo": {
+        "delay": 0.12,
+        "feedback": 0.3,
+        "mix": 0.25
+      }
+    }
+  },
+  {
+    "type": "sound",
+    "id": "anom_acid_idle",
+    "range": 360,
+    "volume": 0.35,
+    "maxVoices": 3,
+    "minInterval": 0.5,
+    "variants": 3,
+    "synth": {
+      "layers": [
+        {
+          "wave": "sine",
+          "freq": [
+            300,
+            700
+          ],
+          "length": 0.06,
+          "curve": 2,
+          "gain": 0.5
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            260,
+            640
+          ],
+          "start": 0.18,
+          "length": 0.06,
+          "curve": 2,
+          "gain": 0.4
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            340,
+            800
+          ],
+          "start": 0.41,
+          "length": 0.05,
+          "curve": 2,
+          "gain": 0.45
+        },
+        {
+          "wave": "noise",
+          "length": 0.6,
+          "curve": 0.5,
+          "gain": 0.15,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1500,
+              1500
+            ],
+            "q": 2
+          }
+        }
+      ],
+      "vary": 0.2
+    }
+  },
+  {
+    "type": "sound",
+    "id": "geiger_click",
+    "cue": "geiger",
+    "bus": "ui",
+    "range": 0,
+    "volume": 0.45,
+    "maxVoices": 12,
+    "minInterval": 0,
+    "pitchJitter": 0.2,
+    "variants": 3,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.008,
+          "curve": 3,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2500,
+              2500
+            ]
+          }
+        },
+        {
+          "wave": "square",
+          "freq": [
+            1800,
+            1800
+          ],
+          "length": 0.006,
+          "curve": 2,
+          "gain": 0.4
+        }
+      ]
+    }
+  },
+  {
+    "type": "sound",
+    "id": "bolt_whoosh",
+    "cue": "bolt_throw",
+    "range": 300,
+    "volume": 0.4,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.18,
+          "attack": 0.05,
+          "curve": 1.5,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1200,
+              2600
+            ],
+            "q": 1.5
+          }
+        }
+      ],
+      "vary": 0.1
+    }
+  },
+  {
+    "type": "sound",
+    "id": "bolt_clink",
+    "cue": "bolt_land",
+    "range": 420,
+    "volume": 0.45,
+    "minInterval": 0.05,
+    "synth": {
+      "layers": [
+        {
+          "wave": "sine",
+          "freq": [
+            2900,
+            2600
+          ],
+          "length": 0.12,
+          "curve": 3,
+          "gain": 0.6
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            4300,
+            4100
+          ],
+          "length": 0.07,
+          "curve": 4,
+          "gain": 0.3
+        },
+        {
+          "wave": "noise",
+          "length": 0.02,
+          "curve": 3,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              3000,
+              3000
+            ]
+          }
+        }
+      ],
+      "vary": 0.08
+    }
+  },
+  {
+    "type": "sound",
+    "id": "detector_beep",
+    "cue": "detector_beep",
+    "bus": "ui",
+    "range": 0,
+    "volume": 0.4,
+    "pitchJitter": 0,
+    "variants": 1,
+    "minInterval": 0.05,
+    "synth": {
+      "layers": [
+        {
+          "wave": "square",
+          "freq": [
+            1250,
+            1250
+          ],
+          "length": 0.05,
+          "attack": 0.003,
+          "curve": 0.6,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              3000,
+              3000
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

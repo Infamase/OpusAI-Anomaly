@@ -1,5 +1,8 @@
 import type { ContentRegistry } from '../Registry';
 import { ammoType } from './ammo';
+import { anomalyType } from './anomaly';
+import { artifactType } from './artifact';
+import { detectorType } from './detector';
 import { biomeType } from './biome';
 import { armorType } from './armor';
 import { consumableType } from './consumable';
@@ -29,6 +32,9 @@ export function defineCoreContentTypes(registry: ContentRegistry): void {
   registry.defineType(ammoType);
   registry.defineType(weaponType);
   registry.defineType(consumableType);
+  registry.defineType(anomalyType);
+  registry.defineType(artifactType);
+  registry.defineType(detectorType);
   registry.defineType(lootTableType);
   registry.defineType(factionType);
   registry.defineType(npcTemplateType);
@@ -39,6 +45,9 @@ export function defineCoreContentTypes(registry: ContentRegistry): void {
 }
 
 export type { AmmoDef } from './ammo';
+export type { AnomalyDef } from './anomaly';
+export type { ArtifactDef } from './artifact';
+export type { DetectorDef } from './detector';
 export type { BiomeDef } from './biome';
 export type { StructureDef } from './structure';
 export type { ArmorDef } from './armor';

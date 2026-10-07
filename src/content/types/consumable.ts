@@ -9,7 +9,7 @@ declare module '../Registry' {
   }
 }
 
-export const CONSUMABLE_ICONS = ['bandage', 'medkit', 'injector', 'food', 'drink'] as const;
+export const CONSUMABLE_ICONS = ['bandage', 'medkit', 'injector', 'food', 'drink', 'pills', 'bottle'] as const;
 
 /** Single-use items: medical supplies, food, stims. */
 const schema = v.object({
@@ -28,6 +28,8 @@ const schema = v.object({
     /** Reduces bleeding by this many hp/s. */
     stopBleed: v.optional(v.number({ min: 0 }), 0),
     stamina: v.optional(v.number({ min: 0 }), 0),
+    /** Radiation dose flushed out. */
+    antiRad: v.optional(v.number({ min: 0 }), 0),
   }),
   icon: v.literal(...CONSUMABLE_ICONS),
   color: v.optional(v.color(), '#c8c0a8'),

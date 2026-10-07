@@ -21,6 +21,12 @@ import { Hud, type HudState } from '../../ui/Hud';
 import type { RGB } from '../../render/palette';
 import type { WorldGenDef } from '../../content/types';
 import { Exploration } from '../exploration';
+import { AnomalyFx, type AnomalyView } from '../../render/AnomalyFx';
+import type { DetectorDef } from '../../content/types/detector';
+import type { DetectorReading } from '../../ui/Hud';
+import { HazardMap } from '../ai/hazards';
+import { AnomalySystem, BoltSystem, throwBolt } from '../systems/AnomalySystem';
+import { ArtifactSystem } from '../systems/ArtifactSystem';
 import { MapScene, type MapHost } from './MapScene';
 import type { Landmark, WorldGenerator } from '../world/generators';
 import { minimapColor, MINIMAP_RADIUS, type Blip } from '../../ui/Minimap';
@@ -51,6 +57,8 @@ import {
   Velocity,
   View,
   WorldItem,
+  Anomaly,
+  Bolt,
 } from '../components';
 import { pickQuickHeal, useConsumable } from '../consumables';
 import { findItem } from '../../content/items';
@@ -162,6 +170,9 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private population: Population | null = null;
   private devSquads = 0;
   private fx = new CombatFx();
+  private anomalyFx = new AnomalyFx();
+  private detectorIn = 0;
+  private detectorReading: DetectorReading | null = null;
   private sound!: GameAudio;
   private worldId = START_WORLD_ID;
   private genDef!: WorldGenDef;
@@ -177,6 +188,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private locationIn = 0;
   private revealIn = 0;
   private minimapIn = 0;
+  /** Where anomalies are, for NPC pathing. */
+  readonly hazards = new HazardMap();
   private crosshair = new Crosshair();
   /** Which weapon each character view currently shows, to know when to swap textures. */
   private shownWeapon = new Map<Entity, string | null>();
@@ -241,14 +254,19 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     });
     this.tileRenderer = new TilemapRenderer(g.renderer.ground, this.map, new TileAtlas(tiles), g.renderer.entities);
     g.renderer.overlay.addChild(this.fx.layer);
+    g.renderer.world.addChildAt(this.anomalyFx.under, g.renderer.world.getChildIndex(g.renderer.entities));
+    g.renderer.overlay.addChild(this.anomalyFx.over);
     g.renderer.screen.addChild(this.crosshair.g);
 
     // --- ECS: systems run in this order every tick.
     const map = () => this.map;
     this.world
       .addSystem(new PlayerControlSystem(g.input, g.camera, () => g.renderer.pixelRatio))
-      .addSystem(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)))
+      .addSystem(Object.assign(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)), { avoid: (tx: number, ty: number) => this.hazards.has(tx, ty) }))
       .addSystem(new WeaponSystem(g.content, map, this.combatEvents))
+      .addSystem(new AnomalySystem(g.content, map, this.combatEvents))
+      .addSystem(new BoltSystem(map, this.combatEvents))
+      .addSystem(new ArtifactSystem(g.content))
       .addSystem(new MovementSystem(map))
       .addSystem(new ProjectileSystem(g.content, map, this.combatEvents))
       .addSystem(new VitalsSystem(this.combatEvents))
@@ -290,6 +308,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       active: save.player.activeWeapon,
       inventory: save.player.inventory,
       hp: save.player.health,
+      rads: save.player.radiation,
     });
     g.renderer.entities.addChild(this.world.req(this.playerEntity, View).root);
     refreshEncumbrance(this.world, g.content, this.playerEntity);
@@ -334,6 +353,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.labels?.destroy();
     this.tileRenderer?.destroy();
     this.fx.destroy();
+    this.anomalyFx.destroy();
+    this.hazards.clear();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
     for (const e of this.world.query(PropViewC)) this.world.destroy(e);
@@ -356,6 +377,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     else if (alive && input.justPressed('interact') && this.focus !== null) this.interact(this.focus);
     else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
+    if (alive && this.game.scenes.current === this && input.justPressed('bolt')) this.throwBolt();
+    if (alive) this.updateDetector(dt);
     if (alive && this.game.scenes.current === this && input.justPressed('map')) void this.game.scenes.push(new MapScene(this.game, this));
     this.revealIn -= dt;
     if (this.revealIn <= 0) {
@@ -370,7 +393,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       this.updateLocation(false);
     }
     const hp = this.world.get(this.playerEntity, Health);
-    this.sound.update(dt, hp ? hp.hp / this.world.req(this.playerEntity, Stats).get('max_health') : 1, alive);
+    this.sound.update(dt, hp ? hp.hp / this.world.req(this.playerEntity, Stats).get('max_health') : 1, alive, hp?.rads ?? 0);
 
     this.playTime += dt;
     this.sinceSave += dt;
@@ -429,10 +452,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       tracers.push({ x: lerp(t.prevX, t.x, alpha), y: lerp(t.prevY, t.y, alpha), vx: pr.vx, vy: pr.vy });
     }
     this.fx.render(frameDt, tracers, bars);
+    this.renderAnomalies(frameDt, alpha);
     this.renderCrosshair(frameDt, px, py);
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
     this.hud?.prompt(this.focus !== null && this.game.scenes.current === this ? this.promptFor(this.focus) : null);
     const chest = g.camera.worldToScreen(px, py - CHEST_HEIGHT);
+    this.hud?.detector(this.detectorReading);
     this.hud?.update(this.hudState(), frameDt, { x: chest.x / g.renderer.pixelRatio, y: chest.y / g.renderer.pixelRatio });
     this.minimapIn -= frameDt;
     if (this.minimapIn <= 0) {
@@ -464,6 +489,16 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         cam.kick(Math.cos(h.angle) * 2, Math.sin(h.angle) * 2);
       }
     });
+    ev.on('anomaly', (a) => {
+      if (a.phase !== 'burst') return;
+      const def = this.game.content.tryGet('anomaly', a.defId);
+      if (!def) return;
+      this.anomalyFx.burst(def, a.x, a.y, def.radius * TILE_PX);
+      // Big ones shake the camera when you're close.
+      const pt = this.world.req(this.playerEntity, Transform);
+      const d = Math.hypot(pt.x - a.x, pt.y - a.y);
+      if (d < TILE_PX * 8) cam.kick((Math.random() - 0.5) * 6 * (1 - d / (TILE_PX * 8)), (Math.random() - 0.5) * 6 * (1 - d / (TILE_PX * 8)));
+    });
     ev.on('death', (d) => {
       this.world.get(d.entity, View)?.setDead(true);
       this.labels?.forget(d.entity);
@@ -491,7 +526,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const npc = alive ? this.world.get(killer, Npc) : undefined;
     const who = npc ? `${npc.name} (${g.content.tryGet('npcTemplate', npc.templateId)?.name ?? 'stalker'})` : 'a stalker';
     const cause =
-      killer === null ? 'You bled out.' : `Killed by ${who}${weaponId ? ` with ${withArticle(g.content.tryGet('weapon', weaponId)?.name ?? weaponId)}` : ''}.`;
+      killer === null ? (this.world.get(this.playerEntity, Health)?.cause ?? 'You bled out.') : `Killed by ${who}${weaponId ? ` with ${withArticle(g.content.tryGet('weapon', weaponId)?.name ?? weaponId)}` : ''}.`;
     // No save here: dying sends you back to your last save.
     void g.scenes.push(new DeathScene(g, cause, () => g.scenes.change(new GameplayScene(g, this.slotId))));
   }
@@ -562,6 +597,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       hp: h.hp,
       maxHp: stats.get('max_health'),
       bleed: h.bleed,
+      rads: h.rads,
       healing: h.regen.some((r) => r.left > 0),
       stamina: st.current,
       maxStamina: stats.get('max_stamina'),
@@ -611,7 +647,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       } else if (this.world.has(e, Container)) {
         blips.push({ x: t.x, y: t.y, kind: this.world.req(e, Container).kind === 'body' ? 'body' : 'crate' });
       } else if (this.world.has(e, WorldItem)) {
-        blips.push({ x: t.x, y: t.y, kind: 'item' });
+        const wi = this.world.req(e, WorldItem);
+        if (!wi.hidden) blips.push({ x: t.x, y: t.y, kind: wi.generated ? 'artifact' : 'item' });
       }
     }
     const aim = this.world.get(this.playerEntity, Aim)?.dir;
@@ -712,6 +749,102 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     await g.scenes.change(new GameplayScene(g, this.slotId));
   }
 
+  // ---- anomalies, bolts, detectors --------------------------------------------
+
+  /** Throws a bolt toward where the player aims (it sets off anomalies it lands in). */
+  private throwBolt(): void {
+    const g = this.game;
+    const t = this.world.req(this.playerEntity, Transform);
+    let tx = t.x;
+    let ty = t.y + TILE_PX * 4;
+    const a = g.input.aim;
+    if (a.kind === 'point') {
+      const w = g.camera.screenToWorld(a.screen.x * g.renderer.pixelRatio, a.screen.y * g.renderer.pixelRatio);
+      tx = w.x;
+      ty = w.y + CHEST_HEIGHT * 0.5;
+    } else {
+      const dir = this.world.get(this.playerEntity, Aim)?.dir;
+      if (dir) {
+        tx = t.x + dir.x * TILE_PX * 6;
+        ty = t.y + dir.y * TILE_PX * 6;
+      }
+    }
+    throwBolt(this.world, t.x, t.y - 2, tx, ty);
+    this.combatEvents.emit('boltThrown', { thrower: this.playerEntity, x: t.x, y: t.y });
+  }
+
+  /**
+   * The best detector in the backpack: finds the nearest artifact in range,
+   * beeps faster as it gets closer, and reveals artifacts within reach.
+   */
+  private updateDetector(dt: number): void {
+    const g = this.game;
+    const inv = this.world.req(this.playerEntity, Inventory);
+    let det: DetectorDef | undefined;
+    for (const it of inv) {
+      const d = g.content.tryGet('detector', it.defId);
+      if (d && (!det || d.range > det.range)) det = d;
+    }
+    if (!det) {
+      this.detectorReading = null;
+      return;
+    }
+    const pt = this.world.req(this.playerEntity, Transform);
+    let best: { e: Entity; d: number; angle: number } | null = null;
+    for (const e of this.world.query(WorldItem, Transform)) {
+      const wi = this.world.req(e, WorldItem);
+      if (!wi.generated || !g.content.has('artifact', wi.item.defId)) continue;
+      const t = this.world.req(e, Transform);
+      const d = Math.hypot(t.x - pt.x, t.y - pt.y);
+      if (d > det.range * TILE_PX) continue;
+      if (wi.hidden && d <= det.reveal * TILE_PX) {
+        wi.hidden = false;
+        this.world.get(e, PropViewC)?.setHidden(false);
+        this.message('Artifact detected!', '#c8f0ff');
+      }
+      if (!best || d < best.d) best = { e, d, angle: Math.atan2(t.y - pt.y, t.x - pt.x) };
+    }
+    this.detectorReading = { name: det.name, distance: best ? best.d / TILE_PX : null, angle: best && det.direction ? best.angle : null };
+    if (!best) return;
+    // Beeps: once every 1.4 s at the edge of range, ten a second when on top of it.
+    this.detectorIn -= dt;
+    if (this.detectorIn <= 0) {
+      const k = Math.min(1, best.d / (det.range * TILE_PX));
+      this.detectorIn = 0.1 + k * 1.3;
+      g.audio.play(det.sounds?.beep, {}, 'detector_beep');
+    }
+  }
+
+  private renderAnomalies(dt: number, alpha: number): void {
+    const g = this.game;
+    const b = g.camera.bounds;
+    const pad = TILE_PX * 4;
+    const inView = (x: number, y: number) => x > b.left - pad && y > b.top - pad && x < b.right + pad && y < b.bottom + pad;
+    const anomalies: AnomalyView[] = [];
+    for (const e of this.world.query(Anomaly, Transform)) {
+      const t = this.world.req(e, Transform);
+      if (!inView(t.x, t.y)) continue;
+      const a = this.world.req(e, Anomaly);
+      const def = g.content.tryGet('anomaly', a.defId);
+      if (def) anomalies.push({ x: t.x, y: t.y, def, state: a.state, timer: a.timer, sinceBurst: a.sinceBurst });
+    }
+    const bolts: { x: number; y: number; z: number }[] = [];
+    for (const e of this.world.query(Bolt, Transform)) {
+      const t = this.world.req(e, Transform);
+      bolts.push({ x: lerp(t.prevX, t.x, alpha), y: lerp(t.prevY, t.y, alpha), z: this.world.req(e, Bolt).z });
+    }
+    const artifacts: { x: number; y: number; color: string }[] = [];
+    for (const e of this.world.query(WorldItem, Transform)) {
+      const wi = this.world.req(e, WorldItem);
+      if (!wi.generated || wi.hidden) continue;
+      const def = g.content.tryGet('artifact', wi.item.defId);
+      const t = this.world.req(e, Transform);
+      if (def && inView(t.x, t.y)) artifacts.push({ x: t.x, y: t.y, color: def.art.glow });
+    }
+    this.anomalyFx.render(dt, anomalies, bolts, artifacts, TILE_PX);
+    this.sound.anomalies(dt, anomalies);
+  }
+
   // ---- NPC labels & barks ------------------------------------------------------
 
   /** An NPC says something fitting for its faction. */
@@ -781,7 +914,23 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     if (!map || !deltas) return;
     const key = chunkKey(cx, cy);
     const list: Entity[] = [];
+    const removed = deltas.get(key)?.removed ?? [];
     for (const obj of map.objects(cx, cy)) {
+      if (obj.kind === 'anomaly') {
+        const e = this.world.create();
+        this.world.add(e, Transform, { x: obj.x, y: obj.y, prevX: obj.x, prevY: obj.y });
+        this.world.add(e, Anomaly, { defId: obj.anomaly, state: 'idle', timer: 0, sinceBurst: 99 });
+        this.hazards.add(e, obj.x, obj.y, (this.game.content.tryGet('anomaly', obj.anomaly)?.radius ?? 1) * TILE_PX);
+        list.push(e);
+        continue;
+      }
+      if (obj.kind === 'artifact') {
+        // Taken artifacts are gone for good (until something makes them grow back).
+        if (removed.includes(obj.id) || !this.game.content.has('artifact', obj.artifact)) continue;
+        const e = this.spawnWorldItem(createItem(obj.artifact), obj.x, obj.y, key, obj.id, true);
+        list.push(e);
+        continue;
+      }
       const saved = deltas.entity(key, obj.id);
       const e = this.world.create();
       this.world.add(e, Transform, { x: obj.x, y: obj.y, prevX: obj.x, prevY: obj.y });
@@ -804,15 +953,20 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
 
   private despawnChunkObjects(cx: number, cy: number): void {
     const key = chunkKey(cx, cy);
-    for (const e of this.chunkObjects.get(key) ?? []) if (this.world.isAlive(e)) this.world.destroy(e);
+    for (const e of this.chunkObjects.get(key) ?? []) {
+      this.hazards.remove(e);
+      if (this.world.isAlive(e)) this.world.destroy(e);
+    }
     this.chunkObjects.delete(key);
   }
 
-  private spawnWorldItem(item: ItemInstance, x: number, y: number, key: string, recordId: string): Entity {
+  /** `generated` items (artifacts in anomaly fields) start hidden; detectors reveal them. */
+  private spawnWorldItem(item: ItemInstance, x: number, y: number, key: string, recordId: string, generated = false): Entity {
     const e = this.world.create();
     this.world.add(e, Transform, { x, y, prevX: x, prevY: y });
-    this.world.add(e, WorldItem, { item, recordId, chunkKey: key });
+    this.world.add(e, WorldItem, generated ? { item, recordId, chunkKey: key, generated: true, hidden: true } : { item, recordId, chunkKey: key });
     this.addProp(e, this.game.icons.texture(item.defId), x, y);
+    if (generated) this.world.req(e, PropViewC).setHidden(true);
     return e;
   }
 
@@ -840,7 +994,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         bestD = d;
       }
     };
-    for (const e of this.world.query(WorldItem, Transform)) consider(e);
+    for (const e of this.world.query(WorldItem, Transform)) if (!this.world.req(e, WorldItem).hidden) consider(e);
     for (const e of this.world.query(Container, Transform)) if (e !== this.playerEntity) consider(e);
     return best;
   }
@@ -862,7 +1016,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const wi = this.world.get(e, WorldItem);
     if (wi) {
       addItem(g.content, this.world.req(this.playerEntity, Inventory), wi.item);
-      this.deltas?.removeEntity(wi.chunkKey, wi.recordId);
+      if (wi.generated) this.deltas?.markRemoved(wi.chunkKey, wi.recordId);
+      else this.deltas?.removeEntity(wi.chunkKey, wi.recordId);
       this.world.destroy(e);
       refreshEncumbrance(this.world, g.content, this.playerEntity);
       const name = findItem(g.content, wi.item.defId)?.def.name ?? wi.item.defId;
@@ -1129,6 +1284,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       inventory: structuredClone(this.world.req(e, Inventory)),
       activeWeapon: this.world.req(e, Combatant).active,
       health: this.world.req(e, Health).hp,
+      radiation: Math.round(this.world.req(e, Health).rads),
     });
   }
 

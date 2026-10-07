@@ -2,13 +2,15 @@ import { findItem, type ItemInfo } from '../../content/items';
 import type { Game } from '../../core/Game';
 import type { Scene } from '../../core/Scene';
 import type { Entity, World } from '../../ecs/World';
-import type { EquipmentSlot, ItemInstance } from '../../save/types';
+import type { BeltSlotId, EquipmentSlot, ItemInstance } from '../../save/types';
 import { button, el } from '../../ui/dom';
 import { drawPortrait } from '../../ui/portrait';
 import { prepareCharacterArt } from '../characters';
 import { Character, Container, Encumbrance, Equipment, Health, Inventory, Stats } from '../components';
 import { conditionFactor } from '../equipment';
 import { playUseSound } from '../GameAudio';
+import { isBeltSlot } from '../equipment';
+import { equilibriumDose } from '../radiation';
 import { equipFromInventory, slotFor, unequipToInventory, unloadWeapon, useFromInventory } from '../inventoryActions';
 import { addItem, countOf, inventoryWeight, removeInstance } from '../items';
 import { refreshEncumbrance } from '../systems/EncumbranceSystem';
@@ -25,7 +27,7 @@ export interface InventoryHost {
 }
 
 type Where = { from: 'bag' } | { from: 'slot'; slot: EquipmentSlot } | { from: 'container' };
-type Filter = 'all' | 'weapon' | 'armor' | 'ammo' | 'consumable';
+type Filter = 'all' | 'weapon' | 'armor' | 'ammo' | 'consumable' | 'artifact';
 
 const SLOTS: { slot: EquipmentSlot; label: string }[] = [
   { slot: 'head', label: 'Head' },
@@ -33,14 +35,18 @@ const SLOTS: { slot: EquipmentSlot; label: string }[] = [
   { slot: 'legs', label: 'Pants + boots' },
   { slot: 'primary', label: 'Primary' },
   { slot: 'sidearm', label: 'Sidearm' },
+  { slot: 'belt1', label: 'Belt' },
+  { slot: 'belt2', label: 'Belt' },
+  { slot: 'belt3', label: 'Belt' },
 ];
-const KIND_ORDER: Record<string, number> = { weapon: 0, armor: 1, ammo: 2, consumable: 3 };
+const KIND_ORDER: Record<string, number> = { weapon: 0, armor: 1, artifact: 2, detector: 3, ammo: 4, consumable: 5 };
 const FILTERS: [Filter, string][] = [
   ['all', 'All'],
   ['weapon', 'Weapons'],
   ['armor', 'Armor'],
   ['ammo', 'Ammo'],
   ['consumable', 'Supplies'],
+  ['artifact', 'Artifacts'],
 ];
 
 /**
@@ -174,12 +180,12 @@ export class InventoryScene implements Scene {
     if (this.container !== null) return this.act(() => this.store(item));
     const kind = this.info(item)?.kind;
     if (kind === 'consumable') return this.act(() => this.use(item));
-    if (kind === 'armor' || kind === 'weapon') return this.act(() => this.equip(item));
+    if (kind === 'armor' || kind === 'weapon' || kind === 'artifact') return this.act(() => this.equip(item));
     return Promise.resolve();
   }
 
-  private async equip(item: ItemInstance): Promise<string | null> {
-    const err = await equipFromInventory(this.w, this.content, this.game.sheets, this.p, item);
+  private async equip(item: ItemInstance, beltSlot?: BeltSlotId): Promise<string | null> {
+    const err = await equipFromInventory(this.w, this.content, this.game.sheets, this.p, item, beltSlot);
     if (!err) this.game.audio.playCue('equip');
     return err;
   }
@@ -250,10 +256,12 @@ export class InventoryScene implements Scene {
         return null;
       }
       // Onto an equipment slot.
-      if (slotFor(this.content, item.defId) !== target.slot) return `That doesn't go in the ${target.slot} slot.`;
+      const belt = isBeltSlot(target.slot);
+      const fits = belt ? slotFor(this.content, item.defId) === 'belt1' : slotFor(this.content, item.defId) === target.slot;
+      if (!fits) return belt ? 'Only artifacts go on the belt.' : `That doesn't go in the ${target.slot} slot.`;
       if (where.from === 'container') this.take(item);
       if (where.from === 'slot') return null;
-      return this.equip(item);
+      return this.equip(item, belt ? (target.slot as BeltSlotId) : undefined);
     });
   }
 
@@ -476,7 +484,7 @@ export class InventoryScene implements Scene {
       if (where.from === 'container') actions.append(button('Take', () => void this.act(() => this.take(item)), 'btn primary'));
       if (where.from === 'slot') actions.append(button('Unequip', () => void this.act(() => this.unequip(where.slot))));
       if (where.from === 'bag') {
-        if (info.kind === 'armor' || info.kind === 'weapon') actions.append(button('Equip', () => void this.act(() => this.equip(item)), 'btn primary'));
+        if (info.kind === 'armor' || info.kind === 'weapon' || info.kind === 'artifact') actions.append(button(info.kind === 'artifact' ? 'Wear' : 'Equip', () => void this.act(() => this.equip(item)), 'btn primary'));
         if (info.kind === 'consumable') actions.append(button('Use', () => void this.act(() => this.use(item)), 'btn primary'));
         if (this.container !== null) actions.append(button('Store', () => void this.act(() => this.store(item))));
       }
@@ -534,12 +542,28 @@ export class InventoryScene implements Scene {
       if (d.damageMult !== 1) rows.push(['Damage', `×${d.damageMult}`]);
       if (d.apBonus) rows.push(['Armor piercing', `${d.apBonus > 0 ? '+' : ''}${Math.round(d.apBonus * 100)}%`]);
       rows.push(['Rounds', `${countOf(item)}`]);
+    } else if (info.kind === 'artifact') {
+      const d = info.def;
+      for (const m of d.modifiers) {
+        const sd = this.content.tryGet('stat', m.stat);
+        const pct = sd?.format === 'percent' || m.op === 'percent';
+        rows.push([sd?.name ?? m.stat, pct ? `${m.value >= 0 ? '+' : ''}${Math.round(m.value * 100)}%` : `${m.value >= 0 ? '+' : ''}${m.value}`]);
+      }
+      if (d.regen) rows.push(['Healing', `${d.regen > 0 ? '+' : ''}${d.regen} hp/s`]);
+      if (d.radiation > 0) rows.push(['Radiation', `${d.radiation}/s (settles near ${Math.round(equilibriumDose(d.radiation))})`]);
+      if (d.radiation < 0) rows.push(['Draws out radiation', `${-d.radiation}/s`]);
+    } else if (info.kind === 'detector') {
+      const d = info.def;
+      rows.push(['Senses artifacts', `${d.range} m`]);
+      rows.push(['Reveals them at', `${d.reveal} m`]);
+      rows.push(['Shows direction', d.direction ? 'yes' : 'no']);
     } else {
       const fx = info.def.effects;
       if (fx.heal) rows.push(['Heals', `${fx.heal}`]);
       if (fx.healOverTime) rows.push(['Heals over time', `${fx.healOverTime.amount} over ${fx.healOverTime.seconds}s`]);
       if (fx.stopBleed) rows.push(['Stops bleeding', `${fx.stopBleed}/s`]);
       if (fx.stamina) rows.push(['Stamina', `+${fx.stamina}`]);
+      if (fx.antiRad) rows.push(['Removes radiation', `${fx.antiRad} rads`]);
       rows.push(['Count', `${countOf(item)}`]);
     }
     const weight = info.def.weight * countOf(item);
@@ -570,6 +594,10 @@ function kindLabel(info: ItemInfo): string {
       return 'Ammunition';
     case 'consumable':
       return info.def.category === 'medical' ? 'Medical' : 'Food';
+    case 'artifact':
+      return 'Artifact · belt';
+    case 'detector':
+      return 'Detector · works from the backpack';
   }
 }
 

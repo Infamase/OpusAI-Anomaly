@@ -86,7 +86,7 @@ export function nearestWalkable(map: TileMap, tx: number, ty: number, maxRing = 
  * the goal can't be reached within `maxNodes` expansions — the search is
  * bounded so a hopeless request never stalls a frame.
  */
-export function findPath(map: TileMap, from: Point, to: Point, maxNodes = 3000): Point[] | null {
+export function findPath(map: TileMap, from: Point, to: Point, maxNodes = 3000, avoid?: Avoid): Point[] | null {
   const T = TILE_PX;
   const start = nearestWalkable(map, Math.floor(from.x / T), Math.floor(from.y / T));
   const goal = nearestWalkable(map, Math.floor(to.x / T), Math.floor(to.y / T));
@@ -112,7 +112,7 @@ export function findPath(map: TileMap, from: Point, to: Point, maxNodes = 3000):
   while (open.size && expanded < maxNodes) {
     const cur = open.pop();
     if (closed.has(cur)) continue;
-    if (cur === goalKey) return smooth(map, reconstruct(came, cur, key), from, to);
+    if (cur === goalKey) return smooth(map, reconstruct(came, cur, key), from, to, avoid);
     closed.add(cur);
     expanded++;
     const cx = (cur % 65536) - 32768;
@@ -126,7 +126,8 @@ export function findPath(map: TileMap, from: Point, to: Point, maxNodes = 3000):
       if (dx && dy && (map.isSolid(cx + dx, cy) || map.isSolid(cx, cy + dy))) continue;
       const nk = key(nx, ny);
       if (closed.has(nk)) continue;
-      const ng = cg + cost;
+      // Hazards are very expensive rather than forbidden, so someone standing in one can still path out.
+      const ng = cg + cost + (avoid?.(nx, ny) ? 25 : 0);
       if (ng < (g.get(nk) ?? Infinity)) {
         g.set(nk, ng);
         came.set(nk, cur);
@@ -147,21 +148,32 @@ function reconstruct(came: Map<number, number>, end: number, _key: (x: number, y
   return out.reverse();
 }
 
+/** Tiles to stay out of (anomalies). Paths go around them; a straight shortcut never crosses one. */
+export type Avoid = (tx: number, ty: number) => boolean;
+
 /** True if a character (about 12px wide) can walk straight from a to b. */
-export function walkableLine(map: TileMap, a: Point, b: Point, halfWidth = 6): boolean {
+export function walkableLine(map: TileMap, a: Point, b: Point, halfWidth = 6, avoid?: Avoid): boolean {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
   const nx = (-dy / len) * halfWidth;
   const ny = (dx / len) * halfWidth;
   for (const s of [-1, 0, 1]) {
-    if (segmentHitsSolid(map, a.x + nx * s, a.y - 4 + ny * s, b.x + nx * s, b.y - 4 + ny * s) !== null) return false;
+    if (segmentHitsSolid(map, a.x + nx * s, a.y - 4 + ny * s, b.x + nx * s, b.y - 4 + ny * s, 'walk') !== null) return false;
+  }
+  if (avoid) {
+    // Sample along the line, a step per half tile.
+    const steps = Math.ceil(len / (TILE_PX / 2));
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      if (avoid(Math.floor((a.x + dx * t) / TILE_PX), Math.floor((a.y + dy * t) / TILE_PX))) return false;
+    }
   }
   return true;
 }
 
 /** Tile path → world points, dropping waypoints that can be skipped in a straight line. */
-function smooth(map: TileMap, tiles: Point[], from: Point, to: Point): Point[] {
+function smooth(map: TileMap, tiles: Point[], from: Point, to: Point, avoid?: Avoid): Point[] {
   const T = TILE_PX;
   const pts = tiles.map((t) => ({ x: (t.x + 0.5) * T, y: (t.y + 0.5) * T }));
   pts[pts.length - 1] = map.isSolid(Math.floor(to.x / T), Math.floor(to.y / T)) ? pts[pts.length - 1]! : { x: to.x, y: to.y };
@@ -170,7 +182,7 @@ function smooth(map: TileMap, tiles: Point[], from: Point, to: Point): Point[] {
   let i = 0;
   while (i < pts.length) {
     let j = pts.length - 1;
-    while (j > i && !walkableLine(map, anchor, pts[j]!)) j--;
+    while (j > i && !walkableLine(map, anchor, pts[j]!, 6, avoid)) j--;
     out.push(pts[j]!);
     anchor = pts[j]!;
     i = j + 1;
