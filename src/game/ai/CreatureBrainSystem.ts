@@ -138,7 +138,8 @@ export class CreatureBrainSystem implements System {
     const ov = world.get(o, Velocity);
     const speed = ov ? Math.hypot(ov.x, ov.y) : 0;
     if (world.has(o, Combatant) && speed > 20) {
-      const ear = def.senses.hearing * (world.get(o, Character)?.sprinting ? 0.32 : 0.14) * sleepy;
+      // The blind live by their ears.
+      const ear = def.senses.hearing * (world.get(o, Character)?.sprinting ? 0.32 : 0.14) * (def.senses.sight <= 0 ? 1.8 : 1) * sleepy;
       if (dist < ear) return true;
     }
     let sight = def.senses.sight * (this.sightScale?.() ?? 1) * sleepy;

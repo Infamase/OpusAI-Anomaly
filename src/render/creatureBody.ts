@@ -121,9 +121,11 @@ export function creatureModel(def: CreatureDef): CreatureModel {
   const snoutLen = L * 0.2 * b.snout;
   const spread = plan === 'hexapod' && b.neck < 0.2 ? hipH * 2.4 : 0;
   const tailR = clampMin(hipR * 0.32 * b.tailWidth, 0.8);
-  const reach = Math.ceil(
+  const reach0 = Math.ceil(
     (L / 2 + Math.max(neckLen + headR * 2.2 + snoutLen, tailLen + tailR * 2 + (features.has('tailClub') ? tailR * 3 : 0) + 2) + spread + (features.has('mandibles') ? headR * 1.5 : 0)) * 1.08 + 6,
   );
+  // Bipeds lie their full height along the ground when dead.
+  const reach = plan === 'biped' ? Math.max(reach0, Math.ceil(b.height + L + headR * 2.5 + 6)) : reach0;
   const up = Math.ceil(
     plan === 'biped'
       ? hipH + L + headR * 2.5 + 4
@@ -768,10 +770,19 @@ export function paintCreature(m: CreatureModel, parts: Part[], heading: number, 
   // Lying dead: rolled onto its left side, legs pointing out to its right.
   const deadLift = m.plan === 'serpent' ? 0 : m.plan === 'biped' ? m.chestR : m.hipR;
   const deadShift = m.plan === 'serpent' ? 0 : m.plan === 'biped' ? (m.hipH + m.L) * 0.5 : m.hipH * 0.9;
+  const projectFlat = (f: number, side: number, z: number) => {
+    const x = f * c - side * s;
+    const y = (f * s + side * c) * depthScale;
+    return { x: ox + x, y: oy + y - z, d: y + z };
+  };
   const project = (p: P3): { x: number; y: number; d: number } => {
     const f = p.f;
     let side = p.s;
     let z = p.z;
+    if (dead && m.plan === 'biped') {
+      // Fallen flat on its face, stretched out along its heading.
+      return projectFlat(f + z * 0.95, side, deadLift * 0.55 + z * 0.06);
+    }
     if (dead && m.plan !== 'serpent') {
       // Rolled over: legs stick out away from the viewer.
       const ns = z - deadShift;
