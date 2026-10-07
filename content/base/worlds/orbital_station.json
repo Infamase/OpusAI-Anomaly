@@ -16,7 +16,8 @@
       "door": "door_floor",
       "outside": "space",
       "accent": "hazard_floor",
-      "window": "window_wall"
+      "window": "window_wall",
+      "fragile": "station_wall_cracked"
     },
     "start": "station_dock",
     "rooms": [
@@ -64,6 +65,19 @@
       22,
       30
     ],
-    "loops": 0.6
+    "loops": 0.6,
+    "doors": {
+      "tile": "station_door",
+      "chance": 0.6
+    },
+    "locks": {
+      "tile": "station_door_locked",
+      "chance": 0.75
+    },
+    "barricades": {
+      "tile": "barricade",
+      "chance": 0.06
+    },
+    "secrets": 0.3
   }
 }

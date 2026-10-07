@@ -29,8 +29,16 @@ function load(worldId: string, seed: number) {
   return { def, gen, params, map };
 }
 
-/** Walkable tiles reachable from (sx, sy). */
-function flood(map: TileMap, sx: number, sy: number): Set<number> {
+/** Someone with every keycard and a gun: doors open, breakables break. */
+const anyWay = (map: TileMap, x: number, y: number) => {
+  const d = map.tiles.defs[map.getTile(x, y)]!;
+  return !d.solid || !!d.door || !!d.breakable;
+};
+/** Someone with no keycard and no will to shoot: only plain floor and doors that open for anyone. */
+const noKey = (map: TileMap, x: number, y: number) => !map.isSolid(x, y) || map.isOpenableDoor(x, y);
+
+/** Tiles reachable from (sx, sy). */
+function flood(map: TileMap, sx: number, sy: number, passable: (map: TileMap, x: number, y: number) => boolean = anyWay): Set<number> {
   const W = map.widthTiles;
   const seen = new Set<number>([sy * W + sx]);
   const queue = [sy * W + sx];
@@ -42,7 +50,7 @@ function flood(map: TileMap, sx: number, sy: number): Set<number> {
       const nx = x + dx;
       const ny = y + dy;
       const nk = ny * W + nx;
-      if (!map.inBounds(nx, ny) || seen.has(nk) || map.isSolid(nx, ny)) continue;
+      if (!map.inBounds(nx, ny) || seen.has(nk) || !passable(map, nx, ny)) continue;
       seen.add(nk);
       queue.push(nk);
     }
@@ -88,6 +96,51 @@ describe('interior layouts', () => {
       }
     });
   }
+
+  it('leaves the keycard for its locked rooms where you can reach it without one', () => {
+    let locked = 0;
+    for (const id of INTERIORS) {
+      for (let seed = 1; seed <= 12; seed++) {
+        const { gen, params, map } = load(id, seed);
+        const plan = interiorPlan(params, seed, map.widthTiles, map.heightTiles);
+        const lockedLinks = plan.links.filter((l) => l.kind === 'locked');
+        if (!lockedLinks.length) {
+          expect(plan.keycards).toEqual([]);
+          continue;
+        }
+        locked++;
+        expect(plan.keycards.length, `${id} seed ${seed}`).toBe(1);
+        const kc = plan.keycards[0]!;
+        const key = map.tiles.defs[map.getTile(lockedLinks[0]!.k % map.widthTiles, Math.floor(lockedLinks[0]!.k / map.widthTiles))]!.door?.key;
+        expect(kc.item).toBe(key);
+        const s = gen.spawnPoint(seed, params, map.widthTiles, map.heightTiles);
+        expect(flood(map, s.x, s.y, noKey).has(kc.y * map.widthTiles + kc.x), `${id} seed ${seed}: keycard reachable`).toBe(true);
+        // ...and it is in the world as an item to pick up.
+        const S = map.chunkSize;
+        const objs = map.objects(Math.floor(kc.x / S), Math.floor(kc.y / S));
+        expect(objs.some((o) => o.kind === 'item' && o.item === kc.item)).toBe(true);
+      }
+    }
+    expect(locked).toBeGreaterThan(10);
+  });
+
+  it('puts real doors, barricades and weak walls between rooms', () => {
+    const counts: Record<string, number> = {};
+    for (const id of INTERIORS) {
+      const { map, params } = load(id, 4);
+      const plan = interiorPlan(params, 4, map.widthTiles, map.heightTiles);
+      for (const l of plan.links) counts[l.kind] = (counts[l.kind] ?? 0) + 1;
+      for (let i = 0; i < plan.tiles.length; i++) {
+        const d = map.tiles.defs[plan.tiles[i]!]!;
+        if (d.breakable && !d.prop) counts.fragile = (counts.fragile ?? 0) + 1;
+      }
+    }
+    expect(counts, JSON.stringify(counts)).toBeDefined();
+    expect(counts.door).toBeGreaterThan(5);
+    expect(counts.doorway).toBeGreaterThan(5);
+    expect(counts.barricade ?? 0, JSON.stringify(counts)).toBeGreaterThan(0);
+    expect(counts.fragile ?? 0, JSON.stringify(counts)).toBeGreaterThan(0);
+  });
 
   it('always includes the rooms an interior must have', () => {
     for (let seed = 1; seed <= 30; seed++) {

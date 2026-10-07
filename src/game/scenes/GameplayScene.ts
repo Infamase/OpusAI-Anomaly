@@ -8,6 +8,9 @@ import { Texture } from 'pixi.js';
 import { World, type Entity } from '../../ecs/World';
 import { CharacterView } from '../../render/CharacterView';
 import { CombatFx } from '../../render/CombatFx';
+import { CrackOverlay } from '../../render/CrackOverlay';
+import { TileDamage } from '../breakables';
+import { doorAt, DoorSystem, useDoor } from '../doors';
 import { PropView } from '../../render/PropView';
 import { drawCrate } from '../../render/placeholder/items';
 import { Crosshair } from '../../render/Crosshair';
@@ -59,6 +62,7 @@ import {
   WorldItem,
   Anomaly,
   Bolt,
+  Breakable,
 } from '../components';
 import { pickQuickHeal, useConsumable } from '../consumables';
 import { findItem } from '../../content/items';
@@ -199,6 +203,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   /** Ways out of this world, and the one in reach right now. */
   private portals: PortalSpawn[] = [];
   private portalFocus: PortalSpawn | null = null;
+  /** The door tile E would use right now. */
+  private doorFocus: { tx: number; ty: number } | null = null;
+  /** Wear on breakable tiles this visit, and the cracks showing it. */
+  private tileDamage: TileDamage | null = null;
+  private cracks = new CrackOverlay();
   private leaving = false;
   private locationIn = 0;
   private revealIn = 0;
@@ -270,6 +279,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.tileRenderer = new TilemapRenderer(g.renderer.ground, this.map, new TileAtlas(tiles), g.renderer.entities);
     g.renderer.overlay.addChild(this.fx.layer);
     g.renderer.world.addChildAt(this.anomalyFx.under, g.renderer.world.getChildIndex(g.renderer.entities));
+    g.renderer.world.addChildAt(this.cracks.layer, g.renderer.world.getChildIndex(g.renderer.entities));
+    this.tileDamage = new TileDamage(this.map);
     g.renderer.overlay.addChild(this.anomalyFx.over);
     g.renderer.screen.addChild(this.crosshair.g);
 
@@ -278,6 +289,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.world
       .addSystem(new PlayerControlSystem(g.input, g.camera, () => g.renderer.pixelRatio))
       .addSystem(Object.assign(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)), { avoid: (tx: number, ty: number) => this.hazards.has(tx, ty) }))
+      .addSystem(new DoorSystem(map, this.combatEvents))
       .addSystem(new WeaponSystem(g.content, map, this.combatEvents))
       .addSystem(new AnomalySystem(g.content, map, this.combatEvents))
       .addSystem(new BoltSystem(map, this.combatEvents))
@@ -375,6 +387,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.tileRenderer?.destroy();
     this.fx.destroy();
     this.anomalyFx.destroy();
+    this.cracks.destroy();
     this.hazards.clear();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
@@ -395,9 +408,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const alive = !this.world.get(this.playerEntity, Health)?.dead;
     this.focus = alive && !this.buildMode ? this.findInteractable() : null;
     this.portalFocus = alive && !this.buildMode && this.focus === null ? this.findPortal() : null;
+    this.doorFocus = alive && !this.buildMode && this.focus === null && !this.portalFocus ? this.findDoor() : null;
     if (this.buildMode && input.justPressed('interact')) this.toggleTileInFront();
     else if (alive && input.justPressed('interact') && this.focus !== null) this.interact(this.focus);
     else if (alive && input.justPressed('interact') && this.portalFocus) void this.goThrough(this.portalFocus);
+    else if (alive && input.justPressed('interact') && this.doorFocus) this.useDoorInFocus();
     else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
     if (alive && this.game.scenes.current === this && input.justPressed('bolt')) this.throwBolt();
@@ -478,7 +493,9 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.renderAnomalies(frameDt, alpha);
     this.renderCrosshair(frameDt, px, py);
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
-    const prompt = this.focus !== null ? this.promptFor(this.focus) : this.portalFocus ? `E  ${this.portalFocus.label}` : null;
+    const prompt =
+      this.focus !== null ? this.promptFor(this.focus) : this.portalFocus ? `E  ${this.portalFocus.label}` : this.doorFocus ? this.doorPrompt(this.doorFocus) : null;
+    if (this.tileDamage) this.cracks.update(this.tileDamage.version, this.tileDamage.entries());
     this.hud?.prompt(this.game.scenes.current === this ? prompt : null);
     const chest = g.camera.worldToScreen(px, py - CHEST_HEIGHT);
     this.hud?.detector(this.detectorReading);
@@ -503,6 +520,27 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       if (s.shooter === this.playerEntity) cam.kick(-Math.cos(s.angle) * s.recoil, -Math.sin(s.angle) * s.recoil);
     });
     ev.on('impact', (i) => this.fx.sparks(i.x, i.y, i.angle));
+    ev.on('tileHit', (h) => {
+      const res = this.tileDamage?.hit(h.tx, h.ty, h.amount);
+      if (!res) return;
+      const def = this.game.content.get('tile', res.tile);
+      this.fx.debris(h.x, h.y, h.angle + Math.PI, def.breakable?.debris ?? def.placeholder.color, res.broken ? 0 : 3);
+      if (res.broken) ev.emit('broken', { x: (h.tx + 0.5) * TILE_PX, y: (h.ty + 0.5) * TILE_PX, tile: res.tile, debris: def.breakable?.debris ?? def.placeholder.color, by: h.attacker });
+    });
+    ev.on('propHit', (h) => {
+      const b = this.world.get(h.target, Breakable);
+      if (!b) return;
+      b.hp -= h.amount;
+      this.fx.debris(h.x, h.y, h.angle + Math.PI, b.debris, 3);
+      if (b.hp <= 0) this.breakProp(h.target, h.attacker);
+      else this.world.get(h.target, PropViewC)?.flash();
+    });
+    ev.on('broken', (b) => {
+      this.fx.debris(b.x, b.y - 8, -Math.PI / 2, b.debris, 22);
+      const pt = this.world.req(this.playerEntity, Transform);
+      const d = Math.hypot(pt.x - b.x, pt.y - b.y);
+      if (d < TILE_PX * 6) cam.kick((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+    });
     ev.on('hit', (h) => {
       this.fx.blood(h.x, h.y, h.angle, h.dealt);
       this.world.get(h.target, View)?.flash();
@@ -672,7 +710,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         blips.push({ x: t.x, y: t.y, kind: this.world.req(e, Container).kind === 'body' ? 'body' : 'crate' });
       } else if (this.world.has(e, WorldItem)) {
         const wi = this.world.req(e, WorldItem);
-        if (!wi.hidden) blips.push({ x: t.x, y: t.y, kind: wi.generated ? 'artifact' : 'item' });
+        if (!wi.hidden) blips.push({ x: t.x, y: t.y, kind: wi.generated && this.game.content.has('artifact', wi.item.defId) ? 'artifact' : 'item' });
       }
     }
     const aim = this.world.get(this.playerEntity, Aim)?.dir;
@@ -774,6 +812,89 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     g.saves.data.player.worldId = worldId;
     if (arrival) g.saves.data.flags.arrive = arrival;
     await g.scenes.change(new GameplayScene(g, this.slotId));
+  }
+
+  // ---- doors & breakables ----------------------------------------------------------
+
+  /** The nearest door tile next to the player (the one they're facing wins ties). */
+  private findDoor(): { tx: number; ty: number } | null {
+    const map = this.map;
+    if (!map) return null;
+    const t = this.world.req(this.playerEntity, Transform);
+    const face = directionVector(this.world.req(this.playerEntity, Character).facing);
+    const px = t.x + face.x * 6;
+    const py = t.y - 6 + face.y * 6;
+    const fx = Math.floor(t.x / TILE_PX);
+    const fy = Math.floor((t.y - 6) / TILE_PX);
+    let best: { tx: number; ty: number } | null = null;
+    let bestD = TILE_PX * 1.25;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const tx = fx + dx;
+        const ty = fy + dy;
+        if (!doorAt(map, tx, ty)) continue;
+        // Distance to the tile's nearest edge point, so a door is reachable from either side.
+        const cx = Math.max(tx * TILE_PX, Math.min(px, (tx + 1) * TILE_PX));
+        const cy = Math.max(ty * TILE_PX, Math.min(py, (ty + 1) * TILE_PX));
+        const d = Math.hypot(cx - px, cy - py);
+        if (d < bestD) {
+          best = { tx, ty };
+          bestD = d;
+        }
+      }
+    }
+    return best;
+  }
+
+  private doorPrompt(at: { tx: number; ty: number }): string {
+    const map = this.map!;
+    const tile = map.getTile(at.tx, at.ty);
+    const def = map.tiles.defs[tile]!;
+    const closed = map.tiles.solid[tile] === 1;
+    if (def.door?.key) {
+      const key = this.game.content.tryGet('keycard', def.door.key);
+      const has = countItem(this.world.req(this.playerEntity, Inventory), def.door.key) > 0;
+      return has ? `E  Unlock with ${key?.name ?? 'keycard'}` : `Locked · needs ${key?.name ?? 'a keycard'}`;
+    }
+    return closed ? 'E  Open door' : 'E  Close door';
+  }
+
+  private useDoorInFocus(): void {
+    const at = this.doorFocus;
+    const map = this.map;
+    if (!at || !map) return;
+    const inv = this.world.req(this.playerEntity, Inventory);
+    const tile = map.tiles.id(map.getTile(at.tx, at.ty));
+    const result = useDoor(this.world, map, at.tx, at.ty, (id) => countItem(inv, id) > 0);
+    if (!result) return;
+    if (result === 'blocked') this.message("Something's in the way.");
+    if (result === 'unlocked') this.message('Unlocked.', '#7ad07a');
+    this.combatEvents.emit('door', { by: this.playerEntity, tx: at.tx, ty: at.ty, x: (at.tx + 0.5) * TILE_PX, y: (at.ty + 0.5) * TILE_PX, tile, result });
+  }
+
+  /** A crate shot to pieces: its contents spill onto the ground, and it's gone for good. */
+  private breakProp(e: Entity, by: Entity | null): void {
+    const g = this.game;
+    const t = this.world.req(e, Transform);
+    const b = this.world.req(e, Breakable);
+    const c = this.world.get(e, Container);
+    if (c) {
+      if (c.items === null) {
+        const seed = this.map ? deriveSeed(this.map.seed, 'crate', hashString(c.id)) : 1;
+        c.items = c.lootTable ? rollLoot(g.content, c.lootTable, new Rng(seed)) : [];
+      }
+      const items = c.items;
+      items.forEach((item, i) => {
+        const a = (i / Math.max(1, items.length)) * Math.PI * 2 + this.rng.range(-0.4, 0.4);
+        this.dropAt(item, t.x + Math.cos(a) * this.rng.range(6, 16), t.y + Math.sin(a) * this.rng.range(4, 10));
+      });
+      if (c.chunkKey) {
+        this.deltas?.removeEntity(c.chunkKey, c.id);
+        this.deltas?.markRemoved(c.chunkKey, c.id);
+      }
+    }
+    this.combatEvents.emit('broken', { x: t.x, y: t.y - 8, debris: b.debris, by });
+    this.world.destroy(e);
   }
 
   // ---- portals -------------------------------------------------------------------
@@ -1015,6 +1136,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         list.push(e);
         continue;
       }
+      if (obj.kind === 'item') {
+        if (removed.includes(obj.id) || !findItem(this.game.content, obj.item)) continue;
+        list.push(this.spawnWorldItem(createItem(obj.item), obj.x, obj.y, key, obj.id, true, false));
+        continue;
+      }
       if (obj.kind === 'artifact') {
         // Taken artifacts are gone for good (until something makes them grow back).
         if (removed.includes(obj.id) || !this.game.content.has('artifact', obj.artifact)) continue;
@@ -1022,9 +1148,13 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         list.push(e);
         continue;
       }
+      // Crates that were shot apart stay gone.
+      if (removed.includes(obj.id)) continue;
       const saved = deltas.entity(key, obj.id);
       const e = this.world.create();
       this.world.add(e, Transform, { x: obj.x, y: obj.y, prevX: obj.x, prevY: obj.y });
+      // Wooden supply crates splinter under fire; military cases are steel.
+      if (obj.variant === 'supply') this.world.add(e, Breakable, { hp: 35, max: 35, debris: '#8a5a32', halfW: 13, height: 20 });
       this.world.add(e, Container, {
         id: obj.id,
         label: obj.variant === 'military' ? 'Military case' : 'Supply crate',
@@ -1052,12 +1182,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   }
 
   /** `generated` items (artifacts in anomaly fields) start hidden; detectors reveal them. */
-  private spawnWorldItem(item: ItemInstance, x: number, y: number, key: string, recordId: string, generated = false): Entity {
+  private spawnWorldItem(item: ItemInstance, x: number, y: number, key: string, recordId: string, generated = false, hidden = generated): Entity {
     const e = this.world.create();
     this.world.add(e, Transform, { x, y, prevX: x, prevY: y });
-    this.world.add(e, WorldItem, generated ? { item, recordId, chunkKey: key, generated: true, hidden: true } : { item, recordId, chunkKey: key });
+    this.world.add(e, WorldItem, generated ? { item, recordId, chunkKey: key, generated: true, hidden } : { item, recordId, chunkKey: key });
     this.addProp(e, this.game.icons.texture(item.defId), x, y);
-    if (generated) this.world.req(e, PropViewC).setHidden(true);
+    if (hidden) this.world.req(e, PropViewC).setHidden(true);
     return e;
   }
 
@@ -1130,8 +1260,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
 
   dropItem(item: ItemInstance): void {
     const t = this.world.req(this.playerEntity, Transform);
-    const x = t.x + this.rng.range(-10, 10);
-    const y = t.y + this.rng.range(2, 10);
+    this.dropAt(item, t.x + this.rng.range(-10, 10), t.y + this.rng.range(2, 10));
+  }
+
+  /** Puts an item on the ground (saved with its chunk). */
+  private dropAt(item: ItemInstance, x: number, y: number): void {
     const S = this.map?.chunkSize ?? 16;
     const key = chunkKey(Math.floor(x / TILE_PX / S), Math.floor(y / TILE_PX / S));
     this.deltas?.putEntity(key, { id: item.uid, kind: 'item', x, y, data: item });

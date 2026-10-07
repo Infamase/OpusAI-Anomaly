@@ -45,6 +45,19 @@ export class CombatFx {
     this.burst(x, y, angle, Math.min(10, 3 + Math.round(amount / 6)), [0x9a1a1a, 0x701010, 0xc02a2a], 60, 0.45);
   }
 
+  /** Chips and splinters of a struck or shattered object, in shades of its color ("#rrggbb"). */
+  debris(x: number, y: number, angle: number, color: string, n: number): void {
+    if (n <= 0) return;
+    const c = parseInt(color.slice(1), 16);
+    const shade = (k: number) => {
+      const r = Math.min(255, Math.round(((c >> 16) & 255) * k));
+      const g = Math.min(255, Math.round(((c >> 8) & 255) * k));
+      const b = Math.min(255, Math.round((c & 255) * k));
+      return (r << 16) | (g << 8) | b;
+    };
+    this.burst(x, y, angle, n, [shade(1), shade(0.7), shade(1.25), shade(0.5)], n > 8 ? 110 : 60, n > 8 ? 0.7 : 0.35);
+  }
+
   private burst(x: number, y: number, angle: number, n: number, colors: number[], speed: number, life: number): void {
     for (let i = 0; i < n; i++) {
       const a = angle + (Math.random() - 0.5) * 1.6;

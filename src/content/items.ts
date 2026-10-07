@@ -1,12 +1,12 @@
 import type { ContentRegistry, CrossCheckContext } from './Registry';
-import type { AmmoDef, ArmorDef, ArtifactDef, ConsumableDef, DetectorDef, WeaponDef } from './types';
+import type { AmmoDef, ArmorDef, ArtifactDef, ConsumableDef, DetectorDef, KeycardDef, WeaponDef } from './types';
 
 /**
  * Content types that are carryable items. They share one id namespace, so an
  * item in an inventory or save is just its id. Add new item kinds (consumables,
  * artifacts, junk...) here.
  */
-export const ITEM_CONTENT_TYPES = ['armor', 'weapon', 'ammo', 'consumable', 'artifact', 'detector'] as const;
+export const ITEM_CONTENT_TYPES = ['armor', 'weapon', 'ammo', 'consumable', 'artifact', 'detector', 'keycard'] as const;
 export type ItemKind = (typeof ITEM_CONTENT_TYPES)[number];
 
 export type ItemInfo =
@@ -15,7 +15,8 @@ export type ItemInfo =
   | { kind: 'ammo'; def: AmmoDef }
   | { kind: 'consumable'; def: ConsumableDef }
   | { kind: 'artifact'; def: ArtifactDef }
-  | { kind: 'detector'; def: DetectorDef };
+  | { kind: 'detector'; def: DetectorDef }
+  | { kind: 'keycard'; def: KeycardDef };
 
 /** Looks an item up by id across every item content type. */
 export function findItem(content: ContentRegistry, id: string): ItemInfo | undefined {

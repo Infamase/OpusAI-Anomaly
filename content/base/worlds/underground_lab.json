@@ -16,7 +16,8 @@
       "door": "door_floor",
       "outside": "rock_wall",
       "accent": "hazard_floor",
-      "window": "lab_wall"
+      "window": "lab_wall",
+      "fragile": "lab_wall_cracked"
     },
     "start": "lab_entrance",
     "rooms": [
@@ -65,6 +66,19 @@
       22,
       30
     ],
-    "loops": 0.5
+    "loops": 0.5,
+    "doors": {
+      "tile": "lab_door",
+      "chance": 0.55
+    },
+    "locks": {
+      "tile": "lab_door_locked",
+      "chance": 0.85
+    },
+    "barricades": {
+      "tile": "barricade",
+      "chance": 0.05
+    },
+    "secrets": 0.4
   }
 }

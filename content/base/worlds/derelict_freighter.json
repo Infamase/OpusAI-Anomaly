@@ -16,7 +16,8 @@
       "door": "door_floor",
       "outside": "rock_wall",
       "accent": "hazard_floor",
-      "window": "hull_wall"
+      "window": "hull_wall",
+      "fragile": "hull_wall_cracked"
     },
     "start": "ship_airlock",
     "rooms": [
@@ -56,6 +57,19 @@
       16,
       24
     ],
-    "loops": 0.35
+    "loops": 0.35,
+    "doors": {
+      "tile": "hull_door",
+      "chance": 0.5
+    },
+    "locks": {
+      "tile": "hull_door_locked",
+      "chance": 0.85
+    },
+    "barricades": {
+      "tile": "barricade",
+      "chance": 0.18
+    },
+    "secrets": 0.35
   }
 }

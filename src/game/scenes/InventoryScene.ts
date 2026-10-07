@@ -557,6 +557,8 @@ export class InventoryScene implements Scene {
       rows.push(['Senses artifacts', `${d.range} m`]);
       rows.push(['Reveals them at', `${d.reveal} m`]);
       rows.push(['Shows direction', d.direction ? 'yes' : 'no']);
+    } else if (info.kind === 'keycard') {
+      rows.push(['Opens', 'doors with its color of light']);
     } else {
       const fx = info.def.effects;
       if (fx.heal) rows.push(['Heals', `${fx.heal}`]);
@@ -598,6 +600,8 @@ function kindLabel(info: ItemInfo): string {
       return 'Artifact · belt';
     case 'detector':
       return 'Detector · works from the backpack';
+    case 'keycard':
+      return 'Keycard · opens locked doors';
   }
 }
 

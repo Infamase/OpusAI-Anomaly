@@ -21,12 +21,20 @@ export class PropView {
     this.root.zIndex = y;
   }
 
-  /** Outline shown when it's the thing E would interact with. */
   /** Hidden props (undetected artifacts) aren't drawn at all. */
   setHidden(hidden: boolean): void {
     this.root.visible = !hidden;
   }
 
+  /** A brief pale flash when struck. */
+  flash(): void {
+    this.sprite.tint = 0xffe0c0;
+    setTimeout(() => {
+      if (!this.sprite.destroyed) this.sprite.tint = 0xffffff;
+    }, 70);
+  }
+
+  /** Outline shown when it's the thing E would interact with. */
   setHighlight(on: boolean): void {
     this.glow.visible = on;
   }

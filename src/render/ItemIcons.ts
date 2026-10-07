@@ -4,7 +4,7 @@ import type { ContentRegistry } from '../content/Registry';
 import { armorSheetSrc } from '../game/equipment';
 import { PixelCanvas } from './PixelCanvas';
 import { composePuppet, restState, solvePose } from './puppet';
-import { cropToContent, drawAmmoBox, drawArtifact, drawConsumable, drawDetector, drawUnknown } from './placeholder/items';
+import { cropToContent, drawAmmoBox, drawArtifact, drawConsumable, drawDetector, drawKeycard, drawUnknown } from './placeholder/items';
 import { generateWeaponArt } from './placeholder/weapons';
 import type { SpriteSheetCache } from './SpriteSheets';
 
@@ -37,7 +37,7 @@ export class ItemIcons {
 
   /** Preparing every item at once is cheap (a few dozen tiny sheets). */
   async prepareAll(): Promise<void> {
-    await this.prepare(['armor', 'weapon', 'ammo', 'consumable', 'artifact', 'detector'].flatMap((t) => this.content.ids(t as 'armor')));
+    await this.prepare(['armor', 'weapon', 'ammo', 'consumable', 'artifact', 'detector', 'keycard'].flatMap((t) => this.content.ids(t as 'armor')));
   }
 
   get(defId: string): PixelCanvas {
@@ -81,6 +81,8 @@ export class ItemIcons {
         return drawArtifact(info.def.art.shape, info.def.art.color, info.def.art.glow);
       case 'detector':
         return drawDetector(info.def.color);
+      case 'keycard':
+        return drawKeycard(info.def.color);
       case 'armor': {
         const layout = this.content.get('spriteLayout', info.def.spriteLayout);
         try {

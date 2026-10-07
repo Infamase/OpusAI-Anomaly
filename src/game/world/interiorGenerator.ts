@@ -37,6 +37,17 @@ const paramsSchema = v.object({
   count: v.tuple2(v.number({ int: true, min: 1 }), v.number({ int: true, min: 1 })),
   /** Chance to open a door where two rooms' sockets meet (more = more loops). */
   loops: v.optional(v.number({ min: 0, max: 1 }), 0.5),
+  /** Where sockets meet but stay shut, the chance the wall is the theme's `fragile` one instead (a shortcut to shoot through). */
+  secrets: v.optional(v.number({ min: 0, max: 1 }), 0.4),
+  /** Real doors: each doorway gets the `tile` (a closed door) with `chance`; the rest stay open doorways. */
+  doors: v.optional(v.object({ tile: v.id(), chance: v.number({ min: 0, max: 1 }) })),
+  /**
+   * Rooms tagged "secure" are locked with `chance`: every way in gets `tile`
+   * (a locked door). Its keycard is left somewhere you can reach without it.
+   */
+  locks: v.optional(v.object({ tile: v.id(), chance: v.number({ min: 0, max: 1 }) })),
+  /** Some doorways are barricaded (`tile`) with `chance`: shoot your way through. */
+  barricades: v.optional(v.object({ tile: v.id(), chance: v.number({ min: 0, max: 1 }) })),
 });
 
 interface RoomRes extends Drawing {
@@ -57,7 +68,19 @@ interface Params {
   pools: Pool[];
   count: [number, number];
   loops: number;
+  secrets: number;
+  doors: { tile: number; chance: number } | null;
+  locks: { tile: number; chance: number; key: string } | null;
+  barricades: { tile: number; chance: number } | null;
   plans: Map<string, Plan>;
+}
+
+/** A way between two rooms: the cell (k = y * W + x) where their sockets met, and what fills it. */
+interface Link {
+  a: number;
+  b: number;
+  k: number;
+  kind: 'doorway' | 'door' | 'locked' | 'barricade';
 }
 
 interface Placed {
@@ -78,6 +101,9 @@ interface Plan {
   H: number;
   tiles: Uint16Array;
   placed: Placed[];
+  links: Link[];
+  /** Keycards left lying around (tile coords), for the locked rooms. */
+  keycards: { item: string; x: number; y: number }[];
 }
 
 type Facing = 0 | 1 | 2 | 3; // N E S W
@@ -103,6 +129,7 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
   // 0 empty, 1 wall, 2 floor.
   const occ = new Uint8Array(W * H);
   const placed: Placed[] = [];
+  const links: Link[] = [];
   const open: { room: number; i: number; j: number; facing: Facing }[] = [];
   const margin = 2;
 
@@ -198,6 +225,7 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
         const b = place(room, orient, bx, by);
         b.open.add(t.j * w + t.i);
         a.open.add(s.j * a.w + s.i);
+        links.push({ a: a.index, b: b.index, k: wy * W + wx, kind: 'doorway' });
         pool.used++;
         return true;
       }
@@ -237,15 +265,39 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
     }
   }
   const lrng = new Rng(deriveSeed(seed, 'loops'));
-  for (const list of sockets.values()) {
+  for (const [k, list] of sockets) {
     if (list.length < 2 || list.some((x) => x.room.open.has(x.local))) continue;
     if (!lrng.chance(p.loops)) continue;
     for (const x of list) x.room.open.add(x.local);
+    links.push({ a: list[0]!.room.index, b: list[1]!.room.index, k, kind: 'doorway' });
+  }
+
+  // What fills each way between rooms: locked doors into secure rooms, then barricades, doors, open doorways.
+  const drng = new Rng(deriveSeed(seed, 'doors'));
+  if (p.locks) {
+    for (const r of placed) {
+      if (r.index === 0 || !r.room.def.tags.includes('secure') || !drng.chance(p.locks.chance)) continue;
+      for (const l of links) if (l.a === r.index || l.b === r.index) l.kind = 'locked';
+    }
+  }
+  for (const l of links) {
+    if (l.kind !== 'doorway') continue;
+    // Never barricade the way out of the entrance room.
+    if (p.barricades && l.a !== 0 && l.b !== 0 && drng.chance(p.barricades.chance)) l.kind = 'barricade';
+    else if (p.doors && drng.chance(p.doors.chance)) l.kind = 'door';
   }
 
   // Paint: outside first, then each room (floors win over walls; open sockets become doors).
+  const fill = new Map<number, number>();
+  for (const l of links) {
+    if (l.kind === 'locked') fill.set(l.k, p.locks!.tile);
+    else if (l.kind === 'barricade') fill.set(l.k, p.barricades!.tile);
+    else if (l.kind === 'door') fill.set(l.k, p.doors!.tile);
+  }
   const tiles = new Uint16Array(W * H).fill(p.theme.outside);
   const isFloor = new Uint8Array(W * H);
+  /** Which room each floor cell belongs to (+1; 0 = none). */
+  const roomOf = new Int16Array(W * H);
   for (const r of placed) {
     for (let j = 0; j < r.h; j++) {
       for (let i = 0; i < r.w; i++) {
@@ -254,7 +306,7 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
         const k = (r.y + j) * W + r.x + i;
         if (c.door) {
           if (r.open.has(j * r.w + i)) {
-            tiles[k] = p.theme.door;
+            tiles[k] = fill.get(k) ?? p.theme.door;
             isFloor[k] = 1;
           } else if (!isFloor[k]) tiles[k] = c.tile;
         } else if (c.wall) {
@@ -262,11 +314,85 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
         } else if (c.tile >= 0) {
           tiles[k] = c.tile;
           isFloor[k] = 1;
+          roomOf[k] = r.index + 1;
         }
       }
     }
   }
-  return { W, H, tiles, placed };
+  // Weak spots: where two rooms that aren't joined share a one-tile wall, sometimes it's fragile (a shortcut to shoot through).
+  const linked = new Set(links.map((l) => `${Math.min(l.a, l.b)}:${Math.max(l.a, l.b)}`));
+  const between = new Map<string, number[]>();
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const k = y * W + x;
+      if (tiles[k] !== p.theme.wall) continue;
+      for (const [a, b] of [
+        [k - 1, k + 1],
+        [k - W, k + W],
+      ] as const) {
+        const ra = roomOf[a]!;
+        const rb = roomOf[b]!;
+        if (!ra || !rb || ra === rb) continue;
+        const pair = `${Math.min(ra, rb) - 1}:${Math.max(ra, rb) - 1}`;
+        if (linked.has(pair)) continue;
+        const list = between.get(pair) ?? [];
+        list.push(k);
+        between.set(pair, list);
+      }
+    }
+  }
+  const frng = new Rng(deriveSeed(seed, 'fragile'));
+  for (const cells of between.values()) {
+    if (!frng.chance(p.secrets)) continue;
+    tiles[cells[Math.floor(cells.length / 2)]!] = p.theme.fragile;
+  }
+  return { W, H, tiles, placed, links, keycards: placeKeycards(p, seed, placed, links) };
+}
+
+/**
+ * Leaves the keycard for the locked rooms in a room you can reach from the
+ * entrance without going through a locked door or a barricade, on clear floor
+ * away from anomalies.
+ */
+function placeKeycards(p: Params, seed: number, placed: Placed[], links: Link[]): Plan['keycards'] {
+  if (!p.locks || !links.some((l) => l.kind === 'locked')) return [];
+  const reach = new Set([0]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const l of links) {
+      if (l.kind === 'locked' || l.kind === 'barricade') continue;
+      if (reach.has(l.a) !== reach.has(l.b)) {
+        reach.add(l.a);
+        reach.add(l.b);
+        grew = true;
+      }
+    }
+  }
+  const rng = new Rng(deriveSeed(seed, 'keycard'));
+  const rooms = [...reach].filter((i) => i !== 0 || reach.size === 1).map((i) => placed[i]!);
+  // Prefer rooms farther from the entrance, so finding it takes a little exploring.
+  rooms.sort((a, b) => Math.hypot(b.x - placed[0]!.x, b.y - placed[0]!.y) - Math.hypot(a.x - placed[0]!.x, a.y - placed[0]!.y));
+  const far = rooms.slice(0, Math.max(1, Math.ceil(rooms.length / 2)));
+  for (let k = far.length - 1; k > 0; k--) {
+    const r = rng.int(0, k);
+    [far[k], far[r]] = [far[r]!, far[k]!];
+  }
+  for (const r of [...far, ...rooms]) {
+    const spots: { x: number; y: number }[] = [];
+    for (let j = 1; j < r.h - 1; j++) {
+      for (let i = 1; i < r.w - 1; i++) {
+        const c = cellAt(r, i, j);
+        if (!c || c.wall || c.door || c.crate || c.anomaly || c.portal || c.tile < 0) continue;
+        let nearHazard = false;
+        for (let dj = -2; dj <= 2 && !nearHazard; dj++) for (let di = -2; di <= 2; di++) if (cellAt(r, i + di, j + dj)?.anomaly) nearHazard = true;
+        if (!nearHazard) spots.push({ x: r.x + i, y: r.y + j });
+      }
+    }
+    if (!spots.length) continue;
+    const s = spots[rng.int(0, spots.length - 1)]!;
+    return [{ item: p.locks.key, x: s.x, y: s.y }];
+  }
+  return [];
 }
 
 function planFor(p: Params, seed: number, W: number, H: number): Plan {
@@ -293,7 +419,7 @@ function* roomCells(plan: Plan): Generator<{ r: Placed; i: number; j: number; x:
 
 export const interiorGenerator: WorldGenerator<Params> = {
   id: 'interior',
-  version: 1,
+  version: 2,
 
   parseParams(raw, tiles, content) {
     if (!content) throw new Error('interior generator needs the content registry');
@@ -305,7 +431,21 @@ export const interiorGenerator: WorldGenerator<Params> = {
       if (!defs.length) throw new Error(`interior params: no rooms match ${e.id ? `id "${e.id}"` : `tag "${e.tag}"`}`);
       return { rooms: defs.map(resolve), weight: e.weight, min: e.min, max: e.max, used: 0 };
     });
-    return { theme, start: resolve(content.get('room', r.start)), pools, count: r.count, loops: r.loops, plans: new Map() };
+    const lockTile = r.locks ? tiles.index(r.locks.tile) : -1;
+    const key = r.locks ? tiles.defs[lockTile]!.door?.key : undefined;
+    if (r.locks && !key) throw new Error(`interior params: locks.tile "${r.locks.tile}" is not a locked door`);
+    return {
+      theme,
+      start: resolve(content.get('room', r.start)),
+      pools,
+      count: r.count,
+      loops: r.loops,
+      secrets: r.secrets,
+      doors: r.doors ? { tile: tiles.index(r.doors.tile), chance: r.doors.chance } : null,
+      locks: r.locks ? { tile: lockTile, chance: r.locks.chance, key: key! } : null,
+      barricades: r.barricades ? { tile: tiles.index(r.barricades.tile), chance: r.barricades.chance } : null,
+      plans: new Map(),
+    };
   },
 
   generateChunk(ctx, out) {
@@ -325,6 +465,9 @@ export const interiorGenerator: WorldGenerator<Params> = {
       if (c.crate) out.push({ id: `crate:${r.index}:${i},${j}`, kind: 'crate', x: (x + 0.5) * T, y: (y + 0.8) * T, variant: c.crate.variant, lootTable: c.crate.lootTable });
       if (c.anomaly) out.push({ id: `anomaly:${r.index}:${i},${j}`, kind: 'anomaly', x: (x + 0.5) * T, y: (y + 0.5) * T, anomaly: c.anomaly });
     }
+    plan.keycards.forEach((kc, n) => {
+      if (kc.x >= x0 && kc.y >= y0 && kc.x < x0 + S && kc.y < y0 + S) out.push({ id: `keycard:${n}`, kind: 'item', x: (kc.x + 0.5) * T, y: (kc.y + 0.6) * T, item: kc.item });
+    });
     return out;
   },
 

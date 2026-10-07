@@ -185,6 +185,23 @@ export function drawDetector(colorHex: string): PixelCanvas {
   return finish(pc);
 }
 
+/** A keycard: a colored card with a magnetic stripe, a chip and a clip hole. 16x11. */
+export function drawKeycard(colorHex: string): PixelCanvas {
+  const pc = new PixelCanvas(16, 11);
+  const r = buildRamp(colorHex);
+  pc.rect(1, 1, 14, 9, r[3]!);
+  pc.hline(1, 1, 14, r[4]!);
+  pc.vline(14, 1, 9, r[1]!);
+  pc.hline(1, 9, 14, r[1]!);
+  pc.hline(1, 3, 13, [34, 34, 38]);
+  pc.hline(1, 4, 13, [34, 34, 38]);
+  pc.rect(3, 6, 3, 2, [212, 182, 92]);
+  pc.set(3, 6, [246, 222, 140]);
+  for (let x = 8; x < 13; x += 2) pc.set(x, 7, r[1]!);
+  pc.set(12, 2, r[0]!);
+  return finish(pc);
+}
+
 /** World crates: wooden supply crate or olive military case, sized for 64px characters. */
 export function drawCrate(kind: 'supply' | 'military'): PixelCanvas {
   const W = 30;

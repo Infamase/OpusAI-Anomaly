@@ -13,6 +13,8 @@ export class TileSet {
   readonly low: Uint8Array;
   /** Walking speed multiplier. */
   readonly speed: Float32Array;
+  /** A closed door anyone can open (no key): NPCs path through it and open it on the way. */
+  readonly openable: Uint8Array;
   readonly voidIndex: number;
   private byId = new Map<string, number>();
 
@@ -23,12 +25,14 @@ export class TileSet {
     this.opaque = new Uint8Array(this.defs.length);
     this.low = new Uint8Array(this.defs.length);
     this.speed = new Float32Array(this.defs.length);
+    this.openable = new Uint8Array(this.defs.length);
     this.defs.forEach((d, i) => {
       this.byId.set(d.id, i);
       this.solid[i] = d.solid ? 1 : 0;
       this.opaque[i] = d.opaque ? 1 : 0;
       this.low[i] = d.low ? 1 : 0;
       this.speed[i] = d.speed;
+      this.openable[i] = d.door && d.solid && !d.door.key ? 1 : 0;
     });
     const v = this.byId.get('void');
     if (v === undefined) throw new Error('Content must define a "void" tile (used outside world bounds)');

@@ -1,7 +1,7 @@
 import { hashInts, Rng } from '../../core/rng';
 import type { PropStyle } from '../../content/types/tile';
 import { buildRamp } from '../palette';
-import type { PixelCanvas } from '../PixelCanvas';
+import { PixelCanvas } from '../PixelCanvas';
 import { cap, ell, Rig, tri, v, type Ramp, type Shape } from './rig';
 
 /**
@@ -10,6 +10,8 @@ import { cap, ell, Rig, tri, v, type Ramp, type Shape } from './rig';
  * a few variants; `anchor` is the pixel that stands on the tile's base point.
  */
 export const PROP_VARIANTS = 3;
+/** Props that line up with their neighbors (fences): drawn exactly on the tile, never nudged or mirrored. */
+export const ALIGNED_PROPS: ReadonlySet<PropStyle> = new Set(['fence_h', 'fence_v', 'fence_broken', 'barricade']);
 
 export interface PropArt {
   pixels: PixelCanvas;
@@ -69,6 +71,14 @@ export function generateProp(style: PropStyle, variant: number): PropArt {
       return machine(rng, variant);
     case 'bunk':
       return bunk(variant);
+    case 'fence_h':
+      return fenceH(rng, variant);
+    case 'fence_v':
+      return fenceV(rng, variant);
+    case 'fence_broken':
+      return fenceBroken(rng, variant);
+    case 'barricade':
+      return barricade(rng, variant);
   }
 }
 
@@ -282,4 +292,118 @@ function bunk(variant: number): PropArt {
   const mat = rig.add({ region: 0, ramp: variant === 2 ? SHEET : FABRIC, relief: 0.8 }, box(cx - 14, base - 13, cx + 14, base - 6, 1));
   rig.decal(SHEET, [ell(v(cx - 10, base - 10), 3.5, 2)], { parts: [mat] });
   return { pixels: rig.finish(), anchor: [cx, base - 1] };
+}
+
+const WOOD = buildRamp('#7a5a3a');
+const WOOD_GREY = buildRamp('#7a7062');
+const NAIL = buildRamp('#8a8a84');
+
+/** A weathered plank: lit top edge, dark bottom edge, grain flecks. Pixel art straight onto the canvas. */
+function board(pc: PixelCanvas, rng: Rng, x0: number, y0: number, w: number, h: number, wood: typeof WOOD): void {
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let tone = y === 0 ? 4 : y === h - 1 ? 1 : 3;
+      if (tone === 3 && rng.chance(0.12)) tone = 2;
+      pc.set(x0 + x, y0 + y, wood[tone]!);
+    }
+  }
+}
+
+/** A plank fence running east-west: a post at the left edge, two rails across the whole tile, pickets. */
+function fenceH(rng: Rng, variant: number): PropArt {
+  const W = 32;
+  const H = 30;
+  const base = 26;
+  const pc = new PixelCanvas(W, H);
+  const wood = WOOD;
+  // Pickets (with gaps), rails over them, then the post.
+  for (let x = 2; x < W; x += 5) {
+    const top = base - 19 - (rng.chance(0.3) ? 2 : 0);
+    if (variant === 1 && x === 17) continue; // a missing picket
+    for (let y = top; y < base; y++) for (let k = 0; k < 3; k++) pc.set(x + k, y, wood[k === 0 ? 4 : k === 2 ? 1 : y === top ? 4 : 3]!);
+    pc.set(x + 1, top - 1, wood[2]!);
+  }
+  board(pc, rng, 0, base - 15, W, 3, wood);
+  board(pc, rng, 0, base - 7, W, 3, wood);
+  for (let y = base - 22; y < base + 1; y++) for (let k = 0; k < 3; k++) pc.set(k, y, wood[k === 0 ? 3 : k === 2 ? 0 : 2]!);
+  pc.set(1, base - 14, NAIL[4]!);
+  pc.set(1, base - 6, NAIL[4]!);
+  return { pixels: pc, anchor: [16, base] };
+}
+
+/** A plank fence running north-south, seen end-on: posts and the rails' top edges in a narrow band. */
+function fenceV(rng: Rng, variant: number): PropArt {
+  const W = 32;
+  const H = 52;
+  const base = 46;
+  const pc = new PixelCanvas(W, H);
+  const wood = WOOD;
+  const x0 = 13;
+  // The pickets' tops seen from above form a strip, a tile tall, raised 18px off the ground.
+  for (let y = base - 50; y < base - 18; y++) {
+    for (let k = 0; k < 6; k++) pc.set(x0 + k, y, wood[k === 0 ? 4 : k === 5 ? 1 : (y + rng.int(0, 1)) % 5 === 0 ? 2 : 3]!);
+  }
+  // Its face, dropping to the ground along the strip's bottom end.
+  for (let y = base - 18; y < base; y++) for (let k = 0; k < 6; k++) pc.set(x0 + k, y, wood[k === 0 ? 2 : k === 5 ? 0 : 1]!);
+  // A post at the north end.
+  for (let y = base - 52; y < base - 44; y++) for (let k = -1; k < 7; k++) pc.set(x0 + k, Math.max(0, y), wood[k < 0 ? 4 : k > 5 ? 0 : 2]!);
+  return { pixels: pc, anchor: [16, base] };
+}
+
+/** What's left of a fence: stumps of posts and a snapped rail on the ground. */
+function fenceBroken(rng: Rng, variant: number): PropArt {
+  const W = 32;
+  const H = 16;
+  const base = 12;
+  const pc = new PixelCanvas(W, H);
+  const wood = WOOD;
+  for (let i = 0; i < 4; i++) {
+    const x = rng.int(1, W - 4);
+    const h = rng.int(2, 6);
+    for (let y = base - h; y <= base; y++) for (let k = 0; k < 3; k++) pc.set(x + k, y, wood[k === 0 ? 4 : k === 2 ? 1 : 3]!);
+    pc.set(x + 1, base - h - 1, wood[2]!);
+  }
+  const len = rng.int(10, 18);
+  const x0 = rng.int(0, W - len - 1);
+  for (let i = 0; i < len; i++) {
+    const y = base + 1 + Math.round((i / len) * 2);
+    pc.set(x0 + i, y, wood[3]!);
+    pc.set(x0 + i, y - 1, wood[4]!);
+  }
+  return { pixels: pc, anchor: [16, base] };
+}
+
+/** A barricade blocking a doorway: boards nailed across at angles over a cross brace, sandbags at the foot. */
+function barricade(rng: Rng, variant: number): PropArt {
+  const W = 34;
+  const H = 40;
+  const base = 34;
+  const pc = new PixelCanvas(W, H);
+  const wood = variant === 2 ? WOOD_GREY : WOOD;
+  // The cross brace behind.
+  for (let i = 0; i < 30; i++) {
+    for (let k = 0; k < 3; k++) {
+      pc.set(2 + i, base - 30 + i + k, wood[k === 0 ? 3 : 1]!);
+      pc.set(31 - i, base - 30 + i + k, wood[k === 0 ? 2 : 1]!);
+    }
+  }
+  // Boards across, each a little skewed.
+  for (const y of [base - 26, base - 18, base - 10]) {
+    const tilt = rng.range(-0.12, 0.12);
+    for (let x = 0; x < W; x++) {
+      const yy = Math.round(y + (x - W / 2) * tilt);
+      for (let k = 0; k < 4; k++) pc.set(x, yy + k, wood[k === 0 ? 4 : k === 3 ? 1 : rng.chance(0.1) ? 2 : 3]!);
+    }
+    pc.set(3, y + 1, NAIL[4]!);
+    pc.set(W - 4, y + 1, NAIL[4]!);
+  }
+  // Sandbags.
+  const BAG = buildRamp(variant === 1 ? '#7a7454' : '#8a7a58');
+  for (const bx of [1, 12, 23]) {
+    for (let y = 0; y < 6; y++) for (let x = 0; x < 10; x++) {
+      const edge = (x === 0 || x === 9) && (y === 0 || y === 5);
+      if (!edge) pc.set(bx + x, base - 5 + y, BAG[y === 0 ? 4 : y === 5 ? 1 : 3]!);
+    }
+  }
+  return { pixels: pc, anchor: [17, base] };
 }

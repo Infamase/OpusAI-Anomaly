@@ -27,7 +27,9 @@ export interface ChunkGenContext<P> {
 export type WorldObjectSpawn =
   | { id: string; kind: 'crate'; x: number; y: number; variant: 'supply' | 'military'; lootTable: string }
   | { id: string; kind: 'anomaly'; x: number; y: number; anomaly: string }
-  | { id: string; kind: 'artifact'; x: number; y: number; artifact: string };
+  | { id: string; kind: 'artifact'; x: number; y: number; artifact: string }
+  /** An item lying in plain sight (a keycard); once taken it's gone for good. */
+  | { id: string; kind: 'item'; x: number; y: number; item: string };
 
 /** A group of NPCs living in the world (a camp guarding a spot, or a patrol). */
 export interface CampSpawn {

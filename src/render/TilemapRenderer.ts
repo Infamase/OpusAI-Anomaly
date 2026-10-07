@@ -2,7 +2,7 @@ import { Container, Sprite, Texture } from 'pixi.js';
 import { hashInts, valueNoise2D } from '../core/rng';
 import type { TileMap } from '../game/world/TileMap';
 import type { TileSet } from '../game/world/TileSet';
-import { generateProp, PROP_VARIANTS } from './placeholder/props';
+import { ALIGNED_PROPS, generateProp, PROP_VARIANTS } from './placeholder/props';
 import { generateTile, TILE_SIZE, tileRamp, VARIANTS } from './placeholder/tiles';
 
 const T = TILE_SIZE;
@@ -248,16 +248,19 @@ export class TilemapRenderer {
       for (let x = 0; x < S; x++) {
         const tx = cx * S + x;
         const ty = cy * S + y;
-        const art = this.atlas.props[this.map.getTile(tx, ty)];
+        const tile = this.map.getTile(tx, ty);
+        const art = this.atlas.props[tile];
         if (!art) continue;
         const pick = art[hashInts(tx, ty, 7) % art.length]!;
         const sprite = new Sprite(pick.texture);
         sprite.anchor.set((pick.anchor[0] + 0.5) / pick.texture.width, (pick.anchor[1] + 0.5) / pick.texture.height);
-        const px = (tx + 0.5) * T + ((hashInts(tx, ty, 3) % 5) - 2);
+        // Fences line up with their neighbors; everything else is nudged and mirrored for variety.
+        const aligned = ALIGNED_PROPS.has(this.map.tiles.defs[tile]!.prop!);
+        const px = (tx + 0.5) * T + (aligned ? 0 : (hashInts(tx, ty, 3) % 5) - 2);
         const py = (ty + 0.75) * T;
         sprite.position.set(px, py);
         sprite.zIndex = py;
-        if (hashInts(tx, ty, 9) % 2) sprite.scale.x = -1;
+        if (!aligned && hashInts(tx, ty, 9) % 2) sprite.scale.x = -1;
         this.propLayer.addChild(sprite);
         view.props.push(sprite);
       }

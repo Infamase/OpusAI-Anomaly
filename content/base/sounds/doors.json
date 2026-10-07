@@ -1,0 +1,556 @@
+[
+  {
+    "type": "sound",
+    "id": "door_slide_open",
+    "cue": "door_open",
+    "range": 520,
+    "volume": 0.6,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.5,
+          "attack": 0.04,
+          "curve": 1.4,
+          "gain": 0.6,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              700,
+              1600
+            ],
+            "q": 1.2
+          }
+        },
+        {
+          "wave": "saw",
+          "freq": [
+            110,
+            150
+          ],
+          "length": 0.45,
+          "attack": 0.05,
+          "curve": 1.5,
+          "gain": 0.18,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              600,
+              900
+            ]
+          }
+        },
+        {
+          "wave": "noise",
+          "start": 0.46,
+          "length": 0.06,
+          "curve": 4,
+          "gain": 0.7,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              900,
+              600
+            ],
+            "q": 2
+          }
+        }
+      ],
+      "vary": 0.08
+    }
+  },
+  {
+    "type": "sound",
+    "id": "door_slide_close",
+    "cue": "door_close",
+    "range": 520,
+    "volume": 0.6,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.42,
+          "attack": 0.03,
+          "curve": 1.4,
+          "gain": 0.55,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1500,
+              700
+            ],
+            "q": 1.2
+          }
+        },
+        {
+          "wave": "saw",
+          "freq": [
+            150,
+            105
+          ],
+          "length": 0.4,
+          "attack": 0.04,
+          "curve": 1.5,
+          "gain": 0.18,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              900,
+              500
+            ]
+          }
+        },
+        {
+          "wave": "noise",
+          "start": 0.4,
+          "length": 0.1,
+          "curve": 4,
+          "gain": 0.9,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              700,
+              300
+            ]
+          }
+        },
+        {
+          "wave": "square",
+          "freq": [
+            80,
+            60
+          ],
+          "start": 0.4,
+          "length": 0.12,
+          "curve": 4,
+          "gain": 0.35,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              400,
+              200
+            ]
+          }
+        }
+      ],
+      "vary": 0.08
+    }
+  },
+  {
+    "type": "sound",
+    "id": "door_buzz",
+    "cue": "door_locked",
+    "range": 0,
+    "bus": "ui",
+    "volume": 0.45,
+    "pitchJitter": 0,
+    "variants": 1,
+    "synth": {
+      "layers": [
+        {
+          "wave": "square",
+          "freq": [
+            180,
+            180
+          ],
+          "length": 0.16,
+          "curve": 0.5,
+          "gain": 0.5,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1400,
+              1400
+            ]
+          }
+        },
+        {
+          "wave": "square",
+          "freq": [
+            180,
+            180
+          ],
+          "start": 0.2,
+          "length": 0.16,
+          "curve": 0.5,
+          "gain": 0.5,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1400,
+              1400
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "sound",
+    "id": "keycard_chirp",
+    "cue": "door_unlock",
+    "range": 0,
+    "bus": "ui",
+    "volume": 0.5,
+    "pitchJitter": 0,
+    "variants": 1,
+    "synth": {
+      "layers": [
+        {
+          "wave": "sine",
+          "freq": [
+            1400,
+            1400
+          ],
+          "length": 0.07,
+          "curve": 1,
+          "gain": 0.5
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            2100,
+            2100
+          ],
+          "start": 0.08,
+          "length": 0.1,
+          "curve": 1.5,
+          "gain": 0.5
+        },
+        {
+          "wave": "noise",
+          "start": 0.14,
+          "length": 0.05,
+          "curve": 4,
+          "gain": 0.5,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              2400,
+              2000
+            ],
+            "q": 4
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "sound",
+    "id": "wood_door_creak",
+    "range": 480,
+    "volume": 0.55,
+    "synth": {
+      "layers": [
+        {
+          "wave": "saw",
+          "freq": [
+            420,
+            610
+          ],
+          "length": 0.55,
+          "attack": 0.05,
+          "curve": 1.2,
+          "gain": 0.25,
+          "lfo": [
+            23,
+            0.6
+          ],
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              900,
+              1300
+            ],
+            "q": 3
+          }
+        },
+        {
+          "wave": "noise",
+          "length": 0.08,
+          "curve": 4,
+          "gain": 0.4,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1800,
+              1200
+            ],
+            "q": 2
+          }
+        }
+      ],
+      "vary": 0.15
+    }
+  },
+  {
+    "type": "sound",
+    "id": "wood_door_shut",
+    "range": 480,
+    "volume": 0.6,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.14,
+          "curve": 4,
+          "gain": 0.9,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              900,
+              300
+            ]
+          }
+        },
+        {
+          "wave": "triangle",
+          "freq": [
+            140,
+            90
+          ],
+          "length": 0.18,
+          "curve": 4,
+          "gain": 0.5
+        },
+        {
+          "wave": "noise",
+          "start": 0.03,
+          "length": 0.05,
+          "curve": 4,
+          "gain": 0.4,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              2600,
+              1800
+            ],
+            "q": 2
+          }
+        }
+      ],
+      "vary": 0.1
+    }
+  },
+  {
+    "type": "sound",
+    "id": "impact_wood",
+    "range": 560,
+    "volume": 0.5,
+    "maxVoices": 6,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.05,
+          "curve": 4,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1600,
+              900
+            ],
+            "q": 1.5
+          }
+        },
+        {
+          "wave": "triangle",
+          "freq": [
+            320,
+            200
+          ],
+          "length": 0.09,
+          "curve": 4,
+          "gain": 0.4
+        }
+      ],
+      "vary": 0.15
+    }
+  },
+  {
+    "type": "sound",
+    "id": "break_wood",
+    "cue": "break",
+    "range": 700,
+    "volume": 0.8,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.12,
+          "curve": 3,
+          "gain": 1,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              2200,
+              900
+            ],
+            "q": 1
+          }
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            300,
+            80
+          ],
+          "length": 0.5,
+          "curve": 2,
+          "gain": 0.6,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1800,
+              900
+            ],
+            "q": 0.8
+          }
+        },
+        {
+          "wave": "triangle",
+          "freq": [
+            180,
+            90
+          ],
+          "length": 0.2,
+          "curve": 3,
+          "gain": 0.5
+        },
+        {
+          "wave": "noise",
+          "start": 0.18,
+          "length": 0.25,
+          "curve": 2,
+          "gain": 0.35,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              1200,
+              600
+            ],
+            "q": 1.5
+          }
+        }
+      ],
+      "vary": 0.15
+    }
+  },
+  {
+    "type": "sound",
+    "id": "break_concrete",
+    "range": 900,
+    "volume": 0.9,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.2,
+          "curve": 2.5,
+          "gain": 1,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              1400,
+              300
+            ]
+          }
+        },
+        {
+          "wave": "brown",
+          "length": 0.8,
+          "curve": 1.6,
+          "gain": 0.8,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              600,
+              200
+            ]
+          }
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            500,
+            100
+          ],
+          "start": 0.1,
+          "length": 0.9,
+          "curve": 1.5,
+          "gain": 0.5,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              1200,
+              800
+            ]
+          }
+        }
+      ],
+      "vary": 0.12
+    }
+  },
+  {
+    "type": "sound",
+    "id": "break_metal",
+    "range": 800,
+    "volume": 0.8,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.08,
+          "curve": 3,
+          "gain": 0.9,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2000,
+              2000
+            ]
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            900,
+            620
+          ],
+          "length": 0.7,
+          "curve": 2.5,
+          "gain": 0.35
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            1530,
+            1290
+          ],
+          "length": 0.5,
+          "curve": 3,
+          "gain": 0.25
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            400,
+            120
+          ],
+          "start": 0.1,
+          "length": 0.5,
+          "curve": 2,
+          "gain": 0.4,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              1500,
+              1500
+            ]
+          }
+        }
+      ],
+      "vary": 0.12
+    }
+  }
+]

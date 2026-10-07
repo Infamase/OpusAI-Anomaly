@@ -116,6 +116,17 @@ export class TileMap<P = unknown> {
     return this.tiles.solid[this.getTile(tx, ty)] === 1;
   }
 
+  /** A closed door anyone could open (no key needed). */
+  isOpenableDoor(tx: number, ty: number): boolean {
+    return this.tiles.openable[this.getTile(tx, ty)] === 1;
+  }
+
+  /** Solid for route planning: like isSolid, but closed doors that open for anyone count as passable. */
+  blocksPath(tx: number, ty: number): boolean {
+    const t = this.getTile(tx, ty);
+    return this.tiles.solid[t] === 1 && this.tiles.openable[t] === 0;
+  }
+
   /** Solid for bullets: walls yes, low obstacles like water no. */
   blocksShots(tx: number, ty: number): boolean {
     const t = this.getTile(tx, ty);

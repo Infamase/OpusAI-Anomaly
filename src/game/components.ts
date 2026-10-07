@@ -178,6 +178,17 @@ export interface Container {
 }
 export const Container = defineComponent<Container>('Container');
 
+/** A prop bullets can break (a wooden crate): `hp` left of `max`; `debris` colors the splinters. */
+export interface Breakable {
+  hp: number;
+  max: number;
+  debris: string;
+  /** Hit area around the feet point, px: half width and height. */
+  halfW: number;
+  height: number;
+}
+export const Breakable = defineComponent<Breakable>('Breakable');
+
 /** A static prop sprite (items on the ground, crates). */
 export const PropView = defineComponent<import('../render/PropView').PropView>('PropView');
 

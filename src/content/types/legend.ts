@@ -2,7 +2,7 @@ import type { CrossCheckContext } from '../Registry';
 import { v, type Validator } from '../schema';
 
 /** Theme slots a room can use instead of tile ids (`"$wall"`); each interior theme fills them in. */
-export const THEME_SLOTS = ['wall', 'floor', 'floor2', 'door', 'outside', 'accent', 'window'] as const;
+export const THEME_SLOTS = ['wall', 'floor', 'floor2', 'door', 'outside', 'accent', 'window', 'fragile'] as const;
 export type ThemeSlot = (typeof THEME_SLOTS)[number];
 
 /**

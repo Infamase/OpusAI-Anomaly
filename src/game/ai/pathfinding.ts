@@ -121,9 +121,10 @@ export function findPath(map: TileMap, from: Point, to: Point, maxNodes = 3000, 
     for (const [dx, dy, cost] of DIRS) {
       const nx = cx + dx;
       const ny = cy + dy;
-      if (map.isSolid(nx, ny)) continue;
-      // No squeezing diagonally between two walls.
-      if (dx && dy && (map.isSolid(cx + dx, cy) || map.isSolid(cx, cy + dy))) continue;
+      // Closed doors that open for anyone are fine (NPCs open them on the way).
+      if (map.blocksPath(nx, ny)) continue;
+      // No squeezing diagonally between two walls, nor cutting through a doorway at an angle.
+      if (dx && dy && (map.isSolid(cx + dx, cy) || map.isSolid(cx, cy + dy) || map.isSolid(nx, ny) || map.isSolid(cx, cy))) continue;
       const nk = key(nx, ny);
       if (closed.has(nk)) continue;
       // Hazards are very expensive rather than forbidden, so someone standing in one can still path out.

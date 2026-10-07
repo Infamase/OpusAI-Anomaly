@@ -30,6 +30,12 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > crates, anomalies and the odd camp inside. Press E at a hatch or door to go
 > in; the way back out leads to the door you came in by.
 >
+> **Doors & destructibles:** sliding doors open and close (NPCs open them
+> too); secure rooms in the interiors are locked behind keycard doors, and the
+> keycard is always somewhere you can reach. Bullets wear down cracked walls,
+> wooden fences, barricades and plank doors until they give way, opening
+> shortcuts, and wooden crates splinter and spill their loot.
+>
 > **Sound:** every sound is synthesized from recipes in content files
 > (gunshots per weapon, footsteps per surface, impacts, pain and death per
 > race, reloads, radio chatter, UI, wind and the hum of the Zone), positioned

@@ -31,6 +31,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 13 Planets | `src/game/world/planetGenerator.ts`, `exploration.ts`, `scenes/MapScene.ts`, `content/*/biomes`, `content/*/structures` | Planet generation (biomes, lakes, rivers, structures, roads), explored-area map |
 | 14 Anomalies & artifacts | `src/game/systems/AnomalySystem.ts`, `ArtifactSystem.ts`, `radiation.ts`, `ai/hazards.ts`, `src/render/AnomalyFx.ts`, `content/*/anomalies`, `content/*/artifacts` | Hazards, bolts, radiation, artifacts on the belt, detectors |
 | 15 Interiors | `src/game/world/interiorGenerator.ts`, `drawings.ts`, `content/*/rooms`, `src/content/types/{room,legend}.ts` | Labs, ships and stations assembled from room drawings; portals between worlds |
+| 16 Doors & destructibles | `src/game/doors.ts`, `breakables.ts`, `src/render/CrackOverlay.ts`, `content/*/tiles/doors.json`, `content/*/keycards` | Doors, keycards and locked rooms, breakable walls / fences / barricades / crates |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -322,6 +323,39 @@ over the canvas and draw animated characters with `CharacterPreview`.
   **Crashed Freighter** (half-buried, outside is rock), and a **Launch Site**
   (a shuttle up to the orbital station, outside is space).
 
+## Doors, keycards & destructibles (Module 16)
+
+- **Doors are tiles** with a `door` field: using one (E, or an NPC walking into
+  it) swaps it for its `toggle` tile, closed (solid, opaque) ↔ open. The change
+  is saved like any tile change. A door won't close on someone standing in it.
+- **Locks:** a closed door with `door.key` opens only for someone carrying that
+  **keycard** (item kind `keycard`, never used up). Opening it swaps it to the
+  open tile, whose toggle is an ordinary unlocked door, so it stays unlocked.
+- **NPCs:** pathfinding treats closed doors that open for anyone as passable
+  (`TileMap.blocksPath`, `TileSet.openable`) and won't cut diagonally through a
+  doorway; `DoorSystem` opens the door just ahead of a walking NPC. Locked
+  doors stay walls to them, so guards in a locked room stay put until you
+  open it.
+- **Breakables:** a solid tile with `breakable` (`hp`, `becomes`, `resist`,
+  `debris`) wears down under bullets: `ProjectileSystem` reports the tile it
+  struck (`tileHit`), `TileDamage` keeps the wear and swaps in the broken tile
+  (saved) when it runs out. Worn tiles show cracks (`CrackOverlay`); partial
+  wear lasts for the visit only. Fragile walls become debris, fences
+  splinters, barricades rubble.
+- **Breakable props:** entities with a `Breakable` component (wooden supply
+  crates; military cases are steel) take bullets too (`propHit`). A crate shot
+  apart spills its contents onto the ground and is gone for good (saved as a
+  removed generated object).
+- **Interiors** use it all through their params: `doors` (closed doors in a
+  share of doorways), `locks` (rooms tagged `secure` get the locked door
+  tile; the keycard is placed in a room reachable from the entrance without
+  passing a lock or a barricade), `barricades`, and `secrets` (a fragile wall
+  where two unjoined rooms share a wall, a shortcut to shoot through). The
+  theme's `fragile` slot picks that wall.
+- **Fences** come in an east-west (`fence`) and a north-south (`fence_ns`)
+  tile; a tile's `turned` names its quarter-turned form, so rotated structures
+  keep their fences running the right way.
+
 ## Extension points
 
 ### Add a playable race
@@ -394,6 +428,17 @@ generated tile.
   pools, a room `count` and `loops`.
 - **Way in:** a legend cell with a `portal` in a planet structure (or another
   room), pointing at the interior's id.
+
+### Add a door, keycard or breakable
+- **Door:** two tiles that name each other in `door.toggle`, one solid (closed,
+  `door_closed` / `wood_door` style) and one walkable (open). Give them
+  `open` / `close` sounds.
+- **Locked door + keycard:** a `keycard` in `content/base/keycards/`, and a
+  closed door tile with `door.key` set to it whose `toggle` is the open tile.
+  Use it in an interior's `locks`, or draw it into a structure (and put the
+  keycard in a loot table).
+- **Breakable:** add `breakable: { "hp": ..., "becomes": "<tile>" }` to any
+  solid tile, plus a `break` sound.
 
 ### Add a new kind of content (weapons, armor, factions, station chunks…)
 1. `src/content/types/<kind>.ts`: a schema (`v.object({...})`), a `crossCheck` for

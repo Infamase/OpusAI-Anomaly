@@ -65,6 +65,18 @@ export class GameAudio {
     });
     events.on('boltThrown', (b) => a.playCue('bolt_throw', { x: b.x, y: b.y }));
     events.on('boltLanded', (b) => a.playCue('bolt_land', { x: b.x, y: b.y }));
+    events.on('door', (d) => {
+      const s = this.content.tryGet('tile', d.tile)?.sounds;
+      const at = { x: d.x, y: d.y };
+      if (d.result === 'opened') a.play(s?.open, at, 'door_open');
+      else if (d.result === 'closed') a.play(s?.close, at, 'door_close');
+      else if (d.result === 'locked') a.play(s?.locked, at, 'door_locked');
+      else if (d.result === 'unlocked') {
+        a.playCue('door_unlock');
+        a.play(s?.open, at, 'door_open');
+      }
+    });
+    events.on('broken', (b) => a.play(b.tile ? this.content.tryGet('tile', b.tile)?.sounds?.break : undefined, { x: b.x, y: b.y }, 'break'));
   }
 
   /** Idle hum, crackle and bubbling of anomalies near the player, each on its own rhythm. */

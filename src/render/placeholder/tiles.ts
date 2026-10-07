@@ -647,6 +647,144 @@ function hatch(t: Tex, accent: Ramp): void {
   }
 }
 
+/** Jagged cracks wandering across a tile (dark line with a lit lip), for broken-looking walls. */
+function cracks(t: Tex, rng: Rng, count: number, y0 = 0, y1 = S): void {
+  for (let c = 0; c < count; c++) {
+    let x = rng.range(4, S - 4);
+    let y = rng.range(y0, y0 + (y1 - y0) * 0.4);
+    let dir = Math.PI / 2 + rng.range(-0.8, 0.8);
+    const len = rng.int(10, 20);
+    for (let i = 0; i < len; i++) {
+      if (y >= y1 || y < y0) break;
+      // A two-pixel dark gash with a lit lip, so weak walls stand out.
+      t.tone(x - 1, y, 0);
+      t.tone(x, y, 0);
+      t.tone(x + 1, y, 4);
+      // Short side branches now and then.
+      if (rng.chance(0.18)) for (let k = 1; k < 5; k++) t.tone(x - 1 - k, y + k * 0.5, 0);
+      dir += rng.range(-0.6, 0.6);
+      x += Math.cos(dir);
+      y += Math.abs(Math.sin(dir)) + 0.3;
+    }
+  }
+}
+
+/** A closed sliding door. From above: a heavy slab with hazard chevrons and a status light; with floor below, the two door leaves. */
+function doorClosed(t: Tex, rng: Rng, front: boolean, light: Ramp): void {
+  t.fill(2);
+  for (let i = 0; i < S; i++) {
+    t.tone(i, 0, 4);
+    t.tone(0, i, 4);
+    t.tone(i, S - 1, 0);
+    t.tone(S - 1, i, 0);
+  }
+  for (let y = 3; y < S - 3; y++) {
+    for (let x = 3; x < S - 3; x++) t.tone(x, y, (x + y) % 8 < 4 ? 3 : 1);
+  }
+  for (let y = 12; y < 20; y++) for (let x = 12; x < 20; x++) t.tone(x, y, 1);
+  for (let y = 14; y < 18; y++) for (let x = 14; x < 18; x++) t.tone(x, y, y === 14 ? 4 : 3, light);
+  if (!front) return;
+  const face = 18;
+  const top = S - face;
+  // Lintel above the door, then the two leaves with a seam down the middle.
+  for (let y = 0; y < top; y++) for (let x = 0; x < S; x++) t.tone(x, y, y === top - 1 ? 0 : y < 2 ? 4 : 2);
+  for (let x = 10; x < 22; x++) {
+    t.tone(x, 4, 4, light);
+    t.tone(x, 5, 2, light);
+  }
+  for (let y = top; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const frame = x < 2 || x > S - 3;
+      const seam = x === 15 || x === 16;
+      let tone = frame ? 1 : seam ? 0 : y === top ? 4 : 3;
+      if (!frame && !seam && (x === 3 || x === S - 4)) tone = 2;
+      if (!frame && !seam && y > S - 4) tone = 2;
+      t.tone(x, y, tone);
+    }
+  }
+  for (let y = top + 6; y < top + 12; y++) {
+    t.tone(13, y, 1);
+    t.tone(18, y, 1);
+  }
+  if (rng.chance(0.5)) for (let x = 4; x < 12; x++) t.tone(x, S - 6, 1);
+}
+
+/** An open sliding door: a threshold plate with the leaves tucked into dark slots at both sides. */
+function doorOpen(t: Tex, light: Ramp): void {
+  t.fill(3);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < 5; x++) {
+      t.tone(x, y, x === 4 ? 4 : 1);
+      t.tone(S - 1 - x, y, x === 4 ? 2 : 1);
+    }
+  }
+  for (let x = 5; x < S - 5; x++) {
+    t.tone(x, 0, 2);
+    t.tone(x, S - 1, 2);
+    t.tone(x, 15, 2);
+    t.tone(x, 16, 4);
+  }
+  for (const y of [6, 25]) {
+    t.tone(2, y, 4, light);
+    t.tone(S - 3, y, 4, light);
+  }
+}
+
+/** A plank door. From above: boards end-on; with floor below, a framed door of vertical planks with a handle. */
+function woodDoor(t: Tex, rng: Rng, front: boolean, metal: Ramp): void {
+  t.fill(2);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const bx = x % 8;
+      t.tone(x, y, bx === 7 ? 1 : bx === 0 ? 4 : valueNoise2D(x, y / 3, 5) > 0.7 ? 2 : 3);
+    }
+  }
+  if (!front) return;
+  const face = 20;
+  const top = S - face;
+  for (let y = 0; y < top; y++) for (let x = 0; x < S; x++) t.tone(x, y, y === top - 1 ? 0 : y < 2 ? 4 : 1);
+  for (let y = top; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      if (x < 3 || x > S - 4) {
+        t.tone(x, y, x === 0 || x === S - 1 ? 0 : 1);
+        continue;
+      }
+      const bx = (x - 3) % 6;
+      let tone = bx === 5 ? 1 : bx === 0 ? 4 : 3;
+      if (tone === 3 && rng.chance(0.06)) tone = 2;
+      t.tone(x, y, tone);
+    }
+  }
+  // Cross braces and a handle.
+  for (const y of [top + 4, S - 5]) for (let x = 3; x < S - 3; x++) t.tone(x, y, 2);
+  t.tone(S - 7, top + 10, 4, metal);
+  t.tone(S - 7, top + 11, 2, metal);
+}
+
+/** A plank door swung open: floor boards, with the door itself standing along the left edge. */
+function woodDoorOpen(t: Tex, rng: Rng): void {
+  planks(t, rng);
+  for (let y = 0; y < S; y++) {
+    t.tone(0, y, 0);
+    for (let x = 1; x < 5; x++) t.tone(x, y, x === 1 ? 4 : y % 8 === 7 ? 1 : 2);
+    t.tone(5, y, 0);
+  }
+}
+
+/** Debris: dusty floor strewn with broken chunks (what a fragile wall becomes). */
+function debris(t: Tex, rng: Rng): void {
+  concrete(t, rng, 1);
+  for (let i = 0; i < 9; i++) {
+    const x = rng.int(0, S - 1);
+    const y = rng.int(0, S - 1);
+    const w = rng.int(2, 5);
+    const h = rng.int(2, 4);
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) t.tone(x + xx, y + yy, yy === 0 ? 4 : yy === h - 1 ? 1 : 3);
+    t.tone(x + w, y + h - 1, 0);
+  }
+  for (let i = 0; i < 30; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), rng.chance(0.5) ? 1 : 4);
+}
+
 export function generateTile(def: TileDef, variant: number, front: boolean): PixelCanvas {
   const ramp = buildRamp(def.placeholder.color);
   const accent = def.placeholder.accent ? buildRamp(def.placeholder.accent) : ramp;
@@ -718,6 +856,31 @@ export function generateTile(def: TileDef, variant: number, front: boolean): Pix
       break;
     case 'hatch':
       hatch(t, accent);
+      break;
+    case 'door_closed':
+      doorClosed(t, rng, front, accent);
+      break;
+    case 'door_open':
+      doorOpen(t, accent);
+      break;
+    case 'wood_door':
+      woodDoor(t, rng, front, accent);
+      break;
+    case 'wood_door_open':
+      woodDoorOpen(t, rng);
+      break;
+    case 'debris':
+      debris(t, rng);
+      break;
+    case 'wall_cracked':
+      wall(t, rng, variant, front, accent);
+      cracks(t, rng, 3, 0, S);
+      break;
+    case 'brick_cracked':
+      brick(t, rng, front, accent);
+      cracks(t, rng, 3, 0, S);
+      // A few bricks knocked out of the face.
+      if (front) for (let i = 0; i < 3; i++) t.rect(rng.int(2, S - 8), rng.int(S - 16, S - 5), 6, 3, 0);
       break;
   }
   return t.pc;

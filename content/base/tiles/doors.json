@@ -1,0 +1,440 @@
+[
+  {
+    "type": "tile",
+    "id": "lab_door",
+    "name": "Lab Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "lab_door_open"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "door_closed",
+      "color": "#7a7a72",
+      "accent": "#58c070"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "lab_door_open",
+    "name": "Open Lab Door",
+    "solid": false,
+    "door": {
+      "toggle": "lab_door"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal",
+      "step": "step_metal"
+    },
+    "placeholder": {
+      "style": "door_open",
+      "color": "#5a5a54",
+      "accent": "#58c070"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "lab_door_locked",
+    "name": "Locked Lab Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "lab_door_open",
+      "key": "lab_keycard"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "door_closed",
+      "color": "#7a7a72",
+      "accent": "#d04040"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "hull_door",
+    "name": "Hatch Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "hull_door_open"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "door_closed",
+      "color": "#50585c",
+      "accent": "#d08a40"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "hull_door_open",
+    "name": "Open Hatch Door",
+    "solid": false,
+    "door": {
+      "toggle": "hull_door"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal",
+      "step": "step_metal"
+    },
+    "placeholder": {
+      "style": "door_open",
+      "color": "#5a5a54",
+      "accent": "#d08a40"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "hull_door_locked",
+    "name": "Locked Hatch Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "hull_door_open",
+      "key": "ship_keycard"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "door_closed",
+      "color": "#50585c",
+      "accent": "#d04040"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "station_door",
+    "name": "Station Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "station_door_open"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "door_closed",
+      "color": "#6a7684",
+      "accent": "#4ab0d8"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "station_door_open",
+    "name": "Open Station Door",
+    "solid": false,
+    "door": {
+      "toggle": "station_door"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal",
+      "step": "step_metal"
+    },
+    "placeholder": {
+      "style": "door_open",
+      "color": "#5a5a54",
+      "accent": "#4ab0d8"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "station_door_locked",
+    "name": "Locked Station Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "station_door_open",
+      "key": "station_keycard"
+    },
+    "sounds": {
+      "open": "door_slide_open",
+      "close": "door_slide_close",
+      "locked": "door_buzz",
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "door_closed",
+      "color": "#6a7684",
+      "accent": "#d04040"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "wood_door",
+    "name": "Wooden Door",
+    "solid": true,
+    "opaque": true,
+    "door": {
+      "toggle": "wood_door_open"
+    },
+    "breakable": {
+      "hp": 90,
+      "becomes": "planks",
+      "debris": "#7a5a3a"
+    },
+    "sounds": {
+      "open": "wood_door_creak",
+      "close": "wood_door_shut",
+      "impact": "impact_wood",
+      "break": "break_wood"
+    },
+    "placeholder": {
+      "style": "wood_door",
+      "color": "#6e4e30",
+      "accent": "#9a9a90"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "wood_door_open",
+    "name": "Open Wooden Door",
+    "solid": false,
+    "door": {
+      "toggle": "wood_door"
+    },
+    "sounds": {
+      "open": "wood_door_creak",
+      "close": "wood_door_shut",
+      "impact": "impact_wood",
+      "break": "break_wood",
+      "step": "step_wood"
+    },
+    "placeholder": {
+      "style": "wood_door_open",
+      "color": "#7a5a3a"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "debris",
+    "name": "Debris",
+    "solid": false,
+    "speed": 0.9,
+    "sounds": {
+      "step": "step_gravel"
+    },
+    "placeholder": {
+      "style": "debris",
+      "color": "#6a675e"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "fence",
+    "name": "Wooden Fence",
+    "solid": true,
+    "prop": "fence_h",
+    "breakable": {
+      "hp": 45,
+      "becomes": "fence_broken",
+      "debris": "#7a5a3a"
+    },
+    "sounds": {
+      "impact": "impact_wood",
+      "break": "break_wood"
+    },
+    "placeholder": {
+      "style": "noise",
+      "color": "#5a5232"
+    },
+    "turned": "fence_ns"
+  },
+  {
+    "type": "tile",
+    "id": "fence_ns",
+    "name": "Wooden Fence",
+    "solid": true,
+    "prop": "fence_v",
+    "breakable": {
+      "hp": 45,
+      "becomes": "fence_broken",
+      "debris": "#7a5a3a"
+    },
+    "sounds": {
+      "impact": "impact_wood",
+      "break": "break_wood"
+    },
+    "placeholder": {
+      "style": "noise",
+      "color": "#5a5232"
+    },
+    "turned": "fence"
+  },
+  {
+    "type": "tile",
+    "id": "fence_broken",
+    "name": "Broken Fence",
+    "solid": false,
+    "prop": "fence_broken",
+    "placeholder": {
+      "style": "noise",
+      "color": "#5a5232"
+    },
+    "sounds": {
+      "step": "step_grass"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "barricade",
+    "name": "Barricade",
+    "solid": true,
+    "prop": "barricade",
+    "breakable": {
+      "hp": 120,
+      "becomes": "debris",
+      "debris": "#7a5a3a"
+    },
+    "sounds": {
+      "impact": "impact_wood",
+      "break": "break_wood"
+    },
+    "placeholder": {
+      "style": "concrete",
+      "color": "#6e6a60"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "brick_wall_cracked",
+    "name": "Cracked Brick Wall",
+    "solid": true,
+    "opaque": true,
+    "breakable": {
+      "hp": 140,
+      "becomes": "debris",
+      "resist": 0.2,
+      "debris": "#6e4a3a"
+    },
+    "sounds": {
+      "impact": "impact_rock",
+      "break": "break_concrete"
+    },
+    "placeholder": {
+      "style": "brick_cracked",
+      "color": "#6e4a3a",
+      "accent": "#8e7a62"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "concrete_wall_cracked",
+    "name": "Cracked Concrete Wall",
+    "solid": true,
+    "opaque": true,
+    "breakable": {
+      "hp": 180,
+      "becomes": "debris",
+      "resist": 0.2,
+      "debris": "#6a675e"
+    },
+    "sounds": {
+      "impact": "impact_rock",
+      "break": "break_concrete"
+    },
+    "placeholder": {
+      "style": "wall_cracked",
+      "color": "#6a675e",
+      "accent": "#b09048"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "lab_wall_cracked",
+    "name": "Cracked Lab Wall",
+    "solid": true,
+    "opaque": true,
+    "breakable": {
+      "hp": 160,
+      "becomes": "debris",
+      "resist": 0.2,
+      "debris": "#8a8a80"
+    },
+    "sounds": {
+      "impact": "impact_rock",
+      "break": "break_concrete"
+    },
+    "placeholder": {
+      "style": "wall_cracked",
+      "color": "#8a8a80",
+      "accent": "#d0b040"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "hull_wall_cracked",
+    "name": "Buckled Hull Plate",
+    "solid": true,
+    "opaque": true,
+    "breakable": {
+      "hp": 200,
+      "becomes": "debris",
+      "resist": 0.2,
+      "debris": "#4a5256"
+    },
+    "sounds": {
+      "impact": "impact_metal",
+      "break": "break_metal"
+    },
+    "placeholder": {
+      "style": "wall_cracked",
+      "color": "#4a5256",
+      "accent": "#c06a30"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "station_wall_cracked",
+    "name": "Damaged Panel",
+    "solid": true,
+    "opaque": true,
+    "breakable": {
+      "hp": 160,
+      "becomes": "debris",
+      "resist": 0.2,
+      "debris": "#66707c"
+    },
+    "sounds": {
+      "impact": "impact_metal",
+      "break": "break_metal"
+    },
+    "placeholder": {
+      "style": "wall_cracked",
+      "color": "#66707c",
+      "accent": "#4ab0d8"
+    }
+  }
+]

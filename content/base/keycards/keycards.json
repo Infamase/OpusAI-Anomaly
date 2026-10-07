@@ -1,0 +1,23 @@
+[
+  {
+    "type": "keycard",
+    "id": "lab_keycard",
+    "name": "Lab X-16 Keycard",
+    "description": "A researcher's pass. Opens the red-lit security doors in Lab X-16.",
+    "color": "#c8c8c0"
+  },
+  {
+    "type": "keycard",
+    "id": "ship_keycard",
+    "name": "Freighter Crew Card",
+    "description": "A crew pass on a frayed lanyard. Opens the freighter's locked hatches.",
+    "color": "#d08a40"
+  },
+  {
+    "type": "keycard",
+    "id": "station_keycard",
+    "name": "Kepler Access Card",
+    "description": "Station staff access. Opens Kepler's restricted sections.",
+    "color": "#4ab0d8"
+  }
+]

@@ -24,6 +24,8 @@ export interface Drawing {
   h: number;
   /** cells[j * w + i] as authored; null = not part of it. */
   cells: (Cell | null)[];
+  /** The same cells for a quarter turn: tiles with a `turned` form use it (a fence running the other way). */
+  turnedCells: (Cell | null)[];
 }
 
 /** Turns a legend + map into cells. Theme slots ("$wall") need `theme` (rooms). */
@@ -58,7 +60,13 @@ export function resolveDrawing(def: { legend: Record<string, LegendEntry>; map: 
   }
   const cells: (Cell | null)[] = [];
   for (const row of def.map) for (let i = 0; i < w; i++) cells.push(lookup.get(row[i] ?? ' ') ?? null);
-  return { w, h, cells };
+  const turnedOf = new Map<Cell, Cell>();
+  for (const c of lookup.values()) {
+    const turned = c.tile >= 0 ? tiles.defs[c.tile]!.turned : undefined;
+    turnedOf.set(c, turned ? { ...c, tile: tiles.index(turned) } : c);
+  }
+  const turnedCells = cells.map((c) => (c ? turnedOf.get(c)! : null));
+  return { w, h, cells, turnedCells };
 }
 
 /** Size after an orientation (0..3 quarter turns, +4 mirrored). */
@@ -85,5 +93,5 @@ export function sourceOf(d: Drawing, orient: number, i: number, j: number): { x:
 /** The authored cell at an oriented local position. */
 export function orientedCell(d: Drawing, orient: number, i: number, j: number): Cell | null {
   const s = sourceOf(d, orient, i, j);
-  return d.cells[s.y * d.w + s.x] ?? null;
+  return (orient & 1 ? d.turnedCells : d.cells)[s.y * d.w + s.x] ?? null;
 }
