@@ -30,7 +30,9 @@ import {
   Velocity,
 } from '../src/game/components';
 import { defaultStanding, PLAYER_FACTION, REP_HOSTILE, Relations } from '../src/game/factions';
-import { countItem, createLoadedWeapon } from '../src/game/items';
+import { countItem, createItem, createLoadedWeapon } from '../src/game/items';
+import { ExplosiveSystem, throwGrenade } from '../src/game/explosives';
+import { Explosive } from '../src/game/components';
 import { generateFromTemplate } from '../src/game/npcs';
 import { BODY_KIND, Population, POPULATION_KEY, type BodyData } from '../src/game/population';
 import { MovementSystem } from '../src/game/systems/MovementSystem';
@@ -333,5 +335,76 @@ describe('population persistence', () => {
     expect(new Set(data.items.map((i) => i.defId))).toEqual(new Set(['ammo_9x19']));
     expect(data.worn).toEqual({});
     expect(data.name).toBe(w.req(e, Npc).name);
+  });
+});
+
+describe('NPCs and grenades', () => {
+  it('run from a live grenade they can see, shouting a warning, and hold fire meanwhile', () => {
+    const { w, run, barks, shots } = arena();
+    const bandit = npc(w, 'bandits', 'bandit_thug', 20 * TILE_PX, 13.5 * TILE_PX, 'akr5_rifle', 'left');
+    const g = throwGrenade(w, content.get('explosive', 'rgd5'), 21 * TILE_PX, 13.5 * TILE_PX, 21 * TILE_PX, 13.5 * TILE_PX, null, null);
+    Object.assign(w.req(g, Explosive), { state: 'fuse', timer: 99, z: 0, vx: 0, vy: 0, vz: 0 });
+    run(1.6);
+    const t = w.req(bandit, Transform);
+    expect(Math.hypot(t.x - 21 * TILE_PX, t.y - 13.5 * TILE_PX)).toBeGreaterThan(3 * TILE_PX);
+    expect(barks).toContain('grenade');
+    expect(shots()).toBe(0);
+  });
+
+  /**
+   * A bandit fighting someone who ducks behind a corner. Returns how many grenades
+   * were thrown in `seconds`.
+   */
+  function flushOut(seed: number, bandits: number, seconds: number): number {
+    const rng = new Rng(seed);
+    const map = testMap();
+    room(map, 10, 10, 30, 16);
+    for (let y = 10; y <= 11; y++) map.setTile(20, y, 'metal_wall');
+    const w = new World();
+    const events = new EventBus<CombatEvents>();
+    const relations = new Relations(content, defaultStanding());
+    const brain = new NpcBrainSystem(content, () => map, events, relations, () => {}, () => rng.next());
+    (brain as unknown as { groupGrenadeIn: number }).groupGrenadeIn = 0;
+    const systems = [brain, new MovementSystem(() => map), new ExplosiveSystem(content, () => map, events)];
+    // The one hiding: no brain, no gun, just there.
+    const hider = w.create();
+    w.add(hider, Transform, { x: 21.5 * TILE_PX, y: 10.6 * TILE_PX, prevX: 0, prevY: 0 });
+    w.add(hider, Health, { hp: 1e6, bleed: 0, dead: false, sinceHit: 99, regen: [], rads: 0 });
+    w.add(hider, Faction, { id: 'loners' });
+    const throwers: Entity[] = [];
+    for (let i = 0; i < bandits; i++) {
+      const b = npc(w, 'bandits', 'bandit_thug', 14 * TILE_PX, (15.5 - i * 0.6) * TILE_PX, 'akr5_rifle', 'right');
+      w.req(b, Inventory).push(createItem('rgd5', 3));
+      w.req(b, Brain).grenadeIn = 0;
+      throwers.push(b);
+    }
+    // They've been shot at by the hider (the brain needs a tick to know the world first).
+    brain.update(w, 1 / 60);
+    for (const b of throwers) events.emit('hit', { target: b, attacker: hider, x: 0, y: 0, angle: 0, dealt: 1, blocked: 0, killed: false });
+    let thrown = 0;
+    events.on('grenadeThrown', () => thrown++);
+    for (let i = 0; i < seconds * 60; i++) {
+      for (const s of systems) s.update(w, 1 / 60);
+      for (const b of throwers) {
+        // Pinned in place, still fighting.
+        const t = w.req(b, Transform);
+        t.x = t.prevX;
+        t.y = t.prevY;
+        w.req(b, Brain).sinceSeen = Math.min(w.req(b, Brain).sinceSeen, 6);
+      }
+      w.flushDestroyed();
+    }
+    return thrown;
+  }
+
+  it('throw one to flush out someone hiding behind cover, but rarely', () => {
+    const results = [1, 2, 3, 4, 5].map((seed) => flushOut(seed, 1, 40));
+    // At most one each in 40 seconds, and some do throw.
+    for (const n of results) expect(n).toBeLessThanOrEqual(1);
+    expect(results.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+  });
+
+  it('never throw together: one grenade at a time across the whole squad', () => {
+    for (const seed of [1, 2, 3]) expect(flushOut(seed, 3, 15)).toBeLessThanOrEqual(1);
   });
 });

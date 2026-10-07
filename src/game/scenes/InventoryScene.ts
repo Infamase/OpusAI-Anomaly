@@ -24,10 +24,12 @@ export interface InventoryHost {
   /** Saves a container's contents after they changed. */
   containerChanged(container: Entity): void;
   message(text: string): void;
+  /** Sets a placeable explosive down in front of the player (from the backpack). Returns an error to show, or null. */
+  placeExplosive?(defId: string): string | null;
 }
 
 type Where = { from: 'bag' } | { from: 'slot'; slot: EquipmentSlot } | { from: 'container' };
-type Filter = 'all' | 'weapon' | 'armor' | 'ammo' | 'consumable' | 'artifact';
+type Filter = 'all' | 'weapon' | 'armor' | 'ammo' | 'consumable' | 'explosive' | 'artifact';
 
 const SLOTS: { slot: EquipmentSlot; label: string }[] = [
   { slot: 'head', label: 'Head' },
@@ -39,13 +41,14 @@ const SLOTS: { slot: EquipmentSlot; label: string }[] = [
   { slot: 'belt2', label: 'Belt' },
   { slot: 'belt3', label: 'Belt' },
 ];
-const KIND_ORDER: Record<string, number> = { weapon: 0, armor: 1, artifact: 2, detector: 3, ammo: 4, consumable: 5 };
+const KIND_ORDER: Record<string, number> = { weapon: 0, armor: 1, artifact: 2, detector: 3, ammo: 4, explosive: 5, consumable: 6 };
 const FILTERS: [Filter, string][] = [
   ['all', 'All'],
   ['weapon', 'Weapons'],
   ['armor', 'Armor'],
   ['ammo', 'Ammo'],
   ['consumable', 'Supplies'],
+  ['explosive', 'Explosives'],
   ['artifact', 'Artifacts'],
 ];
 
@@ -178,10 +181,20 @@ export class InventoryScene implements Scene {
     if (where.from === 'container') return this.act(() => this.take(item));
     if (where.from === 'slot') return this.act(() => this.unequip(where.slot));
     if (this.container !== null) return this.act(() => this.store(item));
-    const kind = this.info(item)?.kind;
+    const info = this.info(item);
+    const kind = info?.kind;
     if (kind === 'consumable') return this.act(() => this.use(item));
     if (kind === 'armor' || kind === 'weapon' || kind === 'artifact') return this.act(() => this.equip(item));
+    if (info?.kind === 'explosive' && info.def.use === 'place') return this.act(() => this.place(item));
     return Promise.resolve();
+  }
+
+  /** Placeable explosives: close the backpack and set it down in front of the player. */
+  private place(item: ItemInstance): string | null {
+    if (!this.host.placeExplosive) return null;
+    const err = this.host.placeExplosive(item.defId);
+    if (!err) this.close();
+    return err;
   }
 
   private async equip(item: ItemInstance, beltSlot?: BeltSlotId): Promise<string | null> {
@@ -486,6 +499,7 @@ export class InventoryScene implements Scene {
       if (where.from === 'bag') {
         if (info.kind === 'armor' || info.kind === 'weapon' || info.kind === 'artifact') actions.append(button(info.kind === 'artifact' ? 'Wear' : 'Equip', () => void this.act(() => this.equip(item)), 'btn primary'));
         if (info.kind === 'consumable') actions.append(button('Use', () => void this.act(() => this.use(item)), 'btn primary'));
+        if (info.kind === 'explosive' && info.def.use === 'place' && this.container === null) actions.append(button('Place', () => void this.act(() => this.place(item)), 'btn primary'));
         if (this.container !== null) actions.append(button('Store', () => void this.act(() => this.store(item))));
       }
       if (info.kind === 'weapon' && (item.loaded ?? 0) > 0 && where.from !== 'container') {
@@ -559,6 +573,14 @@ export class InventoryScene implements Scene {
       rows.push(['Shows direction', d.direction ? 'yes' : 'no']);
     } else if (info.kind === 'keycard') {
       rows.push(['Opens', 'doors with its color of light']);
+    } else if (info.kind === 'explosive') {
+      const d = info.def;
+      rows.push(['Blast', `${d.blast.damage} damage, ${d.blast.radius} m${d.blast.cone < 360 ? ` (${d.blast.cone}° forward)` : ''}`]);
+      if (d.trigger === 'fuse') rows.push(['Fuse', `${d.fuse}s after it stops rolling`]);
+      else rows.push(['Trigger', d.trigger === 'tripwire' ? `tripwire, ${d.sense} m out` : `anyone within ${d.sense} m`]);
+      if (d.use === 'throw') rows.push(['Throw', `up to ${d.range} m (F)`]);
+      else rows.push(['Place', 'in front of you (V), arms after a moment']);
+      rows.push(['Count', `${countOf(item)}`]);
     } else {
       const fx = info.def.effects;
       if (fx.heal) rows.push(['Heals', `${fx.heal}`]);
@@ -602,6 +624,8 @@ function kindLabel(info: ItemInfo): string {
       return 'Detector · works from the backpack';
     case 'keycard':
       return 'Keycard · opens locked doors';
+    case 'explosive':
+      return info.def.use === 'throw' ? 'Grenade · thrown' : 'Explosive · placed';
   }
 }
 

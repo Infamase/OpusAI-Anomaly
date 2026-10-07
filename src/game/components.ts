@@ -247,6 +247,11 @@ export interface Brain {
   barkCooldown: number;
   /** Faces this point when standing still (talking to the player, looking around). */
   lookAt: { x: number; y: number } | null;
+  /** The live grenade this NPC is running from, and the beat before it reacts. */
+  dodging: number | null;
+  dodgeIn: number;
+  /** Seconds before this NPC will consider throwing a grenade again. */
+  grenadeIn: number;
 }
 export const Brain = defineComponent<Brain>('Brain');
 
@@ -273,6 +278,9 @@ export function newBrain(behavior: 'guard' | 'patrol', x: number, y: number, rad
     path: [],
     repathIn: 0,
     stuckFor: 0,
+    dodging: null,
+    dodgeIn: 0,
+    grenadeIn: 12 + Math.random() * 18,
     thinkIn: Math.random() * 0.25,
     reaction: 0,
     burstLeft: 0,
@@ -307,3 +315,42 @@ export interface Bolt {
   life: number;
 }
 export const Bolt = defineComponent<Bolt>('Bolt');
+
+// ---- Explosives (Module 17) -------------------------------------------------
+
+/**
+ * A grenade or a placed charge in the world.
+ *   thrown: flying → rolling → fuse (burning down at rest) → bang
+ *   placed: arming → armed (waiting for someone) → triggered (click / beep) → bang
+ */
+export interface Explosive {
+  defId: string;
+  state: 'flying' | 'rolling' | 'fuse' | 'arming' | 'armed' | 'triggered';
+  /** Seconds left in the current state (fuse, arming, trigger delay). */
+  timer: number;
+  /** Who threw / placed it (credited for the damage). */
+  owner: number | null;
+  /** The side it ignores (its placer's faction); null = anyone sets it off. */
+  faction: string | null;
+  /** Facing, radians (claymores fire this way). */
+  angle: number;
+  /** Thrown: ground velocity, height and vertical speed. */
+  vx: number;
+  vy: number;
+  z: number;
+  vz: number;
+  /** Thrown: rolling deceleration (px/s²), set on landing so it stops near where it was aimed. */
+  friction: number;
+  /** Thrown: the aim point; null once it's bounced off a wall. */
+  aimX: number | null;
+  aimY: number;
+  /** Placed ones remember where they're saved: generated hazards (`generated`) or the player's (saved entities). */
+  recordId: string | null;
+  chunkKey: string | null;
+  generated: boolean;
+  /** Hidden ones (landmines) once someone has noticed them. */
+  spotted: boolean;
+  /** For drawing: how far it has rolled (spins the sprite). */
+  spin: number;
+}
+export const Explosive = defineComponent<Explosive>('Explosive');

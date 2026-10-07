@@ -76,6 +76,11 @@ export class GameAudio {
         a.play(s?.open, at, 'door_open');
       }
     });
+    const ex = (id: string) => this.content.tryGet('explosive', id)?.sounds;
+    events.on('grenadeThrown', (g) => a.play(ex(g.defId)?.throw, { x: g.x, y: g.y }, 'grenade_throw'));
+    events.on('grenadeBounce', (g) => a.playCue('grenade_bounce', { x: g.x, y: g.y }));
+    events.on('explosive', (e) => a.play(e.phase === 'armed' ? ex(e.defId)?.arm : ex(e.defId)?.trigger, { x: e.x, y: e.y }, e.phase === 'armed' ? 'explosive_arm' : 'explosive_trigger'));
+    events.on('explosion', (e) => a.play(ex(e.defId)?.explode, { x: e.x, y: e.y }, 'explosion'));
     events.on('broken', (b) => a.play(b.tile ? this.content.tryGet('tile', b.tile)?.sounds?.break : undefined, { x: b.x, y: b.y }, 'break'));
   }
 

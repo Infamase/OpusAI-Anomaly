@@ -29,7 +29,9 @@ export type WorldObjectSpawn =
   | { id: string; kind: 'anomaly'; x: number; y: number; anomaly: string }
   | { id: string; kind: 'artifact'; x: number; y: number; artifact: string }
   /** An item lying in plain sight (a keycard); once taken it's gone for good. */
-  | { id: string; kind: 'item'; x: number; y: number; item: string };
+  | { id: string; kind: 'item'; x: number; y: number; item: string }
+  /** A live charge left as a hazard (a mine, a claymore facing `angle`, an IED); a `faction`'s own people don't set it off. */
+  | { id: string; kind: 'explosive'; x: number; y: number; explosive: string; angle: number; faction?: string };
 
 /** A group of NPCs living in the world (a camp guarding a spot, or a patrol). */
 export interface CampSpawn {

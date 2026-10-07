@@ -11,7 +11,7 @@ import { cap, ell, Rig, tri, v, type Ramp, type Shape } from './rig';
  */
 export const PROP_VARIANTS = 3;
 /** Props that line up with their neighbors (fences): drawn exactly on the tile, never nudged or mirrored. */
-export const ALIGNED_PROPS: ReadonlySet<PropStyle> = new Set(['fence_h', 'fence_v', 'fence_broken', 'barricade']);
+export const ALIGNED_PROPS: ReadonlySet<PropStyle> = new Set(['fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign']);
 
 export interface PropArt {
   pixels: PixelCanvas;
@@ -79,6 +79,8 @@ export function generateProp(style: PropStyle, variant: number): PropArt {
       return fenceBroken(rng, variant);
     case 'barricade':
       return barricade(rng, variant);
+    case 'sign':
+      return mineSign(variant);
   }
 }
 
@@ -406,4 +408,29 @@ function barricade(rng: Rng, variant: number): PropArt {
     }
   }
   return { pixels: pc, anchor: [17, base] };
+}
+
+/** A minefield warning: a red triangle with a skull, nailed to a leaning post. */
+function mineSign(variant: number): PropArt {
+  const W = 28;
+  const H = 40;
+  const base = 36;
+  const pc = new PixelCanvas(W, H);
+  const lean = variant === 1 ? 1 : variant === 2 ? -1 : 0;
+  for (let y = 10; y <= base; y++) {
+    const x = 13 + Math.round(((base - y) / 26) * lean);
+    pc.set(x, y, WOOD[3]!);
+    pc.set(x + 1, y, WOOD[1]!);
+  }
+  // The plate: a red triangle on white, with a skull.
+  const RED = buildRamp('#b8322a');
+  for (let y = 0; y < 15; y++) {
+    const half = Math.floor((y + 1) * 0.85);
+    for (let x = -half; x <= half; x++) pc.set(14 + x + lean, 2 + y, (Math.abs(x) >= half - 1 || y >= 13 ? RED[y >= 13 ? 1 : 3] : [226, 222, 206])!);
+  }
+  const skull: [number, number][] = [[-1, 7], [0, 7], [1, 7], [-2, 8], [2, 8], [-2, 9], [0, 9], [2, 9], [-1, 10], [1, 10], [-1, 12], [1, 12], [0, 11]];
+  for (const [x, y] of skull) pc.set(14 + x + lean, 2 + y, [40, 34, 30]);
+  pc.set(13 + lean, 9, [226, 222, 206]);
+  pc.set(15 + lean, 9, [226, 222, 206]);
+  return { pixels: pc, anchor: [14, base] };
 }

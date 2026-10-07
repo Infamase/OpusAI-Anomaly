@@ -79,6 +79,12 @@
       "tile": "barricade",
       "chance": 0.05
     },
-    "secrets": 0.4
+    "secrets": 0.4,
+    "traps": {
+      "explosives": [
+        "claymore"
+      ],
+      "chance": 0.12
+    }
   }
 }

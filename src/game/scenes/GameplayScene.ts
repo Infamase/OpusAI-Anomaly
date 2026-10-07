@@ -9,6 +9,9 @@ import { World, type Entity } from '../../ecs/World';
 import { CharacterView } from '../../render/CharacterView';
 import { CombatFx } from '../../render/CombatFx';
 import { CrackOverlay } from '../../render/CrackOverlay';
+import { ExplosionFx, type DangerMark } from '../../render/ExplosionFx';
+import { detonate, ExplosiveSystem, liveGrenades, placeCharge, throwGrenade } from '../explosives';
+import type { ExplosiveDef } from '../../content/types';
 import { TileDamage } from '../breakables';
 import { doorAt, DoorSystem, useDoor } from '../doors';
 import { PropView } from '../../render/PropView';
@@ -63,6 +66,7 @@ import {
   Anomaly,
   Bolt,
   Breakable,
+  Explosive,
 } from '../components';
 import { pickQuickHeal, useConsumable } from '../consumables';
 import { findItem } from '../../content/items';
@@ -82,7 +86,7 @@ import {
   type ArmorSlot,
 } from '../equipment';
 import { defaultStanding, PLAYER_FACTION, Relations, type PlayerStanding } from '../factions';
-import { addItem, countItem, countOf, createLoadedWeapon } from '../items';
+import { addItem, countItem, countOf, createLoadedWeapon, newItemUid, takeItem } from '../items';
 import { Population } from '../population';
 import { AnimationSystem } from '../systems/AnimationSystem';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -125,6 +129,8 @@ const GENERIC_BARKS: Record<BarkKind, string[]> = {
   retreat: ['Falling back!'],
   angry: ['Watch your fire!', 'Hey!'],
   search: ['Where did they go?', 'Check over there.'],
+  grenadeOut: ['Fire in the hole!', 'Grenade out!', 'Frag out!'],
+  grenade: ['Grenade!', 'Get down!', 'Grenade — move!'],
 };
 const ATTITUDE_COLOR = { hostile: '#e0573f', neutral: '#d9c47a', friendly: '#7fcf6a' } as const;
 
@@ -208,6 +214,9 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   /** Wear on breakable tiles this visit, and the cracks showing it. */
   private tileDamage: TileDamage | null = null;
   private cracks = new CrackOverlay();
+  private explosionFx = new ExplosionFx();
+  /** When the last "you spot a mine" notice showed (one is enough for a whole field). */
+  private spottedNoticeAt = -99;
   private leaving = false;
   private locationIn = 0;
   private revealIn = 0;
@@ -280,6 +289,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     g.renderer.overlay.addChild(this.fx.layer);
     g.renderer.world.addChildAt(this.anomalyFx.under, g.renderer.world.getChildIndex(g.renderer.entities));
     g.renderer.world.addChildAt(this.cracks.layer, g.renderer.world.getChildIndex(g.renderer.entities));
+    g.renderer.world.addChildAt(this.explosionFx.under, g.renderer.world.getChildIndex(g.renderer.entities));
+    g.renderer.overlay.addChild(this.explosionFx.over);
     this.tileDamage = new TileDamage(this.map);
     g.renderer.overlay.addChild(this.anomalyFx.over);
     g.renderer.screen.addChild(this.crosshair.g);
@@ -293,6 +304,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       .addSystem(new WeaponSystem(g.content, map, this.combatEvents))
       .addSystem(new AnomalySystem(g.content, map, this.combatEvents))
       .addSystem(new BoltSystem(map, this.combatEvents))
+      .addSystem(new ExplosiveSystem(g.content, map, this.combatEvents))
       .addSystem(new ArtifactSystem(g.content))
       .addSystem(new MovementSystem(map))
       .addSystem(new ProjectileSystem(g.content, map, this.combatEvents))
@@ -388,6 +400,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.fx.destroy();
     this.anomalyFx.destroy();
     this.cracks.destroy();
+    this.explosionFx.destroy();
     this.hazards.clear();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
@@ -416,6 +429,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
     if (alive && this.game.scenes.current === this && input.justPressed('bolt')) this.throwBolt();
+    if (alive && this.game.scenes.current === this && input.justPressed('grenade')) this.throwPlayerGrenade();
+    if (alive && this.game.scenes.current === this && input.justPressed('place')) {
+      const def = this.carriedExplosive('place');
+      const err = def ? this.placeExplosive(def.id) : 'Nothing to place.';
+      if (err) this.message(err);
+    }
     if (alive) this.updateDetector(dt);
     if (alive && this.game.scenes.current === this && input.justPressed('map')) void this.game.scenes.push(new MapScene(this.game, this));
     this.revealIn -= dt;
@@ -491,6 +510,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     }
     this.fx.render(frameDt, tracers, bars);
     this.renderAnomalies(frameDt, alpha);
+    this.renderExplosives(frameDt, alpha);
     this.renderCrosshair(frameDt, px, py);
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
     const prompt =
@@ -527,7 +547,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       this.fx.debris(h.x, h.y, h.angle + Math.PI, def.breakable?.debris ?? def.placeholder.color, res.broken ? 0 : 3);
       if (res.broken) ev.emit('broken', { x: (h.tx + 0.5) * TILE_PX, y: (h.ty + 0.5) * TILE_PX, tile: res.tile, debris: def.breakable?.debris ?? def.placeholder.color, by: h.attacker });
     });
+    ev.on('explosion', (x) => this.onExplosion(x));
     ev.on('propHit', (h) => {
+      // Shooting a charge sets it off.
+      if (this.world.has(h.target, Explosive)) return detonate(this.world, h.target, 0.05);
       const b = this.world.get(h.target, Breakable);
       if (!b) return;
       b.hp -= h.amount;
@@ -686,6 +709,14 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         const d = it && g.content.tryGet('armor', it.defId);
         return it && d ? [{ slot, name: d.name, condition: it.condition }] : [];
       }),
+      explosives: (() => {
+        const t = this.carriedExplosive('throw');
+        const p = this.carriedExplosive('place');
+        return {
+          throwable: t ? { name: t.name.replace(/ Grenade$/, ''), count: countItem(inv, t.id) } : null,
+          placeable: p ? { name: p.name.replace(/^\S+ (?=Claymore)/, ''), count: countItem(inv, p.id) } : null,
+        };
+      })(),
     };
   }
 
@@ -895,6 +926,151 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     }
     this.combatEvents.emit('broken', { x: t.x, y: t.y - 8, debris: b.debris, by });
     this.world.destroy(e);
+  }
+
+  // ---- explosives -----------------------------------------------------------------
+
+  /** The first grenade / charge in the backpack. */
+  private carriedExplosive(use: 'throw' | 'place'): ExplosiveDef | undefined {
+    for (const it of this.world.req(this.playerEntity, Inventory)) {
+      const d = this.game.content.tryGet('explosive', it.defId);
+      if (d && d.use === use) return d;
+    }
+    return undefined;
+  }
+
+  /** Where the player is aiming, in world space (or a few tiles ahead). */
+  private aimPoint(reach: number): { x: number; y: number } {
+    const g = this.game;
+    const t = this.world.req(this.playerEntity, Transform);
+    const a = g.input.aim;
+    if (a.kind === 'point') {
+      const w = g.camera.screenToWorld(a.screen.x * g.renderer.pixelRatio, a.screen.y * g.renderer.pixelRatio);
+      return { x: w.x, y: w.y + CHEST_HEIGHT * 0.5 };
+    }
+    const dir = this.world.get(this.playerEntity, Aim)?.dir ?? directionVector(this.world.req(this.playerEntity, Character).facing);
+    return { x: t.x + dir.x * reach, y: t.y + dir.y * reach };
+  }
+
+  /** F: throws the first grenade in the backpack toward the aim point. */
+  private throwPlayerGrenade(): void {
+    const def = this.carriedExplosive('throw');
+    if (!def) return this.message('No grenades.');
+    const inv = this.world.req(this.playerEntity, Inventory);
+    takeItem(inv, def.id, 1);
+    refreshEncumbrance(this.world, this.game.content, this.playerEntity);
+    const t = this.world.req(this.playerEntity, Transform);
+    const aim = this.aimPoint(TILE_PX * 6);
+    throwGrenade(this.world, def, t.x, t.y - 2, aim.x, aim.y, this.playerEntity, PLAYER_FACTION);
+    this.combatEvents.emit('grenadeThrown', { thrower: this.playerEntity, x: t.x, y: t.y, defId: def.id });
+  }
+
+  /** Sets a charge down a step in front of the player, facing where they aim. Saved with its chunk. */
+  placeExplosive(defId: string): string | null {
+    const def = this.game.content.tryGet('explosive', defId);
+    const map = this.map;
+    if (!def || def.use !== 'place' || !map) return null;
+    const inv = this.world.req(this.playerEntity, Inventory);
+    if (countItem(inv, defId) <= 0) return null;
+    const t = this.world.req(this.playerEntity, Transform);
+    const aim = this.aimPoint(TILE_PX * 3);
+    const angle = Math.atan2(aim.y - t.y, aim.x - t.x);
+    const x = t.x + Math.cos(angle) * 18;
+    const y = t.y + Math.sin(angle) * 14;
+    if (map.isSolid(Math.floor(x / TILE_PX), Math.floor(y / TILE_PX))) return "There's no room to put it there.";
+    takeItem(inv, defId, 1);
+    refreshEncumbrance(this.world, this.game.content, this.playerEntity);
+    const e = placeCharge(this.world, def, x, y, angle, this.playerEntity, PLAYER_FACTION);
+    const S = map.chunkSize;
+    const key = chunkKey(Math.floor(x / TILE_PX / S), Math.floor(y / TILE_PX / S));
+    const id = newItemUid();
+    Object.assign(this.world.req(e, Explosive), { recordId: id, chunkKey: key });
+    this.deltas?.putEntity(key, { id, kind: 'explosive', x, y, data: { defId, angle } });
+    if (!this.chunkObjects.has(key)) this.chunkObjects.set(key, []);
+    this.chunkObjects.get(key)!.push(e);
+    this.game.audio.playCue('equip');
+    this.message(`${def.name} placed — live in ${def.arming}s.`);
+    return null;
+  }
+
+  /** E on a charge: pick up your own, or disarm a spotted one (it goes in the backpack). */
+  private takeCharge(e: Entity): void {
+    const ex = this.world.req(e, Explosive);
+    const def = this.game.content.tryGet('explosive', ex.defId);
+    if (!def) return;
+    addItem(this.game.content, this.world.req(this.playerEntity, Inventory), createItem(def.id));
+    this.forgetCharge(ex);
+    this.hazards.remove(e);
+    this.world.destroy(e);
+    refreshEncumbrance(this.world, this.game.content, this.playerEntity);
+    this.game.audio.playCue('pickup');
+    this.message(ex.faction === PLAYER_FACTION ? `Picked up ${def.name}` : `Disarmed ${def.name}`);
+  }
+
+  /** A saved charge is gone (exploded, picked up): remove it from the save. */
+  private forgetCharge(ex: { recordId: string | null; chunkKey: string | null; generated: boolean }): void {
+    if (!ex.recordId || !ex.chunkKey) return;
+    if (ex.generated) this.deltas?.markRemoved(ex.chunkKey, ex.recordId);
+    else this.deltas?.removeEntity(ex.chunkKey, ex.recordId);
+  }
+
+  private onExplosion(x: CombatEvents['explosion']): void {
+    const def = this.game.content.tryGet('explosive', x.defId);
+    this.forgetCharge(x);
+    this.hazards.remove(x.entity);
+    this.explosionFx.burst(x.x, x.y, x.radius, (def?.blast.shatter ?? 0) > 180 || (def?.blast.damage ?? 0) >= 140);
+    const pt = this.world.req(this.playerEntity, Transform);
+    const d = Math.hypot(pt.x - x.x, pt.y - x.y);
+    const near = Math.max(0, 1 - d / (x.radius * 4));
+    if (near > 0) this.game.camera.kick((Math.random() - 0.5) * 14 * near, (Math.random() - 0.5) * 14 * near);
+  }
+
+  /** Hidden charges (landmines) are only drawn once noticed; your own you always see. */
+  private explosiveVisible(ex: Explosive): boolean {
+    const def = this.game.content.tryGet('explosive', ex.defId);
+    return !def?.hidden || ex.spotted || ex.faction === PLAYER_FACTION;
+  }
+
+  /** Grenades and charges: sprites, danger rings, tripwire lasers, spotting mines, the HUD warning. */
+  private renderExplosives(dt: number, alpha: number): void {
+    const g = this.game;
+    const pt = this.world.req(this.playerEntity, Transform);
+    const marks: DangerMark[] = [];
+    for (const e of this.world.query(Explosive, Transform)) {
+      const ex = this.world.req(e, Explosive);
+      const def = g.content.tryGet('explosive', ex.defId);
+      if (!def) continue;
+      const t = this.world.req(e, Transform);
+      const x = lerp(t.prevX, t.x, alpha);
+      const y = lerp(t.prevY, t.y, alpha);
+      if (!this.world.has(e, PropViewC)) this.addProp(e, g.icons.texture(def.id), x, y, 5);
+      const view = this.world.req(e, PropViewC);
+      // Noticing a mine: walking close enough, eyes open.
+      if (def.hidden && !ex.spotted && Math.hypot(pt.x - t.x, pt.y - t.y) < def.spotRange * TILE_PX) {
+        ex.spotted = true;
+        if (ex.faction !== PLAYER_FACTION && this.playTime - this.spottedNoticeAt > 6) {
+          this.spottedNoticeAt = this.playTime;
+          this.message(`You spot a ${def.name.toLowerCase()}!`, '#ff8a5a');
+        }
+      }
+      const visible = this.explosiveVisible(ex);
+      view.setHidden(!visible);
+      if (!visible) continue;
+      view.setPosition(x, y, ex.z);
+      view.setSpin(ex.state === 'rolling' || ex.state === 'flying' ? ex.spin / 5 + ex.z / 10 : 0);
+      if (def.art.style === 'claymore') view.setFlip(Math.cos(ex.angle) < -0.2);
+      if (def.use === 'throw' && (ex.state === 'rolling' || ex.state === 'fuse')) {
+        marks.push({ x, y, radius: def.blast.radius * TILE_PX, urgency: ex.state === 'fuse' ? 1 - ex.timer / def.fuse : 0 });
+      } else if (def.trigger === 'tripwire' && (ex.state === 'armed' || ex.state === 'arming')) {
+        marks.push({ x, y, laser: { angle: ex.angle, length: def.sense * TILE_PX } });
+      }
+    }
+    this.explosionFx.render(dt, marks);
+    // A warning marker for each live grenade the player is in (or near) the reach of.
+    const warnings = liveGrenades(this.world, g.content)
+      .filter((l) => Math.hypot(l.x - pt.x, l.y - pt.y) < l.radius + TILE_PX * 2)
+      .map((l) => ({ angle: Math.atan2(l.y - pt.y, l.x - pt.x), urgency: Math.max(0, Math.min(1, 1 - l.left / 2.2)) }));
+    this.hud?.grenadeWarnings(warnings);
   }
 
   // ---- portals -------------------------------------------------------------------
@@ -1136,6 +1312,15 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         list.push(e);
         continue;
       }
+      if (obj.kind === 'explosive') {
+        const def = this.game.content.tryGet('explosive', obj.explosive);
+        if (removed.includes(obj.id) || !def) continue;
+        const e = placeCharge(this.world, def, obj.x, obj.y, obj.angle, null, obj.faction ?? null, true);
+        Object.assign(this.world.req(e, Explosive), { recordId: obj.id, chunkKey: key, generated: true });
+        this.hazards.add(e, obj.x, obj.y, (def.trigger === 'tripwire' ? def.sense : def.blast.radius * 0.6) * TILE_PX);
+        list.push(e);
+        continue;
+      }
       if (obj.kind === 'item') {
         if (removed.includes(obj.id) || !findItem(this.game.content, obj.item)) continue;
         list.push(this.spawnWorldItem(createItem(obj.item), obj.x, obj.y, key, obj.id, true, false));
@@ -1168,6 +1353,15 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     }
     for (const { key: k, record } of deltas.entitiesOfKind('item')) {
       if (k === key) list.push(this.spawnWorldItem(record.data as ItemInstance, record.x, record.y, key, record.id));
+    }
+    // Charges the player set down (live again, still theirs).
+    for (const { key: k, record } of deltas.entitiesOfKind('explosive')) {
+      const data = record.data as { defId: string; angle: number };
+      const def = k === key ? this.game.content.tryGet('explosive', data.defId) : undefined;
+      if (!def) continue;
+      const e = placeCharge(this.world, def, record.x, record.y, data.angle, this.playerEntity, PLAYER_FACTION, true);
+      Object.assign(this.world.req(e, Explosive), { recordId: record.id, chunkKey: key });
+      list.push(e);
     }
     this.chunkObjects.set(key, list);
   }
@@ -1217,10 +1411,26 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     };
     for (const e of this.world.query(WorldItem, Transform)) if (!this.world.req(e, WorldItem).hidden) consider(e);
     for (const e of this.world.query(Container, Transform)) if (e !== this.playerEntity) consider(e);
+    // Charges can be picked up (yours) or disarmed (spotted ones) from a little farther, so you needn't step on them.
+    for (const e of this.world.query(Explosive, Transform)) {
+      const ex = this.world.req(e, Explosive);
+      if ((ex.state !== 'armed' && ex.state !== 'arming') || !this.explosiveVisible(ex)) continue;
+      const t = this.world.req(e, Transform);
+      const d = Math.hypot(t.x - pt.x, t.y - pt.y);
+      if (d < 44 && (best === null || d < bestD)) {
+        best = e;
+        bestD = d;
+      }
+    }
     return best;
   }
 
   private promptFor(e: Entity): string {
+    const ex = this.world.get(e, Explosive);
+    if (ex) {
+      const name = this.game.content.tryGet('explosive', ex.defId)?.name ?? ex.defId;
+      return ex.faction === PLAYER_FACTION ? `E  Pick up ${name}` : `E  Disarm ${name}`;
+    }
     const wi = this.world.get(e, WorldItem);
     if (wi) {
       const name = findItem(this.game.content, wi.item.defId)?.def.name ?? wi.item.defId;
@@ -1234,6 +1444,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
 
   private interact(e: Entity): void {
     const g = this.game;
+    if (this.world.has(e, Explosive)) return this.takeCharge(e);
     const wi = this.world.get(e, WorldItem);
     if (wi) {
       addItem(g.content, this.world.req(this.playerEntity, Inventory), wi.item);

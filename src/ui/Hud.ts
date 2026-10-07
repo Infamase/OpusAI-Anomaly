@@ -41,6 +41,14 @@ export interface HudState {
   /** The other weapon slot, if anything is in it. */
   holstered: { slot: 'primary' | 'sidearm'; name: string; loaded: number } | null;
   armor: { slot: string; name: string; condition: number }[];
+  /** What the throw (F) and place (V) keys would use, and how many. */
+  explosives?: { throwable: { name: string; count: number } | null; placeable: { name: string; count: number } | null };
+}
+
+/** A live grenade near the player: screen angle (0 = right) and how urgent (0..1, 1 = about to go, right here). */
+export interface GrenadeWarning {
+  angle: number;
+  urgency: number;
 }
 
 /** Rounds drawn as individual pips up to this magazine size; bigger magazines get a bar. */
@@ -73,6 +81,8 @@ export class Hud {
   private wHint = el('div', 'hud-whint');
   private wReload = el('div', 'hud-fill reload');
   private wOther = el('div', 'hud-wother');
+  private wBombs = el('div', 'hud-bombs');
+  private grenades = el('div', 'hud-grenades');
   private promptEl = el('div', 'hud-prompt');
   private messages = el('div', 'hud-messages');
   private where = el('div', 'hud-where');
@@ -92,9 +102,10 @@ export class Hud {
       el('div', 'hud-row', undefined, el('span', 'hud-label', 'ST'), el('div', 'hud-bar thin', undefined, this.stFill)),
       el('div', 'hud-row hud-foot', undefined, this.armorBox, this.meds),
     );
-    this.weaponBox.append(this.wOther, this.wName, el('div', 'hud-ammo-row', undefined, this.wPips, this.wAmmo), this.wInfo, el('div', 'hud-bar thin', undefined, this.wReload), this.wHint);
+    this.weaponBox.append(this.wOther, this.wName, el('div', 'hud-ammo-row', undefined, this.wPips, this.wAmmo), this.wInfo, el('div', 'hud-bar thin', undefined, this.wReload), this.wHint, this.wBombs);
     this.weaponBox.className = 'hud-panel hud-weapon';
     this.minimap.root.append(this.where, this.detectorBox);
+    this.arcs.append(this.grenades);
     this.root.append(this.vignette, this.arcs, this.minimap.root, vitals, this.weaponBox, this.promptEl, this.messages);
     parent.append(this.root);
   }
@@ -165,6 +176,23 @@ export class Hud {
     setTimeout(() => arc.remove(), DAMAGE_ARC_TIME * 1000);
   }
 
+  /** Grenade icons around the player pointing at live grenades nearby (empty list hides them). */
+  grenadeWarnings(list: GrenadeWarning[]): void {
+    const shown = list.slice(0, 3);
+    while (this.grenades.children.length < shown.length) {
+      const icon = el('div', 'hud-grenade');
+      icon.innerHTML = GRENADE_ICON;
+      this.grenades.append(icon);
+    }
+    while (this.grenades.children.length > shown.length) this.grenades.lastElementChild?.remove();
+    shown.forEach((w, i) => {
+      const n = this.grenades.children[i] as HTMLElement;
+      const r = 70;
+      n.style.transform = `translate(${Math.cos(w.angle) * r}px, ${Math.sin(w.angle) * r}px) translate(-50%, -50%) scale(${(0.9 + w.urgency * 0.5).toFixed(2)})`;
+      n.style.animationDuration = `${(0.7 - w.urgency * 0.5).toFixed(2)}s`;
+    });
+  }
+
   /** `anchor`: the player's chest on screen, in CSS pixels (damage arcs center on it). */
   update(s: HudState, dt: number, anchor?: { x: number; y: number }): void {
     if (anchor) this.set('anchor', `${Math.round(anchor.x)},${Math.round(anchor.y)}`, () => (this.arcs.style.transform = `translate(${anchor.x}px, ${anchor.y}px)`));
@@ -212,6 +240,13 @@ export class Hud {
     );
 
     this.updateWeapon(s);
+    const ex = s.explosives;
+    this.set('bombs', ex ? `${ex.throwable?.name}|${ex.throwable?.count}|${ex.placeable?.name}|${ex.placeable?.count}` : '', () => {
+      const parts: (HTMLElement | string)[] = [];
+      if (ex?.throwable) parts.push(el('span', '', undefined, el('kbd', 'hud-key small', 'F'), `${ex.throwable.name} ×${ex.throwable.count}`));
+      if (ex?.placeable) parts.push(el('span', '', undefined, el('kbd', 'hud-key small', 'V'), `${ex.placeable.name} ×${ex.placeable.count}`));
+      this.wBombs.replaceChildren(...parts);
+    });
 
     // Damage flash fades; low health keeps a pulse.
     this.hurt = Math.max(0, this.hurt - dt * 1.8);
@@ -268,5 +303,9 @@ export class Hud {
     apply(value);
   }
 }
+
+/** A little grenade for the warning markers. */
+const GRENADE_ICON =
+  '<svg viewBox="0 0 16 16" width="16" height="16"><ellipse cx="7" cy="10" rx="4.6" ry="5" fill="#3a4630" stroke="#141810"/><rect x="5" y="2.5" width="4" height="3" fill="#a8a89c"/><path d="M9 3.5 L12.5 9" stroke="#a8a89c" stroke-width="1.6"/><circle cx="4" cy="3" r="1.4" fill="none" stroke="#c8c8bc"/></svg>';
 
 const pct = (f: number) => `${(Math.max(0, Math.min(1, f)) * 100).toFixed(1)}%`;

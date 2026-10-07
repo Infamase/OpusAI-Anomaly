@@ -48,6 +48,11 @@ const paramsSchema = v.object({
   locks: v.optional(v.object({ tile: v.id(), chance: v.number({ min: 0, max: 1 }) })),
   /** Some doorways are barricaded (`tile`) with `chance`: shoot your way through. */
   barricades: v.optional(v.object({ tile: v.id(), chance: v.number({ min: 0, max: 1 }) })),
+  /**
+   * Booby traps: with `chance`, a doorway gets one of `explosives` just inside
+   * (a claymore beside the door with its tripwire across the way in, an IED).
+   */
+  traps: v.optional(v.object({ explosives: v.array(v.id(), { min: 1 }), chance: v.number({ min: 0, max: 1 }) })),
 });
 
 interface RoomRes extends Drawing {
@@ -72,6 +77,7 @@ interface Params {
   doors: { tile: number; chance: number } | null;
   locks: { tile: number; chance: number; key: string } | null;
   barricades: { tile: number; chance: number } | null;
+  traps: { explosives: string[]; chance: number } | null;
   plans: Map<string, Plan>;
 }
 
@@ -104,6 +110,8 @@ interface Plan {
   links: Link[];
   /** Keycards left lying around (tile coords), for the locked rooms. */
   keycards: { item: string; x: number; y: number }[];
+  /** Booby traps by doorways (tile coords, facing). */
+  traps: { id: string; x: number; y: number; angle: number; faction?: string }[];
 }
 
 type Facing = 0 | 1 | 2 | 3; // N E S W
@@ -346,7 +354,45 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
     if (!frng.chance(p.secrets)) continue;
     tiles[cells[Math.floor(cells.length / 2)]!] = p.theme.fragile;
   }
-  return { W, H, tiles, placed, links, keycards: placeKeycards(p, seed, placed, links) };
+
+  // Booby traps just inside some doorways (never into the entrance room).
+  const traps: Plan['traps'] = [];
+  if (p.traps) {
+    const trng = new Rng(deriveSeed(seed, 'traps'));
+    const busy = new Set<number>();
+    for (const r of placed) {
+      for (let j = 0; j < r.h; j++) {
+        for (let i = 0; i < r.w; i++) {
+          const c = cellAt(r, i, j);
+          if (c && (c.crate || c.anomaly || c.portal || c.spawn || c.camp)) busy.add((r.y + j) * W + r.x + i);
+        }
+      }
+    }
+    for (const l of links) {
+      if ((l.kind !== 'doorway' && l.kind !== 'door') || l.a === 0 || l.b === 0 || !trng.chance(p.traps.chance)) continue;
+      const x = l.k % W;
+      const y = (l.k - x) / W;
+      // Which way is into room b?
+      const into = ([[0, -1], [1, 0], [0, 1], [-1, 0]] as const).find(([dx, dy]) => roomOf[(y + dy) * W + x + dx] === l.b + 1);
+      if (!into) continue;
+      const [ix, iy] = into;
+      const id = p.traps.explosives[trng.int(0, p.traps.explosives.length - 1)]!;
+      for (const side of trng.chance(0.5) ? [1, -1] : [-1, 1]) {
+        // One step in and one to the side, facing across the way in.
+        const sx = -iy * side;
+        const sy = ix * side;
+        const tx = x + ix + sx;
+        const ty = y + iy + sy;
+        const k = ty * W + tx;
+        if (roomOf[k] !== l.b + 1 || busy.has(k) || !isFloor[k]) continue;
+        busy.add(k);
+        const camp = placed[l.b]!;
+        traps.push({ id, x: tx, y: ty, angle: Math.atan2(-sy, -sx), faction: camp.hasCamp ? camp.room.def.camp?.faction : undefined });
+        break;
+      }
+    }
+  }
+  return { W, H, tiles, placed, links, keycards: placeKeycards(p, seed, placed, links), traps };
 }
 
 /**
@@ -419,7 +465,7 @@ function* roomCells(plan: Plan): Generator<{ r: Placed; i: number; j: number; x:
 
 export const interiorGenerator: WorldGenerator<Params> = {
   id: 'interior',
-  version: 2,
+  version: 3,
 
   parseParams(raw, tiles, content) {
     if (!content) throw new Error('interior generator needs the content registry');
@@ -444,6 +490,7 @@ export const interiorGenerator: WorldGenerator<Params> = {
       doors: r.doors ? { tile: tiles.index(r.doors.tile), chance: r.doors.chance } : null,
       locks: r.locks ? { tile: lockTile, chance: r.locks.chance, key: key! } : null,
       barricades: r.barricades ? { tile: tiles.index(r.barricades.tile), chance: r.barricades.chance } : null,
+      traps: r.traps ? { explosives: r.traps.explosives.map((id) => content.get('explosive', id).id), chance: r.traps.chance } : null,
       plans: new Map(),
     };
   },
@@ -464,7 +511,11 @@ export const interiorGenerator: WorldGenerator<Params> = {
       if (x < x0 || y < y0 || x >= x0 + S || y >= y0 + S) continue;
       if (c.crate) out.push({ id: `crate:${r.index}:${i},${j}`, kind: 'crate', x: (x + 0.5) * T, y: (y + 0.8) * T, variant: c.crate.variant, lootTable: c.crate.lootTable });
       if (c.anomaly) out.push({ id: `anomaly:${r.index}:${i},${j}`, kind: 'anomaly', x: (x + 0.5) * T, y: (y + 0.5) * T, anomaly: c.anomaly });
+      if (c.explosive) out.push({ id: `charge:${r.index}:${i},${j}`, kind: 'explosive', x: (x + 0.5) * T, y: (y + 0.6) * T, explosive: c.explosive, angle: Math.atan2(j + 0.5 - r.h / 2, i + 0.5 - r.w / 2), faction: r.hasCamp ? r.room.def.camp?.faction : undefined });
     }
+    plan.traps.forEach((tr, n) => {
+      if (tr.x >= x0 && tr.y >= y0 && tr.x < x0 + S && tr.y < y0 + S) out.push({ id: `trap:${n}`, kind: 'explosive', x: (tr.x + 0.5) * T, y: (tr.y + 0.6) * T, explosive: tr.id, angle: tr.angle, faction: tr.faction });
+    });
     plan.keycards.forEach((kc, n) => {
       if (kc.x >= x0 && kc.y >= y0 && kc.x < x0 + S && kc.y < y0 + S) out.push({ id: `keycard:${n}`, kind: 'item', x: (kc.x + 0.5) * T, y: (kc.y + 0.6) * T, item: kc.item });
     });

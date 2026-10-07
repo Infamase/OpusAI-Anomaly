@@ -88,6 +88,20 @@ const paramsSchema = v.object({
       stray: v.optional(v.object({ anomalies: v.array(v.id(), { min: 1 }), count: v.number({ int: true, min: 0 }) })),
     }),
   ),
+  /**
+   * Minefields: patches of a hidden charge (`explosive`) out in the open, off
+   * the roads and away from places, each with a warning `sign` on the side
+   * facing the nearest road.
+   */
+  minefields: v.optional(
+    v.object({
+      explosive: v.id(),
+      count: v.tuple2(v.number({ int: true, min: 0 }), v.number({ int: true, min: 0 })),
+      size: v.tuple2(v.number({ int: true, min: 1 }), v.number({ int: true, min: 1 })),
+      spread: v.optional(v.number({ min: 1 }), 4),
+      sign: v.optional(v.id()),
+    }),
+  ),
 });
 
 // ---- resolved (tile indices) ----------------------------------------------
@@ -123,6 +137,7 @@ interface Params {
   crates: { chance: number; lootTable: string } | null;
   anomalyFields: { anomalies: AnomalyDef[]; count: [number, number]; size: [number, number]; spread: number; biomes: Set<number> | null; artifacts: number; growable: ArtifactDef[] }[];
   strays: { anomalies: AnomalyDef[]; count: number } | null;
+  minefields: { explosive: string; count: [number, number]; size: [number, number]; spread: number; sign: number } | null;
   plans: Map<string, Plan>;
 }
 
@@ -209,6 +224,10 @@ interface Plan {
   fields: { x: number; y: number; name: string; spread: number; members: { id: string; x: number; y: number }[]; artifacts: { id: string; x: number; y: number }[] }[];
   /** Lone anomalies. */
   strays: { id: string; x: number; y: number }[];
+  /** Minefields (centers, for the map) and their mines and warning signs (tile index y * W + x). */
+  minefields: { x: number; y: number; spread: number }[];
+  mines: { id: string; x: number; y: number }[];
+  signs: Set<number>;
   chunkCache: Map<string, Placed[]>;
 }
 
@@ -309,7 +328,7 @@ class Terrain {
 function makePlan(p: Params, seed: number, W: number, H: number): Plan {
   const terrain = new Terrain(p, seed, W, H);
   const far = () => new Float32Array(W * H).fill(1e9);
-  const plan: Plan = { W, H, seed, terrain, riverEdge: far(), roadDist: far(), placed: [], roads: [], rivers: [], routes: [], fields: [], strays: [], chunkCache: new Map() };
+  const plan: Plan = { W, H, seed, terrain, riverEdge: far(), roadDist: far(), placed: [], roads: [], rivers: [], routes: [], fields: [], strays: [], minefields: [], mines: [], signs: new Set(), chunkCache: new Map() };
   const margin = p.border.width + 6;
 
   // --- Rivers: start on high ground and walk downhill until they reach a lake.
@@ -442,6 +461,7 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
   }
   for (const s of plan.roads) stampDistance(plan.roadDist, W, H, s, s.width + 4, 0);
   placeAnomalies(plan, p, margin);
+  placeMinefields(plan, p, margin);
   return plan;
 }
 
@@ -512,6 +532,61 @@ function placeAnomalies(plan: Plan, p: Params, margin: number): void {
         plan.strays.push({ id: def.id, x, y });
         break;
       }
+    }
+  }
+}
+
+/** Minefields: out in the open like anomaly fields, clear of them too, each with a warning sign toward the road. */
+function placeMinefields(plan: Plan, p: Params, margin: number): void {
+  const mf = p.minefields;
+  if (!mf) return;
+  const { W, H, terrain } = plan;
+  const rng = new Rng(deriveSeed(plan.seed, 'minefields'));
+  const k = (x: number, y: number) => Math.floor(y) * W + Math.floor(x);
+  const start = plan.placed[0];
+  const sx = start ? start.x + start.w / 2 : -1e9;
+  const sy = start ? start.y + start.h / 2 : -1e9;
+  const dry = (x: number, y: number) => x > margin && y > margin && x < W - margin && y < H - margin && !terrain.isLake(x, y) && plan.riverEdge[k(x, y)]! > 2;
+  const open = (x: number, y: number) =>
+    dry(x, y) &&
+    Math.hypot(x - sx, y - sy) > 40 &&
+    plan.roadDist[k(x, y)]! > 4 &&
+    !plan.placed.some((q) => x > q.x - 5 && x < q.x + q.w + 5 && y > q.y - 5 && y < q.y + q.h + 5) &&
+    !plan.fields.some((f) => Math.hypot(f.x - x, f.y - y) < f.spread + 6) &&
+    !plan.strays.some((s) => Math.hypot(s.x - x, s.y - y) < 5);
+  const n = rng.int(mf.count[0], Math.max(mf.count[0], mf.count[1]));
+  for (let i = 0; i < n; i++) {
+    for (let tries = 0; tries < 120; tries++) {
+      const x = rng.range(margin, W - margin);
+      const y = rng.range(margin, H - margin);
+      if (!open(x, y) || plan.minefields.some((m) => Math.hypot(m.x - x, m.y - y) < m.spread * 2 + 20)) continue;
+      const size = rng.int(mf.size[0], Math.max(mf.size[0], mf.size[1]));
+      const mines: { x: number; y: number }[] = [];
+      for (let m = 0; m < size * 8 && mines.length < size; m++) {
+        const a = rng.range(0, Math.PI * 2);
+        const d = rng.range(0, mf.spread);
+        const mx = Math.floor(x + Math.cos(a) * d) + 0.5;
+        const my = Math.floor(y + Math.sin(a) * d) + 0.5;
+        if (!open(mx, my) || mines.some((o) => Math.hypot(o.x - mx, o.y - my) < 1.5)) continue;
+        mines.push({ x: mx, y: my });
+      }
+      if (mines.length < Math.max(2, Math.ceil(size / 2))) continue;
+      plan.minefields.push({ x, y, spread: mf.spread });
+      for (const m of mines) plan.mines.push({ id: mf.explosive, x: m.x, y: m.y });
+      // A warning sign at the edge nearest a road.
+      if (mf.sign >= 0) {
+        let best: { x: number; y: number; d: number } | null = null;
+        for (let a = 0; a < 16; a++) {
+          const ang = (a / 16) * Math.PI * 2;
+          const px = Math.floor(x + Math.cos(ang) * (mf.spread + 1.6));
+          const py = Math.floor(y + Math.sin(ang) * (mf.spread + 1.6));
+          if (!dry(px + 0.5, py + 0.5) || mines.some((o) => Math.hypot(o.x - px - 0.5, o.y - py - 0.5) < 1.2)) continue;
+          const d = plan.roadDist[k(px, py)]!;
+          if (!best || d < best.d) best = { x: px, y: py, d };
+        }
+        if (best) plan.signs.add(best.y * W + best.x);
+      }
+      break;
     }
   }
 }
@@ -732,6 +807,7 @@ function classify(plan: Plan, near: Placed[], gx: number, gy: number): number {
     if (cell.tile >= 0) return cell.tile;
     if (cell.clear) clear = true;
   }
+  if (plan.minefields.length && p.minefields && plan.signs.has(gy * plan.W + gx)) return p.minefields.sign;
 
   // Water under the spot (lakes, rivers, swamp pools), needed for roads (bridges) too.
   const elev = terrain.elevation(x, y);
@@ -782,7 +858,7 @@ function resolveStructure(def: StructureDef, tiles: TileSet): Structure {
 
 export const planetGenerator: WorldGenerator<Params> = {
   id: 'planet',
-  version: 1,
+  version: 2,
 
   parseParams(raw, tiles, content) {
     if (!content) throw new Error('planet generator needs the content registry');
@@ -843,6 +919,7 @@ export const planetGenerator: WorldGenerator<Params> = {
         };
       }),
       strays: r.anomalies?.stray ? { anomalies: r.anomalies.stray.anomalies.map((id) => content.get('anomaly', id)), count: r.anomalies.stray.count } : null,
+      minefields: r.minefields ? { explosive: content.get('explosive', r.minefields.explosive).id, count: r.minefields.count, size: r.minefields.size, spread: r.minefields.spread, sign: r.minefields.sign ? tiles.index(r.minefields.sign) : -1 } : null,
       plans: new Map(),
     };
   },
@@ -867,6 +944,11 @@ export const planetGenerator: WorldGenerator<Params> = {
           const cell = cellAt(q, i, j);
           if (!cell || !inChunk(q.x + i, q.y + j)) continue;
           if (cell.anomaly) out.push({ id: `anomaly:${q.s.def.id}:${q.index}:${i},${j}`, kind: 'anomaly', x: (q.x + i + 0.5) * T, y: (q.y + j + 0.5) * T, anomaly: cell.anomaly });
+          // Charges guarding a place face outward, away from its middle.
+          if (cell.explosive) {
+            const angle = Math.atan2(j + 0.5 - q.h / 2, i + 0.5 - q.w / 2);
+            out.push({ id: `charge:${q.s.def.id}:${q.index}:${i},${j}`, kind: 'explosive', x: (q.x + i + 0.5) * T, y: (q.y + j + 0.6) * T, explosive: cell.explosive, angle, faction: q.hasCamp ? q.s.def.camp?.faction : undefined });
+          }
           if (!cell.crate) continue;
           out.push({ id: `crate:${q.s.def.id}:${q.index}:${i},${j}`, kind: 'crate', x: (q.x + i + 0.5) * T, y: (q.y + j + 0.8) * T, variant: cell.crate.variant, lootTable: cell.crate.lootTable });
         }
@@ -888,6 +970,9 @@ export const planetGenerator: WorldGenerator<Params> = {
     });
     plan.strays.forEach((m, i) => {
       if (local(m.x, m.y)) out.push({ id: `anomaly:stray:${i}`, kind: 'anomaly', x: m.x * T, y: m.y * T, anomaly: m.id });
+    });
+    plan.mines.forEach((m, i) => {
+      if (local(m.x, m.y)) out.push({ id: `mine:${i}`, kind: 'explosive', x: m.x * T, y: m.y * T, explosive: m.id, angle: 0 });
     });
     // A few crates out in the wild, on open ground away from places.
     if (params.crates) {
@@ -961,6 +1046,7 @@ export const planetGenerator: WorldGenerator<Params> = {
     return [
       ...plan.placed.filter((q) => q.s.def.label).map((q) => ({ id: `${q.s.def.id}_${q.index}`, name: q.s.def.label!, x: q.x + q.w / 2, y: q.y + q.h / 2, w: q.w, h: q.h })),
       ...plan.fields.map((f, i) => ({ id: `field_${i}`, name: f.name, x: f.x, y: f.y, w: f.spread * 2, h: f.spread * 2, hazard: true })),
+      ...plan.minefields.map((f, i) => ({ id: `minefield_${i}`, name: 'Minefield', x: f.x, y: f.y, w: f.spread * 2, h: f.spread * 2, hazard: true })),
     ];
   },
 

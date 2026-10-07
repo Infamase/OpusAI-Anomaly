@@ -436,5 +436,19 @@
       "color": "#66707c",
       "accent": "#4ab0d8"
     }
+  },
+  {
+    "type": "tile",
+    "id": "mine_sign",
+    "name": "Minefield Sign",
+    "solid": false,
+    "prop": "sign",
+    "sounds": {
+      "step": "step_grass"
+    },
+    "placeholder": {
+      "style": "noise",
+      "color": "#5a5232"
+    }
   }
 ]

@@ -195,3 +195,39 @@ describe('helpers', () => {
     expect(again.reveal(100, 100, 300, 512)).toEqual([]);
   });
 });
+
+describe('minefields', () => {
+  it('lie off the roads and away from the start, with a warning sign toward the road, and mines to step on', () => {
+    for (const seed of [777, 12]) {
+      const { plan, gen, params, map } = planet(seed);
+      expect(plan.minefields.length).toBeGreaterThanOrEqual(3);
+      const W = map.widthTiles;
+      const start = plan.placed[0]!;
+      for (const m of plan.mines) {
+        expect(plan.roadDist[Math.floor(m.y) * W + Math.floor(m.x)]!).toBeGreaterThan(4);
+        expect(Math.hypot(m.x - (start.x + start.w / 2), m.y - (start.y + start.h / 2))).toBeGreaterThan(40);
+      }
+      expect(plan.signs.size).toBeGreaterThanOrEqual(plan.minefields.length - 1);
+      const sign = [...plan.signs][0]!;
+      expect(map.tiles.id(map.getTile(sign % W, Math.floor(sign / W)))).toBe('mine_sign');
+      // The mines come out as live charges in their chunks.
+      const m = plan.mines[0]!;
+      const objs = map.objects(Math.floor(m.x / 16), Math.floor(m.y / 16));
+      expect(objs.some((o) => o.kind === 'explosive' && o.explosive === 'landmine')).toBe(true);
+      expect(gen.landmarks!(seed, params, W, W).some((l) => l.name === 'Minefield')).toBe(true);
+    }
+  });
+
+  it('places charges guarding military places, owned by whoever lives there', () => {
+    const { plan, map } = planet(777);
+    const checkpoint = plan.placed.find((q) => q.s.def.id === 'military_checkpoint')!;
+    expect(checkpoint).toBeDefined();
+    const objs = [];
+    for (let cy = Math.floor(checkpoint.y / 16); cy <= Math.floor((checkpoint.y + checkpoint.h) / 16); cy++) {
+      for (let cx = Math.floor(checkpoint.x / 16); cx <= Math.floor((checkpoint.x + checkpoint.w) / 16); cx++) objs.push(...map.objects(cx, cy));
+    }
+    const claymores = objs.filter((o) => o.kind === 'explosive' && o.id.startsWith('charge:military_checkpoint'));
+    expect(claymores.length).toBe(2);
+    if (checkpoint.hasCamp) for (const c of claymores) expect(c.kind === 'explosive' && c.faction).toBe('military');
+  });
+});

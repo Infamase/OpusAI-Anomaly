@@ -1,44 +1,289 @@
 [
   {
-    "type": "npcTemplate", "id": "loner_rookie", "name": "Loner", "faction": "loners", "rank": "rookie",
-    "skill": [0.25, 0.5], "armorSets": ["stalker"], "armorChance": 0.75,
-    "primaries": ["kestrel_smg", "toz12_shotgun"], "primaryChance": 0.7, "sidearms": ["vz9_pistol"],
-    "spareMagazines": [1, 3],
-    "carries": [ { "item": "bandage", "chance": 0.7, "count": [1, 2] }, { "item": "medkit", "chance": 0.35 }, { "item": "canned_meat", "chance": 0.4 } ]
+    "type": "npcTemplate",
+    "id": "loner_rookie",
+    "name": "Loner",
+    "faction": "loners",
+    "rank": "rookie",
+    "skill": [
+      0.25,
+      0.5
+    ],
+    "armorSets": [
+      "stalker"
+    ],
+    "armorChance": 0.75,
+    "primaries": [
+      "kestrel_smg",
+      "toz12_shotgun"
+    ],
+    "primaryChance": 0.7,
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      1,
+      3
+    ],
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.7,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "medkit",
+        "chance": 0.35
+      },
+      {
+        "item": "canned_meat",
+        "chance": 0.4
+      }
+    ]
   },
   {
-    "type": "npcTemplate", "id": "loner_veteran", "name": "Experienced Loner", "faction": "loners", "rank": "veteran",
-    "skill": [0.6, 0.85], "armorSets": ["stalker", "military"], "armorChance": 0.9,
-    "primaries": ["akr5_rifle", "longshot_dmr"], "sidearms": ["vz9_pistol"],
-    "spareMagazines": [2, 4],
-    "carries": [ { "item": "bandage", "chance": 0.8, "count": [1, 3] }, { "item": "medkit", "chance": 0.6 }, { "item": "ammo_545x39_ap", "chance": 0.2, "count": [10, 30] } ]
+    "type": "npcTemplate",
+    "id": "loner_veteran",
+    "name": "Experienced Loner",
+    "faction": "loners",
+    "rank": "veteran",
+    "skill": [
+      0.6,
+      0.85
+    ],
+    "armorSets": [
+      "stalker",
+      "military"
+    ],
+    "armorChance": 0.9,
+    "primaries": [
+      "akr5_rifle",
+      "longshot_dmr"
+    ],
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      2,
+      4
+    ],
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.8,
+        "count": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "medkit",
+        "chance": 0.6
+      },
+      {
+        "item": "ammo_545x39_ap",
+        "chance": 0.2,
+        "count": [
+          10,
+          30
+        ]
+      },
+      {
+        "item": "rgd5",
+        "chance": 0.25
+      }
+    ]
   },
   {
-    "type": "npcTemplate", "id": "bandit_thug", "name": "Bandit", "faction": "bandits", "rank": "rookie",
-    "skill": [0.2, 0.45], "armorSets": ["stalker"], "armorChance": 0.6,
-    "primaries": ["kestrel_smg", "toz12_shotgun"], "primaryChance": 0.65, "sidearms": ["vz9_pistol"],
-    "spareMagazines": [1, 2], "pockets": "bandit_pockets",
-    "carries": [ { "item": "bandage", "chance": 0.4 }, { "item": "medkit", "chance": 0.15 }, { "item": "energy_drink", "chance": 0.3 } ]
+    "type": "npcTemplate",
+    "id": "bandit_thug",
+    "name": "Bandit",
+    "faction": "bandits",
+    "rank": "rookie",
+    "skill": [
+      0.2,
+      0.45
+    ],
+    "armorSets": [
+      "stalker"
+    ],
+    "armorChance": 0.6,
+    "primaries": [
+      "kestrel_smg",
+      "toz12_shotgun"
+    ],
+    "primaryChance": 0.65,
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      1,
+      2
+    ],
+    "pockets": "bandit_pockets",
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.4
+      },
+      {
+        "item": "medkit",
+        "chance": 0.15
+      },
+      {
+        "item": "energy_drink",
+        "chance": 0.3
+      },
+      {
+        "item": "f1_grenade",
+        "chance": 0.3
+      }
+    ]
   },
   {
-    "type": "npcTemplate", "id": "bandit_gunner", "name": "Bandit Gunner", "faction": "bandits", "rank": "experienced",
-    "skill": [0.45, 0.65], "armorSets": ["stalker", "military"], "armorChance": 0.8,
-    "primaries": ["akr5_rifle", "kestrel_smg"], "sidearms": ["vz9_pistol"],
-    "spareMagazines": [1, 3],
-    "carries": [ { "item": "bandage", "chance": 0.5, "count": [1, 2] }, { "item": "medkit", "chance": 0.3 } ]
+    "type": "npcTemplate",
+    "id": "bandit_gunner",
+    "name": "Bandit Gunner",
+    "faction": "bandits",
+    "rank": "experienced",
+    "skill": [
+      0.45,
+      0.65
+    ],
+    "armorSets": [
+      "stalker",
+      "military"
+    ],
+    "armorChance": 0.8,
+    "primaries": [
+      "akr5_rifle",
+      "kestrel_smg"
+    ],
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      1,
+      3
+    ],
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.5,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "medkit",
+        "chance": 0.3
+      },
+      {
+        "item": "f1_grenade",
+        "chance": 0.3
+      }
+    ]
   },
   {
-    "type": "npcTemplate", "id": "military_rifleman", "name": "Soldier", "faction": "military", "rank": "experienced",
-    "skill": [0.5, 0.75], "armorSets": ["military"], "armorChance": 0.95,
-    "primaries": ["akr5_rifle"], "sidearms": ["vz9_pistol"],
-    "spareMagazines": [2, 4],
-    "carries": [ { "item": "bandage", "chance": 0.8, "count": [1, 2] }, { "item": "army_medkit", "chance": 0.4 }, { "item": "ammo_545x39_ap", "chance": 0.3, "count": [15, 30] } ]
+    "type": "npcTemplate",
+    "id": "military_rifleman",
+    "name": "Soldier",
+    "faction": "military",
+    "rank": "experienced",
+    "skill": [
+      0.5,
+      0.75
+    ],
+    "armorSets": [
+      "military"
+    ],
+    "armorChance": 0.95,
+    "primaries": [
+      "akr5_rifle"
+    ],
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      2,
+      4
+    ],
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.8,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "army_medkit",
+        "chance": 0.4
+      },
+      {
+        "item": "ammo_545x39_ap",
+        "chance": 0.3,
+        "count": [
+          15,
+          30
+        ]
+      },
+      {
+        "item": "rgd5",
+        "chance": 0.55,
+        "count": [
+          1,
+          2
+        ]
+      }
+    ]
   },
   {
-    "type": "npcTemplate", "id": "military_marksman", "name": "Marksman", "faction": "military", "rank": "veteran",
-    "skill": [0.7, 0.9], "armorSets": ["military"], "armorChance": 1,
-    "primaries": ["longshot_dmr"], "sidearms": ["vz9_pistol"],
-    "spareMagazines": [2, 3],
-    "carries": [ { "item": "army_medkit", "chance": 0.5 }, { "item": "stim_injector", "chance": 0.3 } ]
+    "type": "npcTemplate",
+    "id": "military_marksman",
+    "name": "Marksman",
+    "faction": "military",
+    "rank": "veteran",
+    "skill": [
+      0.7,
+      0.9
+    ],
+    "armorSets": [
+      "military"
+    ],
+    "armorChance": 1,
+    "primaries": [
+      "longshot_dmr"
+    ],
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      2,
+      3
+    ],
+    "carries": [
+      {
+        "item": "army_medkit",
+        "chance": 0.5
+      },
+      {
+        "item": "stim_injector",
+        "chance": 0.3
+      },
+      {
+        "item": "rgd5",
+        "chance": 0.55,
+        "count": [
+          1,
+          2
+        ]
+      }
+    ]
   }
 ]

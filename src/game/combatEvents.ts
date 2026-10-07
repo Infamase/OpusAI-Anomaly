@@ -30,6 +30,13 @@ export interface CombatEvents {
   tileHit: { tx: number; ty: number; x: number; y: number; angle: number; amount: number; attacker: Entity | null };
   /** A breakable tile or prop gave way (`tile` is the tile it was, if a tile). */
   broken: { x: number; y: number; tile?: string; debris: string; by: Entity | null };
+  /** Explosives: a charge became live / was set off (click, beep). */
+  explosive: { entity: Entity; x: number; y: number; defId: string; phase: 'armed' | 'triggered' };
+  /** A grenade was thrown, or hit the ground / a wall. */
+  grenadeThrown: { thrower: Entity; x: number; y: number; defId: string };
+  grenadeBounce: { x: number; y: number };
+  /** Something blew up (`recordId` etc. say whether it was a saved charge). */
+  explosion: { entity: Entity; x: number; y: number; defId: string; radius: number; owner: Entity | null; recordId: string | null; chunkKey: string | null; generated: boolean; angle: number };
   /** A bullet struck a breakable prop (a crate). */
   propHit: { target: Entity; x: number; y: number; angle: number; amount: number; attacker: Entity | null };
 }

@@ -35,6 +35,8 @@ export const DEFAULT_KEYBOARD: KeyboardBindings = {
     quickHeal: ['KeyH'],
     map: ['KeyM'],
     bolt: ['KeyG'],
+    grenade: ['KeyF'],
+    place: ['KeyV'],
   },
   mouse: { 0: 'fire', 2: 'altFire' },
 };
@@ -64,5 +66,7 @@ export const DEFAULT_GAMEPAD: GamepadBindings = {
     quickHeal: [13], // D-pad down
     map: [12], // D-pad up
     bolt: [4], // LB
+    grenade: [1], // B / Circle
+    place: [14], // D-pad left
   },
 };

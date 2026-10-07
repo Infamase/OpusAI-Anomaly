@@ -36,6 +36,15 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > wooden fences, barricades and plank doors until they give way, opening
 > shortcuts, and wooden crates splinter and spill their loot.
 >
+> **Grenades & explosives:** grenades arc, bounce and roll to a stop before
+> the fuse runs down, with a red ring showing their reach and a HUD marker
+> when one is near you. Claymores (with a tripwire laser), landmines (hard to
+> spot) and improvised bombs can be placed, picked back up, shot, or set off
+> with a bolt, and they lie in wait in minefields (with warning signs), around
+> military posts and by booby-trapped doorways. Blasts break walls, crates and
+> fences and set off other charges. NPCs rarely throw grenades (only to flush
+> you out of cover, one at a time, shouting first) and run from yours.
+>
 > **Sound:** every sound is synthesized from recipes in content files
 > (gunshots per weapon, footsteps per surface, impacts, pain and death per
 > race, reloads, radio chatter, UI, wind and the hum of the Zone), positioned
@@ -79,11 +88,13 @@ dev panel, `?mute=1` starts muted. Sound, zoom and renderer settings are under
 | Reload | R | X |
 | Primary / sidearm / swap | 1 / 2 / Q or mouse wheel | RB |
 | Sprint (lowers your gun, uses stamina) | Shift | L3 |
-| Interact (pick up, open crate, search body) | E | A |
+| Interact (pick up, open crate, search body, open doors, disarm charges) | E | A |
 | Inventory | Tab or I | Y |
 | Quick heal (bandage if bleeding, else best medkit) | H | D-pad down |
 | PDA map | M | D-pad up |
-| Throw a bolt (sets off anomalies) | G | LB |
+| Throw a bolt (sets off anomalies and mines) | G | LB |
+| Throw a grenade (at the cursor) | F | B |
+| Place a claymore / mine / IED (facing the cursor) | V | D-pad left |
 | Pause | Esc | Start |
 | Dev panel | ` or F3 | Select |
 

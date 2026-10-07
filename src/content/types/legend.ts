@@ -25,6 +25,7 @@ export type LegendEntry =
       door?: boolean;
       /** An anomaly sits here. */
       anomaly?: string;
+      explosive?: string;
       /**
        * Step here and press E to go to another world. `world` is a worldGen id
        * or "@return" (back to wherever the player came from).
@@ -45,6 +46,8 @@ export const legendEntry: Validator<LegendEntry> = (val, path, errors) => {
     entrance: v.optional(v.boolean()),
     door: v.optional(v.boolean()),
     anomaly: v.optional(v.id()),
+    /** A live charge left here (claymores face away from the drawing's middle). */
+    explosive: v.optional(v.id()),
     portal: v.optional(v.object({ world: v.string({ pattern: /^(@return|[a-z][a-z0-9_]*)$/ }), label: v.string({ nonEmpty: true }) })),
   })(val, path, errors);
 };
@@ -66,6 +69,7 @@ export function checkDrawing(def: { legend: Record<string, LegendEntry>; map: st
     if (typeof e === 'object') {
       if (e.crate) ctx.ref('lootTable', e.crate.lootTable, `legend["${ch}"].crate`);
       if (e.anomaly) ctx.ref('anomaly', e.anomaly, `legend["${ch}"].anomaly`);
+      if (e.explosive) ctx.ref('explosive', e.explosive, `legend["${ch}"].explosive`);
       if (e.portal && e.portal.world !== '@return') ctx.ref('worldGen', e.portal.world, `legend["${ch}"].portal.world`);
       if (e.door && !opts.slots) ctx.error(`legend["${ch}"]: door sockets only work in rooms`);
     }

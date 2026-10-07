@@ -16,6 +16,7 @@ export interface Cell {
   /** Room door socket (sealed with the wall tile unless something attaches). */
   door: boolean;
   anomaly: string | null;
+  explosive: string | null;
   portal: { world: string; label: string } | null;
 }
 
@@ -55,6 +56,7 @@ export function resolveDrawing(def: { legend: Record<string, LegendEntry>; map: 
       entrance: !!o.entrance,
       door: !!o.door,
       anomaly: o.anomaly ?? null,
+      explosive: o.explosive ?? null,
       portal: o.portal ?? null,
     });
   }

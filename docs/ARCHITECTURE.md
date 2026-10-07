@@ -32,6 +32,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 14 Anomalies & artifacts | `src/game/systems/AnomalySystem.ts`, `ArtifactSystem.ts`, `radiation.ts`, `ai/hazards.ts`, `src/render/AnomalyFx.ts`, `content/*/anomalies`, `content/*/artifacts` | Hazards, bolts, radiation, artifacts on the belt, detectors |
 | 15 Interiors | `src/game/world/interiorGenerator.ts`, `drawings.ts`, `content/*/rooms`, `src/content/types/{room,legend}.ts` | Labs, ships and stations assembled from room drawings; portals between worlds |
 | 16 Doors & destructibles | `src/game/doors.ts`, `breakables.ts`, `src/render/CrackOverlay.ts`, `content/*/tiles/doors.json`, `content/*/keycards` | Doors, keycards and locked rooms, breakable walls / fences / barricades / crates |
+| 17 Explosives | `src/game/explosives.ts`, `src/content/types/explosive.ts`, `src/render/ExplosionFx.ts`, `content/*/explosives` | Grenades, placed charges, blasts, world hazards, NPC grenade use |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -356,6 +357,49 @@ over the canvas and draw animated characters with `CharacterPreview`.
   tile; a tile's `turned` names its quarter-turned form, so rotated structures
   keep their fences running the right way.
 
+## Explosives (Module 17)
+
+- **Content** (`content/*/explosives/`, item kind `explosive`): `use` is
+  `throw` (grenades) or `place` (charges); `trigger` is `fuse`, `proximity`
+  or `tripwire`; `blast` gives radius, damage (falling to a quarter at the
+  edge), damage type and armor piercing, knockback, `shatter` (damage to
+  breakable tiles and crates) and an optional `cone` (claymores). Charges
+  have `sense` (reach), `delay` (click / beep before the bang), `arming`
+  (time to walk away) and `hidden` / `spotRange` (landmines).
+- **`ExplosiveSystem`** (one `Explosive` component for both kinds):
+  thrown grenades fly with gravity, bounce, then roll; on landing their
+  rolling friction is set so they stop near the aim point, and the fuse
+  only starts **once they're at rest** (so there's always a moment to get
+  away). Walls (and closed doors) bounce them; high enough they clear
+  fences and barricades. Placed charges arm, then trigger on anyone not of
+  their `faction` (the placer's side, or a camp's own traps) within reach
+  or across the tripwire, after a line-of-sight check, and on bolts.
+- **Blasts** damage everyone in reach with a clear line from the center
+  (walls shelter you), throw them back, emit `tileHit` for breakable tiles
+  (only where nothing else solid is in the way) and `propHit` for crates,
+  and set off other explosives nearby a moment later. Shooting a charge sets
+  it off (it has a 1 hp `Breakable`).
+- **Player:** F throws the first grenade in the backpack at the cursor; V
+  (or "Place" in the backpack) sets down the first charge a step ahead,
+  facing the cursor; E picks up your own charges or disarms spotted ones.
+  Placed charges are saved with their chunk; generated hazards are saved as
+  removals once used or disarmed. The HUD shows what F / V would use and
+  points at live grenades near you; live grenades get a red danger ring,
+  claymores a faint tripwire laser.
+- **NPCs** hear blasts, and run from a live grenade within reach (a beat
+  later if they only heard it land), sprinting to a spot outside the blast,
+  off known hazards, holding fire meanwhile. They **throw** only to flush out
+  someone who ducked out of sight 2.5–9 s ago, at 4 tiles or more, onto a
+  spot they can lob to that reaches the target, never with a friend within
+  the blast; each NPC then waits 50–80 s and nobody else may throw for
+  18–30 s. They shout before throwing.
+- **World hazards:** planets have `minefields` (landmines off the roads with
+  a warning sign facing the nearest road; on the map as hazards); structure
+  and room legends take `explosive` cells (claymores face away from the
+  drawing's middle; owned by the place's camp); interiors' `traps` put a
+  claymore or IED just inside some doorways with the wire across the way in.
+  NPC routes avoid them (`HazardMap`).
+
 ## Extension points
 
 ### Add a playable race
@@ -439,6 +483,12 @@ generated tile.
   keycard in a loot table).
 - **Breakable:** add `breakable: { "hp": ..., "becomes": "<tile>" }` to any
   solid tile, plus a `break` sound.
+
+### Add a grenade, mine or other charge
+- A def in `content/base/explosives/` (copy the closest one): `use`,
+  `trigger`, `blast`, `art`, `sounds`. Put it in loot tables, NPC `carries`,
+  a planet's `minefields`, an interior's `traps` or a drawing's legend
+  (`{ "clear": true, "explosive": "<id>" }`).
 
 ### Add a new kind of content (weapons, armor, factions, station chunks…)
 1. `src/content/types/<kind>.ts`: a schema (`v.object({...})`), a `crossCheck` for

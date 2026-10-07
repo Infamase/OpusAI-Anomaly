@@ -51,6 +51,11 @@ export const SOUND_CUES = [
   'door_locked',
   'door_unlock',
   'break',
+  'grenade_throw',
+  'grenade_bounce',
+  'explosive_arm',
+  'explosive_trigger',
+  'explosion',
 ] as const;
 export type SoundCue = (typeof SOUND_CUES)[number];
 

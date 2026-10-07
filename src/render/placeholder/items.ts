@@ -185,6 +185,91 @@ export function drawDetector(colorHex: string): PixelCanvas {
   return finish(pc);
 }
 
+/**
+ * Explosives, as icons and as the thing lying in the world: a frag grenade
+ * (smooth egg with a lever), a pineapple (segmented), a claymore (curved box
+ * on scissor legs), a landmine (squat disc with a pressure plate) and an IED
+ * (a taped canister with wires and an LED). 16x16.
+ */
+export function drawExplosive(style: 'frag' | 'pineapple' | 'claymore' | 'landmine' | 'ied', colorHex: string): PixelCanvas {
+  const pc = new PixelCanvas(16, 16);
+  const r = buildRamp(colorHex);
+  const metal: RGB[] = [
+    [40, 40, 40],
+    [80, 82, 80],
+    [120, 122, 118],
+    [160, 162, 156],
+    [200, 202, 196],
+  ];
+  const disc = (cx: number, cy: number, rx: number, ry: number, ramp: RGB[]) => {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
+        if (d > 1) continue;
+        const lit = (x - cx) / rx + (y - cy) / ry;
+        pc.set(x, y, ramp[d > 0.75 ? 1 : lit < -0.6 ? 4 : lit > 0.5 ? 2 : 3]!);
+      }
+    }
+  };
+  switch (style) {
+    case 'frag':
+    case 'pineapple': {
+      disc(7.5, 9.5, 4.6, 5.4, r);
+      if (style === 'pineapple') {
+        for (let y = 6; y <= 14; y += 2) for (let x = 3; x <= 12; x++) if (pc.alpha(x, y)) pc.set(x, y, r[1]!);
+        for (let x = 5; x <= 11; x += 3) for (let y = 5; y <= 14; y++) if (pc.alpha(x, y)) pc.set(x, y, r[1]!);
+      }
+      // Fuse head, lever and ring.
+      pc.rect(6, 2, 4, 3, metal[2]!);
+      pc.hline(6, 2, 4, metal[4]!);
+      for (let i = 0; i < 6; i++) pc.set(10 + Math.floor(i / 2), 3 + i, metal[i % 2 ? 1 : 3]!);
+      pc.set(4, 2, metal[3]!);
+      pc.set(3, 3, metal[3]!);
+      pc.set(4, 4, metal[3]!);
+      pc.set(5, 3, metal[1]!);
+      break;
+    }
+    case 'claymore': {
+      // Curved face (convex toward the enemy) on two pairs of legs.
+      for (let x = 2; x <= 13; x++) {
+        const bow = Math.round(((x - 7.5) / 6) ** 2 * 2);
+        for (let y = 4 + bow; y <= 10 + bow; y++) pc.set(x, y, r[y === 4 + bow ? 4 : y === 10 + bow ? 1 : x < 4 ? 2 : 3]!);
+      }
+      for (let x = 4; x <= 11; x++) pc.set(x, 7 + Math.round(((x - 7.5) / 6) ** 2 * 2), r[2]!);
+      pc.set(6, 2, metal[3]!);
+      pc.set(6, 3, metal[2]!);
+      for (const [x0, dx] of [
+        [3, -1],
+        [12, 1],
+      ] as const) {
+        for (let k = 0; k < 4; k++) pc.set(x0 + dx * Math.floor(k / 2), 12 + k, metal[1]!);
+      }
+      break;
+    }
+    case 'landmine': {
+      disc(7.5, 10, 6.6, 4, r);
+      for (let x = 2; x <= 13; x++) pc.set(x, 12, r[1]!);
+      disc(7.5, 8.6, 2.6, 1.6, metal);
+      pc.set(7, 8, metal[4]!);
+      break;
+    }
+    case 'ied': {
+      // A canister wrapped in tape, a phone strapped on, wires, a red LED.
+      for (let y = 4; y <= 14; y++) for (let x = 3; x <= 10; x++) pc.set(x, y, r[x === 3 ? 4 : x === 10 ? 1 : y === 4 ? 4 : 3]!);
+      for (const y of [6, 11]) for (let x = 3; x <= 10; x++) pc.set(x, y, [150, 150, 140]);
+      pc.rect(9, 7, 5, 4, [40, 44, 40]);
+      pc.hline(10, 8, 3, [90, 140, 110]);
+      pc.set(13, 6, [230, 40, 30]);
+      for (let i = 0; i < 4; i++) {
+        pc.set(5 + i, 3 - (i % 2), [200, 50, 40]);
+        pc.set(11 + (i % 2), 11 + i, [60, 90, 200]);
+      }
+      break;
+    }
+  }
+  return finish(pc);
+}
+
 /** A keycard: a colored card with a magnetic stripe, a chip and a clip hole. 16x11. */
 export function drawKeycard(colorHex: string): PixelCanvas {
   const pc = new PixelCanvas(16, 11);

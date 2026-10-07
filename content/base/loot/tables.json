@@ -1,42 +1,218 @@
 [
   {
-    "type": "lootTable", "id": "supply_crate", "rolls": 2,
+    "type": "lootTable",
+    "id": "supply_crate",
+    "rolls": 2,
     "entries": [
-      { "item": "bandage", "chance": 0.5, "count": [1, 3] },
-      { "item": "anti_rad", "chance": 0.2 },
-      { "item": "vodka", "chance": 0.2 },
-      { "item": "medkit", "chance": 0.2 },
-      { "item": "canned_meat", "chance": 0.35, "count": [1, 2] },
-      { "item": "energy_drink", "chance": 0.25 },
-      { "item": "ammo_9x19", "chance": 0.35, "count": [12, 40] },
-      { "item": "ammo_545x39", "chance": 0.25, "count": [15, 45] },
-      { "item": "ammo_12ga_buck", "chance": 0.2, "count": [6, 16] }
+      {
+        "item": "bandage",
+        "chance": 0.5,
+        "count": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "anti_rad",
+        "chance": 0.2
+      },
+      {
+        "item": "vodka",
+        "chance": 0.2
+      },
+      {
+        "item": "medkit",
+        "chance": 0.2
+      },
+      {
+        "item": "canned_meat",
+        "chance": 0.35,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "energy_drink",
+        "chance": 0.25
+      },
+      {
+        "item": "ammo_9x19",
+        "chance": 0.35,
+        "count": [
+          12,
+          40
+        ]
+      },
+      {
+        "item": "ammo_545x39",
+        "chance": 0.25,
+        "count": [
+          15,
+          45
+        ]
+      },
+      {
+        "item": "ammo_12ga_buck",
+        "chance": 0.2,
+        "count": [
+          6,
+          16
+        ]
+      },
+      {
+        "item": "rgd5",
+        "chance": 0.06
+      }
     ]
   },
   {
-    "type": "lootTable", "id": "military_crate", "rolls": 2,
+    "type": "lootTable",
+    "id": "military_crate",
+    "rolls": 2,
     "entries": [
-      { "item": "army_medkit", "chance": 0.3 },
-      { "item": "anti_rad", "chance": 0.3, "count": [1, 2] },
-      { "item": "bear_detector", "chance": 0.05 },
-      { "item": "stim_injector", "chance": 0.25 },
-      { "item": "ammo_545x39_ap", "chance": 0.35, "count": [20, 60] },
-      { "item": "ammo_762x54", "chance": 0.25, "count": [10, 30] },
-      { "item": "akr5_rifle", "chance": 0.08, "condition": [0.5, 0.9] },
-      { "item": "longshot_dmr", "chance": 0.04, "condition": [0.4, 0.8] }
+      {
+        "item": "army_medkit",
+        "chance": 0.3
+      },
+      {
+        "item": "anti_rad",
+        "chance": 0.3,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "bear_detector",
+        "chance": 0.05
+      },
+      {
+        "item": "stim_injector",
+        "chance": 0.25
+      },
+      {
+        "item": "ammo_545x39_ap",
+        "chance": 0.35,
+        "count": [
+          20,
+          60
+        ]
+      },
+      {
+        "item": "ammo_762x54",
+        "chance": 0.25,
+        "count": [
+          10,
+          30
+        ]
+      },
+      {
+        "item": "akr5_rifle",
+        "chance": 0.08,
+        "condition": [
+          0.5,
+          0.9
+        ]
+      },
+      {
+        "item": "longshot_dmr",
+        "chance": 0.04,
+        "condition": [
+          0.4,
+          0.8
+        ]
+      },
+      {
+        "item": "rgd5",
+        "chance": 0.3,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "f1_grenade",
+        "chance": 0.12
+      },
+      {
+        "item": "claymore",
+        "chance": 0.08
+      },
+      {
+        "item": "landmine",
+        "chance": 0.1,
+        "count": [
+          1,
+          2
+        ]
+      }
     ]
   },
   {
-    "type": "lootTable", "id": "bandit_pockets",
+    "type": "lootTable",
+    "id": "bandit_pockets",
     "entries": [
-      { "item": "bandage", "chance": 0.45, "count": [1, 2] },
-      { "item": "vodka", "chance": 0.25 },
-      { "item": "medkit", "chance": 0.15 },
-      { "item": "canned_meat", "chance": 0.2 },
-      { "item": "ammo_9x19", "chance": 0.5, "count": [6, 24] },
-      { "item": "ammo_545x39", "chance": 0.3, "count": [10, 30] },
-      { "item": "ammo_12ga_buck", "chance": 0.2, "count": [4, 10] },
-      { "item": "ammo_762x54", "chance": 0.1, "count": [5, 10] }
+      {
+        "item": "bandage",
+        "chance": 0.45,
+        "count": [
+          1,
+          2
+        ]
+      },
+      {
+        "item": "vodka",
+        "chance": 0.25
+      },
+      {
+        "item": "medkit",
+        "chance": 0.15
+      },
+      {
+        "item": "canned_meat",
+        "chance": 0.2
+      },
+      {
+        "item": "ammo_9x19",
+        "chance": 0.5,
+        "count": [
+          6,
+          24
+        ]
+      },
+      {
+        "item": "ammo_545x39",
+        "chance": 0.3,
+        "count": [
+          10,
+          30
+        ]
+      },
+      {
+        "item": "ammo_12ga_buck",
+        "chance": 0.2,
+        "count": [
+          4,
+          10
+        ]
+      },
+      {
+        "item": "ammo_762x54",
+        "chance": 0.1,
+        "count": [
+          5,
+          10
+        ]
+      },
+      {
+        "item": "f1_grenade",
+        "chance": 0.12
+      },
+      {
+        "item": "ied",
+        "chance": 0.04
+      }
     ]
   }
 ]

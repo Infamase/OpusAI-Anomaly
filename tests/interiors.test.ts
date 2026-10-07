@@ -142,6 +142,24 @@ describe('interior layouts', () => {
     expect(counts.fragile ?? 0, JSON.stringify(counts)).toBeGreaterThan(0);
   });
 
+  it('booby-traps a few doorways, just inside, with the tripwire across the way in', () => {
+    let traps = 0;
+    for (let seed = 1; seed <= 8; seed++) {
+      const { params, map } = load('derelict_freighter', seed);
+      const plan = interiorPlan(params, seed, map.widthTiles, map.heightTiles);
+      for (const t of plan.traps) {
+        traps++;
+        expect(map.isSolid(t.x, t.y)).toBe(false);
+        // A doorway is right next to it (diagonally).
+        const nearDoor = plan.links.some((l) => Math.abs((l.k % map.widthTiles) - t.x) <= 1 && Math.abs(Math.floor(l.k / map.widthTiles) - t.y) <= 1);
+        expect(nearDoor).toBe(true);
+      }
+      const S = map.chunkSize;
+      for (const t of plan.traps) expect(map.objects(Math.floor(t.x / S), Math.floor(t.y / S)).some((o) => o.kind === 'explosive')).toBe(true);
+    }
+    expect(traps).toBeGreaterThan(2);
+  });
+
   it('always includes the rooms an interior must have', () => {
     for (let seed = 1; seed <= 30; seed++) {
       const { params, map } = load('derelict_freighter', seed);

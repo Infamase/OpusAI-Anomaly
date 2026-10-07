@@ -943,6 +943,51 @@ body {
   background: #0b0d10;
   border: 1px solid var(--hud-line);
 }
+/* Throwables and charges under the weapon panel. */
+.hud-bombs {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+  font-size: 11px;
+  color: #c9c3a8;
+}
+.hud-bombs:empty {
+  display: none;
+}
+.hud-bombs span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Live grenade nearby: a pulsing marker around the player pointing at it. */
+.hud-grenades {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.hud-grenade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  background: rgba(150, 20, 10, 0.75);
+  border: 2px solid #ffb04a;
+  box-shadow: 0 0 10px rgba(255, 90, 40, 0.8);
+  animation: hud-grenade-pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes hud-grenade-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
 /* Damage direction: arcs around the player pointing at the shooter. */
 .hud-arcs {
   position: absolute;

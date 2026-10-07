@@ -3,7 +3,8 @@ import { toDirection } from '../../core/math';
 import type { ContentRegistry } from '../../content/Registry';
 import type { WeaponDef } from '../../content/types';
 import type { Entity, System, World } from '../../ecs/World';
-import { CHEST_HEIGHT, lineOfSight } from '../combat';
+import { CHEST_HEIGHT, lineOfSight, segmentHitsSolid } from '../combat';
+import { liveGrenades, throwGrenade } from '../explosives';
 import type { CombatEvents } from '../combatEvents';
 import {
   Aim,
@@ -22,7 +23,7 @@ import {
 } from '../components';
 import { pickQuickHeal, useConsumable } from '../consumables';
 import { PLAYER_FACTION, type Relations } from '../factions';
-import { countItem } from '../items';
+import { countItem, takeItem } from '../items';
 import type { TileMap } from '../world/TileMap';
 import { TILE_PX } from '../world/TileMap';
 import { findPath, type Avoid, type Point } from './pathfinding';
@@ -37,8 +38,16 @@ const SHOT_HEARING = 560;
 const SQUAD_RADIUS = 520;
 const PERCEPTION_INTERVAL = 0.2;
 const ARRIVE = 7;
+/** Explosions are heard this far away. */
+const BLAST_HEARING = 900;
+/**
+ * Grenades are rare: after any NPC throws one, nobody else may for this long
+ * (plus a random bit), and each NPC waits much longer before its next.
+ */
+const GROUP_GRENADE_COOLDOWN = 18;
+const OWN_GRENADE_COOLDOWN = 50;
 
-export type BarkKind = 'greet' | 'contact' | 'hurt' | 'reload' | 'retreat' | 'angry' | 'search';
+export type BarkKind = 'greet' | 'contact' | 'hurt' | 'reload' | 'retreat' | 'angry' | 'search' | 'grenadeOut' | 'grenade';
 
 interface Noise {
   x: number;
@@ -63,6 +72,10 @@ export class NpcBrainSystem implements System {
   readonly name = 'npcBrain';
   private noises: Noise[] = [];
   private world: World | null = null;
+  /** Seconds until any NPC may throw a grenade (shared, so they never all throw at once). */
+  private groupGrenadeIn = 10;
+  /** Live grenades this tick (computed once). */
+  private grenades: { e: Entity; x: number; y: number; radius: number; left: number }[] = [];
 
   /** Known hazards (anomalies) to route around. */
   avoid?: Avoid;
@@ -70,13 +83,14 @@ export class NpcBrainSystem implements System {
   constructor(
     private content: ContentRegistry,
     private map: () => TileMap | null,
-    events: EventBus<CombatEvents>,
+    private events: EventBus<CombatEvents>,
     private relations: Relations,
     private bark: (e: Entity, kind: BarkKind) => void,
     /** Source of randomness (seedable for tests). */
     private rand: () => number = Math.random,
   ) {
     events.on('shot', (s) => this.noises.push({ x: s.x, y: s.y, source: s.shooter, radius: SHOT_HEARING }));
+    events.on('explosion', (x) => this.noises.push({ x: x.x, y: x.y, source: x.owner ?? -1, radius: BLAST_HEARING }));
     events.on('hit', (h) => this.world && this.onHit(this.world, h.target, h.attacker, h.killed));
     events.on('death', (d) => this.world && this.onDeath(this.world, d.entity, d.killer));
   }
@@ -86,9 +100,16 @@ export class NpcBrainSystem implements System {
     const map = this.map();
     if (!map) return;
     const npcs = [...world.query(Npc, Brain, Transform, Velocity, Combatant, Aim, Character, Health)];
+    this.groupGrenadeIn -= dt;
+    this.grenades = liveGrenades(world, this.content);
     for (const e of npcs) {
       if (world.req(e, Health).dead) continue;
       const b = world.req(e, Brain);
+      b.grenadeIn -= dt;
+      if (this.dodge(world, map, e, b, dt)) {
+        this.move(world, map, e, b, dt);
+        continue;
+      }
       b.stateTime += dt;
       b.barkCooldown -= dt;
       b.repathIn -= dt;
@@ -264,6 +285,99 @@ export class NpcBrainSystem implements System {
     }
   }
 
+  // ---- grenades -------------------------------------------------------------------
+
+  /**
+   * Runs from a live grenade it can see (or one right at its feet), after a
+   * short beat to react. Returns true while running (no shooting meanwhile).
+   */
+  private dodge(world: World, map: TileMap, e: Entity, b: Brain, dt: number): boolean {
+    const t = world.req(e, Transform);
+    let threat = b.dodging !== null ? this.grenades.find((g) => g.e === b.dodging) : undefined;
+    if (!threat) {
+      if (b.dodging !== null) {
+        // It went off (or rolled away): back to business.
+        b.dodging = null;
+        b.goal = null;
+        b.path = [];
+        b.repathIn = 0;
+        world.req(e, Character).sprinting = false;
+      }
+      // Anything that clatters down within reach gets noticed: seen, quicker; only heard, a beat later.
+      threat = this.grenades.find((g) => Math.hypot(g.x - t.x, g.y - t.y) < g.radius + 20);
+      if (!threat) return false;
+      const seen = lineOfSight(map, t.x, t.y - CHEST_HEIGHT, threat.x, threat.y - 2);
+      b.dodging = threat.e;
+      b.dodgeIn = 0.2 + (1 - world.req(e, Npc).skill) * 0.4 + this.rand() * 0.2 + (seen ? 0 : 0.35);
+    }
+    world.req(e, Combatant).trigger = false;
+    if (b.dodgeIn > 0) {
+      b.dodgeIn -= dt;
+      if (b.dodgeIn > 0) return true;
+      this.say(world, e, 'grenade', 3);
+      b.goal = escapeFrom(map, t, threat, threat.radius, this.avoid);
+      b.path = [];
+      b.repathIn = 0;
+    } else if (!b.goal) {
+      // The way out had no route (or it got there and the thing still hasn't gone off): another spot, at random.
+      b.goal = escapeFrom(map, t, threat, threat.radius, this.avoid, this.rand);
+      b.path = [];
+      b.repathIn = 0;
+    }
+    world.req(e, Aim).dir = null;
+    world.req(e, Character).sprinting = true;
+    // Keep the escape route fixed (don't re-plan every tick).
+    if (b.goal) b.repathIn = Math.max(b.repathIn, 0.5);
+    return true;
+  }
+
+  /**
+   * Rarely, a grenade to flush out an enemy who has gone to ground behind
+   * cover: only when the target has been out of sight for a few seconds, at a
+   * sensible range, onto a spot the NPC can actually lob it to, never near a
+   * squadmate, and with long cooldowns (each NPC's own, and one shared by
+   * everyone). It shouts first, so the target gets a warning.
+   */
+  private considerGrenade(world: World, map: TileMap, e: Entity, b: Brain): boolean {
+    if (b.grenadeIn > 0 || this.groupGrenadeIn > 0 || b.targetVisible || b.reaction > 0) return false;
+    if (b.sinceSeen < 2.5 || b.sinceSeen > 9) return false;
+    const inv = world.req(e, Inventory);
+    const item = inv.find((it) => this.content.tryGet('explosive', it.defId)?.use === 'throw');
+    const def = item && this.content.tryGet('explosive', item.defId);
+    if (!def) return false;
+    const t = world.req(e, Transform);
+    const dist = Math.hypot(b.lastSeenX - t.x, b.lastSeenY - t.y);
+    if (dist < TILE_PX * 4 || dist > def.range * TILE_PX * 0.9) return false;
+    // Not every chance gets taken.
+    b.grenadeIn = 3 + this.rand() * 3;
+    if (this.rand() < 0.5) return false;
+    const r = def.blast.radius * TILE_PX;
+    const friends = [...world.query(Npc, Transform, Health)].filter((o) => !world.req(o, Health).dead && !this.relations.hostile(world, e, o));
+    const spots: Point[] = [{ x: b.lastSeenX, y: b.lastSeenY }];
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      for (const rr of [0.8, 1.5]) spots.push({ x: b.lastSeenX + Math.cos(a) * rr * TILE_PX, y: b.lastSeenY + Math.sin(a) * rr * TILE_PX });
+    }
+    const spot = spots.find(
+      (p) =>
+        !map.isSolid(Math.floor(p.x / TILE_PX), Math.floor(p.y / TILE_PX)) &&
+        lineOfSight(map, t.x, t.y - 4, p.x, p.y - 4) &&
+        segmentHitsSolid(map, p.x, p.y - 4, b.lastSeenX, b.lastSeenY - CHEST_HEIGHT * 0.5) === null &&
+        friends.every((o) => {
+          const ot = world.req(o, Transform);
+          return Math.hypot(ot.x - p.x, ot.y - p.y) > r + TILE_PX;
+        }),
+    );
+    if (!spot) return false;
+    takeItem(inv, def.id, 1);
+    this.say(world, e, 'grenadeOut', 2);
+    throwGrenade(world, def, t.x, t.y - 2, spot.x, spot.y, e, world.get(e, Faction)?.id ?? null);
+    this.events.emit('grenadeThrown', { thrower: e, x: t.x, y: t.y, defId: def.id });
+    b.grenadeIn = OWN_GRENADE_COOLDOWN + this.rand() * 30;
+    this.groupGrenadeIn = GROUP_GRENADE_COOLDOWN + this.rand() * 12;
+    return true;
+  }
+
   // ---- behaviour ---------------------------------------------------------------
 
   private setState(b: Brain, s: BrainState): void {
@@ -430,6 +544,9 @@ export class NpcBrainSystem implements System {
     aim.dir = { x: Math.cos(angle), y: Math.sin(angle) };
     world.req(e, Character).facing = toDirection({ x: dx, y: dy }, world.req(e, Character).facing);
 
+    // Now and then, a grenade at someone hiding behind cover.
+    if (this.considerGrenade(world, map, e, b)) return;
+
     // Positioning, re-thought every second or so.
     if (!b.goal && b.repathIn <= 0) {
       b.repathIn = 0.9 + this.rand() * 0.8;
@@ -551,7 +668,8 @@ export class NpcBrainSystem implements System {
     const dx = next.x - t.x;
     const dy = next.y - t.y;
     const d = Math.hypot(dx, dy);
-    const pace = b.state === 'combat' ? 0.85 : b.state === 'retreat' ? 1 : 0.55;
+    // Running from a grenade (or for cover) is flat out; walking about is easy.
+    const pace = b.dodging !== null || b.state === 'retreat' ? 1 : b.state === 'combat' ? 0.85 : 0.55;
     const speed = speedStat * pace * (ch.sprinting ? world.get(e, Stats)?.get('sprint_multiplier') ?? 1.5 : 1);
     vel.x = (dx / d) * speed;
     vel.y = (dy / d) * speed;
@@ -639,7 +757,8 @@ export class NpcBrainSystem implements System {
 
   private say(world: World, e: Entity, kind: BarkKind, cooldown = 5): void {
     const b = world.req(e, Brain);
-    if (b.barkCooldown > 0 && kind !== 'contact' && kind !== 'angry') return;
+    // Warnings always get shouted.
+    if (b.barkCooldown > 0 && kind !== 'contact' && kind !== 'angry' && kind !== 'grenade' && kind !== 'grenadeOut') return;
     b.barkCooldown = cooldown + this.rand() * 3;
     this.bark(e, kind);
   }
@@ -696,6 +815,27 @@ function stepAway(map: TileMap, from: Point, threat: Point, dist: number): Point
   }
   void d;
   return null;
+}
+
+/**
+ * Somewhere clear of a blast of `radius` around `threat`, off known hazards:
+ * straight away if possible, else the nearest way out. With `rand`, any of the
+ * open spots (for a second try when the first had no route).
+ */
+function escapeFrom(map: TileMap, from: Point, threat: Point, radius: number, avoid?: Avoid, rand?: (() => number) | null): Point | null {
+  const away = Math.atan2(from.y - threat.y, from.x - threat.x);
+  const spots: Point[] = [];
+  for (const extra of [56, 28]) {
+    for (const turn of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.7, -1.7, 2.3, -2.3, Math.PI]) {
+      const a = away + turn;
+      // Measured from the grenade, so the spot really is out of reach.
+      const x = threat.x + Math.cos(a) * (radius + extra);
+      const y = threat.y + Math.sin(a) * (radius + extra);
+      if (walkable(map, x, y) && !avoid?.(Math.floor(x / TILE_PX), Math.floor(y / TILE_PX))) spots.push({ x, y });
+    }
+  }
+  if (!spots.length) return stepAway(map, from, threat, radius);
+  return rand ? spots[Math.floor(rand() * spots.length)]! : spots[0]!;
 }
 
 function strafe(map: TileMap, from: Point, ux: number, uy: number, amount: number): Point | null {

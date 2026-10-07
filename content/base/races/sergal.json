@@ -63,9 +63,24 @@
     {
       "item": "canned_meat",
       "count": 1
+    },
+    {
+      "item": "rgd5",
+      "count": 3
+    },
+    {
+      "item": "claymore",
+      "count": 1
+    },
+    {
+      "item": "landmine",
+      "count": 2
     }
   ],
-  "sounds": { "hurt": "hurt_sergal", "death": "death_sergal" },
+  "sounds": {
+    "hurt": "hurt_sergal",
+    "death": "death_sergal"
+  },
   "hitbox": {
     "w": 14,
     "h": 8

@@ -10,7 +10,7 @@ declare module '../Registry' {
 
 export const PLACEHOLDER_TILE_STYLES = ['noise', 'grass', 'plate', 'grate', 'wall', 'rock', 'hazard', 'water', 'mud', 'sand', 'gravel', 'cracked', 'asphalt', 'concrete', 'planks', 'brick', 'tiles', 'door', 'space', 'window', 'hatch', 'door_closed', 'door_open', 'wood_door', 'wood_door_open', 'debris', 'wall_cracked', 'brick_cracked'] as const;
 /** Tall decorations drawn above the ground and depth-sorted with characters. */
-export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble', 'console', 'machine', 'bunk', 'fence_h', 'fence_v', 'fence_broken', 'barricade'] as const;
+export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble', 'console', 'machine', 'bunk', 'fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign'] as const;
 export type PropStyle = (typeof PROP_STYLES)[number];
 
 const schema = v.object({

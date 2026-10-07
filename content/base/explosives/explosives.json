@@ -1,0 +1,144 @@
+[
+  {
+    "type": "explosive",
+    "id": "rgd5",
+    "name": "RGD-5 Grenade",
+    "description": "A smooth army frag grenade. Rolls to a stop, then goes off a couple of seconds later.",
+    "weight": 0.31,
+    "value": 60,
+    "use": "throw",
+    "trigger": "fuse",
+    "fuse": 1.8,
+    "range": 10,
+    "blast": {
+      "radius": 3.5,
+      "damage": 95,
+      "ap": 0.15,
+      "knockback": 40,
+      "shatter": 140
+    },
+    "art": {
+      "style": "frag",
+      "color": "#5a6a4a"
+    },
+    "sounds": {
+      "explode": "explosion_frag"
+    }
+  },
+  {
+    "type": "explosive",
+    "id": "f1_grenade",
+    "name": "F-1 Grenade",
+    "description": "The old pineapple: heavier, a longer fuse and a wider spray of fragments.",
+    "weight": 0.6,
+    "value": 90,
+    "use": "throw",
+    "trigger": "fuse",
+    "fuse": 2.2,
+    "range": 9,
+    "blast": {
+      "radius": 4.5,
+      "damage": 110,
+      "ap": 0.2,
+      "knockback": 45,
+      "shatter": 160
+    },
+    "art": {
+      "style": "pineapple",
+      "color": "#56643e"
+    },
+    "sounds": {
+      "explode": "explosion_frag"
+    }
+  },
+  {
+    "type": "explosive",
+    "id": "claymore",
+    "name": "MON-50 Claymore",
+    "description": "A directional mine on a tripwire. Everything in front of it within a few meters gets a wall of steel balls; behind it is (mostly) safe.",
+    "weight": 2,
+    "value": 220,
+    "maxStack": 3,
+    "use": "place",
+    "trigger": "tripwire",
+    "sense": 4.5,
+    "delay": 0.15,
+    "arming": 3,
+    "blast": {
+      "radius": 5.5,
+      "damage": 150,
+      "ap": 0.25,
+      "knockback": 30,
+      "shatter": 100,
+      "cone": 70
+    },
+    "art": {
+      "style": "claymore",
+      "color": "#5a6a3e"
+    },
+    "sounds": {
+      "trigger": "claymore_click",
+      "explode": "explosion_heavy"
+    }
+  },
+  {
+    "type": "explosive",
+    "id": "landmine",
+    "name": "PMN Landmine",
+    "description": "A pressure mine, flush with the ground and hard to spot. Step on it and there's a click.",
+    "weight": 0.6,
+    "value": 150,
+    "maxStack": 4,
+    "use": "place",
+    "trigger": "proximity",
+    "sense": 0.65,
+    "delay": 0.35,
+    "arming": 3,
+    "hidden": true,
+    "spotRange": 2.5,
+    "blast": {
+      "radius": 2.5,
+      "damage": 160,
+      "ap": 0.2,
+      "knockback": 60,
+      "shatter": 80
+    },
+    "art": {
+      "style": "landmine",
+      "color": "#4e5a3a"
+    },
+    "sounds": {
+      "trigger": "mine_click",
+      "explode": "explosion_frag"
+    }
+  },
+  {
+    "type": "explosive",
+    "id": "ied",
+    "name": "Improvised Bomb",
+    "description": "A canister of explosive with a phone for a trigger. It beeps when someone comes close, then it goes off \u2014 big.",
+    "weight": 2.5,
+    "value": 120,
+    "maxStack": 2,
+    "use": "place",
+    "trigger": "proximity",
+    "sense": 1.8,
+    "delay": 0.9,
+    "arming": 4,
+    "blast": {
+      "radius": 4.5,
+      "damage": 130,
+      "ap": 0.1,
+      "knockback": 70,
+      "shatter": 240
+    },
+    "art": {
+      "style": "ied",
+      "color": "#7a6a4a"
+    },
+    "sounds": {
+      "trigger": "ied_beep",
+      "explode": "explosion_heavy"
+    }
+  }
+]
