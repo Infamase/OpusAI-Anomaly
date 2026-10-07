@@ -140,6 +140,10 @@
       {
         "item": "f1_grenade",
         "chance": 0.3
+      },
+      {
+        "item": "molotov",
+        "chance": 0.3
       }
     ]
   },
@@ -184,6 +188,10 @@
       },
       {
         "item": "f1_grenade",
+        "chance": 0.3
+      },
+      {
+        "item": "molotov",
         "chance": 0.3
       }
     ]

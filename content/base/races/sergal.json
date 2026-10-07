@@ -75,6 +75,10 @@
     {
       "item": "landmine",
       "count": 2
+    },
+    {
+      "item": "molotov",
+      "count": 2
     }
   ],
   "sounds": {

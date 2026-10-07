@@ -8,9 +8,9 @@ declare module '../Registry' {
   }
 }
 
-export const PLACEHOLDER_TILE_STYLES = ['noise', 'grass', 'plate', 'grate', 'wall', 'rock', 'hazard', 'water', 'mud', 'sand', 'gravel', 'cracked', 'asphalt', 'concrete', 'planks', 'brick', 'tiles', 'door', 'space', 'window', 'hatch', 'door_closed', 'door_open', 'wood_door', 'wood_door_open', 'debris', 'wall_cracked', 'brick_cracked'] as const;
+export const PLACEHOLDER_TILE_STYLES = ['noise', 'grass', 'plate', 'grate', 'wall', 'rock', 'hazard', 'water', 'mud', 'sand', 'gravel', 'cracked', 'asphalt', 'concrete', 'planks', 'brick', 'tiles', 'door', 'space', 'window', 'hatch', 'door_closed', 'door_open', 'wood_door', 'wood_door_open', 'debris', 'wall_cracked', 'brick_cracked', 'ash'] as const;
 /** Tall decorations drawn above the ground and depth-sorted with characters. */
-export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble', 'console', 'machine', 'bunk', 'fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign', 'campfire', 'lamp_post'] as const;
+export const PROP_STYLES = ['pine', 'dead_tree', 'boulder', 'bush', 'leafy_tree', 'reeds', 'wreck', 'rubble', 'console', 'machine', 'bunk', 'fence_h', 'fence_v', 'fence_broken', 'barricade', 'sign', 'campfire', 'lamp_post', 'charred_tree'] as const;
 export type PropStyle = (typeof PROP_STYLES)[number];
 
 const schema = v.object({
@@ -51,6 +51,12 @@ const schema = v.object({
       debris: v.optional(v.color()),
     }),
   ),
+  /**
+   * It burns: catches fire, keeps burning `fuel` seconds, passes the fire to
+   * flammable neighbors (`spread` 0..1: grass readily, a tree trunk slowly),
+   * then becomes its burnt form (scorched earth, a charred tree).
+   */
+  burns: v.optional(v.object({ fuel: v.number({ min: 0.5, max: 120 }), spread: v.number({ min: 0, max: 1 }), becomes: v.id() })),
   /** It gives off light (a campfire, a lamp): color, reach in tiles, strength, and how much it flickers (0..1). */
   light: v.optional(
     v.object({
@@ -88,6 +94,7 @@ export const tileType: ContentTypeSpec<'tile'> = {
       if (def.door.key && !def.solid) ctx.error('only a closed (solid) door can be locked');
     }
     if (def.turned) ctx.ref('tile', def.turned, 'turned');
+    if (def.burns) ctx.ref('tile', def.burns.becomes, 'burns.becomes');
     if (def.breakable) {
       ctx.ref('tile', def.breakable.becomes, 'breakable.becomes');
       if (!def.solid) ctx.error('only solid tiles (walls, fences, barricades) can be breakable');

@@ -126,6 +126,8 @@ export class ExplosiveSystem implements System {
       switch (ex.state) {
         case 'flying':
           this.fly(map, ex, t, dt);
+          // Molotovs burst where they land (or against a wall).
+          if (def.trigger === 'impact' && (ex.state !== 'flying' || ex.aimX === null)) this.explode(world, map, e, def);
           break;
         case 'rolling':
           this.roll(map, ex, t, def, dt);
@@ -158,7 +160,7 @@ export class ExplosiveSystem implements System {
     ex.z += ex.vz * dt;
     if (ex.z > 0) return;
     ex.z = 0;
-    if (ex.vz < -110) {
+    if (ex.vz < -110 && this.content.tryGet('explosive', ex.defId)?.trigger !== 'impact') {
       // Bounce: it hops on, losing most of its speed.
       ex.vz = -ex.vz * 0.3;
       ex.vx *= 0.62;

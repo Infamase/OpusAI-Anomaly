@@ -12,7 +12,11 @@ import { CrackOverlay } from '../../render/CrackOverlay';
 import { ExplosionFx, type DangerMark } from '../../render/ExplosionFx';
 import { LightRenderer } from '../../render/LightRenderer';
 import { WorldLighting } from '../worldLighting';
-import { CLOCK_RATE, clockText, START_MINUTES } from '../lighting';
+import { CLOCK_RATE, clockText, START_MINUTES, type LightSource } from '../lighting';
+import { FireMap, FireSystem } from '../fire';
+import { FireFx, type FireDraw } from '../../render/FireFx';
+import { WeatherFx } from '../../render/WeatherFx';
+import { weatherAt, weatherLabel, weatherSight, type Weather, type WeatherKind } from '../weather';
 import { detonate, ExplosiveSystem, liveGrenades, placeCharge, throwGrenade } from '../explosives';
 import type { ExplosiveDef } from '../../content/types';
 import { TileDamage } from '../breakables';
@@ -224,6 +228,14 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private lightRenderer: LightRenderer | null = null;
   private npcLightsIn = 0;
   private flashlightHinted = false;
+  /** Fire on the map, and how it's drawn. */
+  private fire: FireMap | null = null;
+  private fireFx = new FireFx();
+  /** The weather (open-air worlds only), its effects, and a dev override. */
+  private weather: Weather | null = null;
+  private weatherFx = new WeatherFx();
+  private weatherOverride: WeatherKind | null = null;
+  private strikeIn = 8;
   /** When the last "you spot a mine" notice showed (one is enough for a whole field). */
   private spottedNoticeAt = -99;
   private leaving = false;
@@ -304,6 +316,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.lighting = new WorldLighting(g.content, this.world, this.map, genDef.lighting, generator.lights?.(record.seed, params, this.map.widthTiles, this.map.heightTiles) ?? []);
     this.lightRenderer = new LightRenderer(g.renderer.pixi);
     g.renderer.screen.addChildAt(this.lightRenderer.sprite, 0);
+    g.renderer.screen.addChildAt(this.weatherFx.layer, 1);
+    g.renderer.overlay.addChild(this.fireFx.layer);
+    this.fire = new FireMap(this.map);
+    this.lighting.extraSources = () => this.fireLights();
     if (typeof save.flags.clock !== 'number') save.flags.clock = START_MINUTES;
     const redraw = this.map.onTileChange;
     this.map.onTileChange = (tx, ty) => {
@@ -319,8 +335,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       .addSystem(new PlayerControlSystem(g.input, g.camera, () => g.renderer.pixelRatio))
       .addSystem(
         Object.assign(new NpcBrainSystem(g.content, map, this.combatEvents, this.relations, (e, kind) => this.bark(e, kind)), {
-          avoid: (tx: number, ty: number) => this.hazards.has(tx, ty),
+          avoid: (tx: number, ty: number) => this.hazards.has(tx, ty) || !!this.fire?.isBurning(tx, ty),
           lightAt: (x: number, y: number) => this.lighting?.levelAt(x, y) ?? 1,
+          sightScale: () => (this.weather ? weatherSight(this.weather) : 1),
+          onFire: (tx: number, ty: number) => !!this.fire?.isBurning(tx, ty),
         }),
       )
       .addSystem(new DoorSystem(map, this.combatEvents))
@@ -328,6 +346,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       .addSystem(new AnomalySystem(g.content, map, this.combatEvents))
       .addSystem(new BoltSystem(map, this.combatEvents))
       .addSystem(new ExplosiveSystem(g.content, map, this.combatEvents))
+      .addSystem(new FireSystem(g.content, () => this.fire, () => this.weather ?? { rain: 0, wind: 0, windAngle: 0 }, this.combatEvents))
       .addSystem(new ArtifactSystem(g.content))
       .addSystem(new MovementSystem(map))
       .addSystem(new ProjectileSystem(g.content, map, this.combatEvents))
@@ -433,6 +452,9 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.explosionFx.destroy();
     this.lightRenderer?.destroy();
     this.lightRenderer = null;
+    this.fireFx.destroy();
+    this.weatherFx.destroy();
+    this.sound?.stopBeds();
     this.hazards.clear();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
@@ -545,6 +567,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.fx.render(frameDt, tracers, bars);
     this.renderAnomalies(frameDt, alpha);
     this.renderExplosives(frameDt, alpha);
+    this.renderFireAndWeather(frameDt);
     if (this.lighting && this.lightRenderer) {
       const pt = this.world.req(this.playerEntity, Transform);
       const b = g.camera.bounds;
@@ -618,6 +641,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       if (a.phase !== 'burst') return;
       const def = this.game.content.tryGet('anomaly', a.defId);
       if (!def) return;
+      // Burners set the grass around them alight.
+      if (def.ignites) this.fire?.igniteArea(a.x, a.y, def.radius * TILE_PX * 1.1, 0, 0.8);
       this.anomalyFx.burst(def, a.x, a.y, def.radius * TILE_PX);
       // Big ones shake the camera when you're close.
       const pt = this.world.req(this.playerEntity, Transform);
@@ -983,9 +1008,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     flags.clock = (flags.clock as number) + dt * CLOCK_RATE;
     const lighting = this.lighting;
     if (!lighting) return;
-    lighting.setTime(flags.clock as number, this.game.settings.brightness);
+    const odds = this.genDef.weather;
+    this.weather = odds ? weatherAt(this.seed, flags.clock as number, odds, this.weatherOverride) : null;
+    lighting.setTime(flags.clock as number, this.game.settings.brightness, this.weather);
     lighting.update(dt);
-    this.hud?.clock(clockText(flags.clock as number), lighting.ambientLevel < 0.5);
+    this.hud?.clock(this.weather ? `${clockText(flags.clock as number)} · ${weatherLabel(this.weather)}` : clockText(flags.clock as number), lighting.ambientLevel < 0.5);
+    this.updateWeather(dt);
     this.npcLightsIn -= dt;
     if (this.npcLightsIn <= 0) {
       this.npcLightsIn = 1;
@@ -1001,6 +1029,100 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         this.message('It\'s dark. Press L for your flashlight.', '#c8d8ff');
       }
     }
+  }
+
+  // ---- fire & weather ---------------------------------------------------------------
+
+  /** Lightning in storms, and the rain / wind / fire sound beds. */
+  private updateWeather(dt: number): void {
+    const w = this.weather;
+    const pt = this.world.req(this.playerEntity, Transform);
+    if (w?.lightning) {
+      this.strikeIn -= dt;
+      if (this.strikeIn <= 0) {
+        this.strikeIn = 7 + Math.random() * 16;
+        const a = Math.random() * Math.PI * 2;
+        const d = TILE_PX * (3 + Math.random() * 9);
+        this.lightningStrike(pt.x + Math.cos(a) * d, pt.y + Math.sin(a) * d);
+      }
+    }
+    // Fire near the player: how much, for the crackle.
+    let fireNear = 0;
+    if (this.fire?.size) {
+      for (const c of this.fire.cells.values()) {
+        const dd = Math.hypot((c.tx + 0.5) * TILE_PX - pt.x, (c.ty + 0.5) * TILE_PX - pt.y);
+        if (dd < TILE_PX * 10) fireNear += 1 - dd / (TILE_PX * 10);
+      }
+    }
+    this.sound.beds({ amb_rain: w ? w.rain : 0, amb_gale: w ? Math.max(0, w.wind - 0.35) * 1.4 : 0, fire_loop: Math.min(1, fireNear / 6) });
+  }
+
+  /** A lightning bolt comes down at (x, y): a flash, thunder a moment later, and maybe a fire. */
+  private lightningStrike(x: number, y: number): void {
+    const g = this.game;
+    this.lighting?.strike();
+    const s = g.camera.worldToScreen(x, y);
+    this.weatherFx.lightning(s.x, s.y);
+    const pt = this.world.req(this.playerEntity, Transform);
+    const delay = Math.min(2500, Math.hypot(pt.x - x, pt.y - y) * 2);
+    setTimeout(() => g.audio.playCue('thunder'), delay);
+    this.fire?.ignite(Math.floor(x / TILE_PX), Math.floor(y / TILE_PX), 0.9);
+  }
+
+  /** One light per cluster of burning tiles (not one per tile). */
+  private fireLights(): LightSource[] {
+    const fire = this.fire;
+    if (!fire?.size) return [];
+    const blocks = new Map<number, { x: number; y: number; n: number }>();
+    for (const c of fire.cells.values()) {
+      const k = Math.floor(c.ty / 3) * 100000 + Math.floor(c.tx / 3);
+      const b = blocks.get(k) ?? { x: 0, y: 0, n: 0 };
+      b.x += (c.tx + 0.5) * TILE_PX;
+      b.y += (c.ty + 0.5) * TILE_PX;
+      b.n++;
+      blocks.set(k, b);
+    }
+    const t = performance.now() / 1000;
+    return [...blocks.values()].map((b, i) => ({
+      x: b.x / b.n,
+      y: b.y / b.n,
+      radius: TILE_PX * (2.8 + Math.min(4, b.n) * 0.6),
+      color: [1, 0.62, 0.3] as [number, number, number],
+      intensity: (0.7 + Math.min(4, b.n) * 0.07) * (0.85 + 0.15 * Math.sin(t * 11 + i * 3.1)),
+    }));
+  }
+
+  private renderFireAndWeather(dt: number): void {
+    const g = this.game;
+    const w = this.weather;
+    const wind = w ? { x: Math.cos(w.windAngle) * w.wind, y: Math.sin(w.windAngle) * w.wind } : { x: 0, y: 0 };
+    const cells: FireDraw[] = [];
+    if (this.fire?.size) {
+      const b = g.camera.bounds;
+      for (const c of this.fire.cells.values()) {
+        const x = (c.tx + 0.5) * TILE_PX;
+        const y = (c.ty + 0.5) * TILE_PX;
+        if (x < b.left - TILE_PX || x > b.right + TILE_PX || y < b.top - TILE_PX * 2 || y > b.bottom + TILE_PX) continue;
+        cells.push({ tx: c.tx, ty: c.ty, burnt: 1 - c.left / c.max, heat: c.heat });
+      }
+    }
+    this.fireFx.render(dt, cells, wind);
+    const lit = this.lighting?.ambientLevel ?? 1;
+    this.weatherFx.render(dt, g.camera.viewportW, g.camera.viewportH, {
+      rain: w?.rain ?? 0,
+      fog: w?.fog ?? 0,
+      wind: w?.wind ?? 0,
+      windAngle: w?.windAngle ?? 0,
+      light: Math.min(1, lit),
+      tint: this.lighting?.ambient ?? [1, 1, 1],
+      camX: g.camera.x * g.camera.zoom,
+      camY: g.camera.y * g.camera.zoom,
+    });
+  }
+
+  /** Dev: pins the weather (null lets it change by itself again). */
+  setWeather(kind: WeatherKind | null): void {
+    this.weatherOverride = kind;
   }
 
   /** Dev: moves the clock on. */
@@ -1098,6 +1220,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private onExplosion(x: CombatEvents['explosion']): void {
     const def = this.game.content.tryGet('explosive', x.defId);
     this.lighting?.flash(x.x, x.y, x.radius * 2.2, [1, 0.75, 0.45], 1.8, 0.6);
+    if (def?.blast.fire && this.fire) {
+      this.fire.igniteArea(x.x, x.y, def.blast.fire.radius * TILE_PX, def.blast.fire.fuel);
+      this.game.audio.playCue('ignite', { x: x.x, y: x.y });
+    }
     this.forgetCharge(x);
     this.hazards.remove(x.entity);
     this.explosionFx.burst(x.x, x.y, x.radius, (def?.blast.shatter ?? 0) > 180 || (def?.blast.damage ?? 0) >= 140);

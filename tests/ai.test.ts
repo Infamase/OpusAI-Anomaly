@@ -432,3 +432,22 @@ describe('NPCs in the dark', () => {
     expect(w.req(loner, Brain).state).toBe('combat');
   });
 });
+
+describe('NPCs in fog', () => {
+  it("can't see far in thick fog, even in daylight", () => {
+    let sight = 0.35;
+    const rng = new Rng(3);
+    const map = testMap();
+    room(map, 10, 10, 30, 16);
+    const w = new World();
+    const brain = new NpcBrainSystem(content, () => map, new EventBus<CombatEvents>(), new Relations(content, defaultStanding()), () => {}, () => rng.next());
+    brain.sightScale = () => sight;
+    const loner = npc(w, 'loners', 'loner_veteran', 13 * TILE_PX, 13.5 * TILE_PX, 'akr5_rifle', 'right');
+    npc(w, 'bandits', 'bandit_thug', 21 * TILE_PX, 13.5 * TILE_PX, 'akr5_rifle', 'left');
+    for (let i = 0; i < 180; i++) brain.update(w, 1 / 60);
+    expect(w.req(loner, Brain).state).not.toBe('combat');
+    sight = 1;
+    for (let i = 0; i < 120; i++) brain.update(w, 1 / 60);
+    expect(w.req(loner, Brain).state).toBe('combat');
+  });
+});

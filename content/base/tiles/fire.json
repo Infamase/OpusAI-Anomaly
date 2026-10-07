@@ -1,0 +1,46 @@
+[
+  {
+    "type": "tile",
+    "id": "scorched_earth",
+    "name": "Scorched Earth",
+    "solid": false,
+    "blend": 4,
+    "sounds": {
+      "step": "step_dirt"
+    },
+    "placeholder": {
+      "style": "ash",
+      "color": "#3a3430",
+      "accent": "#8a8680"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "charred_tree",
+    "name": "Charred Tree",
+    "solid": true,
+    "blend": 4,
+    "prop": "charred_tree",
+    "sounds": {
+      "impact": "impact_dirt"
+    },
+    "placeholder": {
+      "style": "ash",
+      "color": "#3a3430",
+      "accent": "#8a8680"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "charred_planks",
+    "name": "Charred Planks",
+    "solid": false,
+    "sounds": {
+      "step": "step_wood"
+    },
+    "placeholder": {
+      "style": "planks",
+      "color": "#3e3028"
+    }
+  }
+]

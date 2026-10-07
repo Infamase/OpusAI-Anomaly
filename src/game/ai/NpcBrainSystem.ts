@@ -81,6 +81,10 @@ export class NpcBrainSystem implements System {
   avoid?: Avoid;
   /** How lit a spot is (0 dark .. 1 daylight); in the dark, people are only noticed close up or in a light. */
   lightAt?: (x: number, y: number) => number;
+  /** How far anyone can see in this weather (fog, rain): a multiplier on sight range. */
+  sightScale?: () => number;
+  /** Is this tile burning? NPCs standing in fire run out of it. */
+  onFire?: (tx: number, ty: number) => boolean;
 
   constructor(
     private content: ContentRegistry,
@@ -139,11 +143,12 @@ export class NpcBrainSystem implements System {
     const dx = ot.x - t.x;
     const dy = ot.y - t.y;
     const dist = Math.hypot(dx, dy);
-    if (dist > SIGHT) return { seen: false, dist };
+    const sight = SIGHT * (this.sightScale?.() ?? 1);
+    if (dist > sight) return { seen: false, dist };
     // Darkness shortens sight: someone unlit is only made out close by.
     if (dist > CLOSE_SENSE && this.lightAt) {
       const lit = Math.max(0, Math.min(1, (this.lightAt(ot.x, ot.y - CHEST_HEIGHT * 0.5) - 0.12) / 0.55));
-      if (dist > CLOSE_SENSE + (SIGHT - CLOSE_SENSE) * lit) return { seen: false, dist };
+      if (dist > CLOSE_SENSE + (sight - CLOSE_SENSE) * lit) return { seen: false, dist };
     }
     if (dist > CLOSE_SENSE && !anyDirection) {
       const aim = world.get(e, Aim)?.dir;
@@ -300,6 +305,17 @@ export class NpcBrainSystem implements System {
    */
   private dodge(world: World, map: TileMap, e: Entity, b: Brain, dt: number): boolean {
     const t = world.req(e, Transform);
+    // Standing in flames: out, now (no reaction delay, no shooting).
+    if (b.dodging === null && this.onFire?.(Math.floor(t.x / TILE_PX), Math.floor((t.y - 2) / TILE_PX))) {
+      if (!b.goal || this.onFire(Math.floor(b.goal.x / TILE_PX), Math.floor(b.goal.y / TILE_PX))) {
+        b.goal = escapeFrom(map, t, { x: t.x, y: t.y }, TILE_PX * 1.6, this.avoid, b.goal ? this.rand : null);
+        b.path = [];
+        b.repathIn = 0;
+      }
+      world.req(e, Combatant).trigger = false;
+      world.req(e, Character).sprinting = true;
+      return true;
+    }
     let threat = b.dodging !== null ? this.grenades.find((g) => g.e === b.dodging) : undefined;
     if (!threat) {
       if (b.dodging !== null) {

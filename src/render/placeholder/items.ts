@@ -191,7 +191,7 @@ export function drawDetector(colorHex: string): PixelCanvas {
  * on scissor legs), a landmine (squat disc with a pressure plate) and an IED
  * (a taped canister with wires and an LED). 16x16.
  */
-export function drawExplosive(style: 'frag' | 'pineapple' | 'claymore' | 'landmine' | 'ied', colorHex: string): PixelCanvas {
+export function drawExplosive(style: 'frag' | 'pineapple' | 'claymore' | 'landmine' | 'ied' | 'molotov' | 'incendiary', colorHex: string): PixelCanvas {
   const pc = new PixelCanvas(16, 16);
   const r = buildRamp(colorHex);
   const metal: RGB[] = [
@@ -251,6 +251,25 @@ export function drawExplosive(style: 'frag' | 'pineapple' | 'claymore' | 'landmi
       for (let x = 2; x <= 13; x++) pc.set(x, 12, r[1]!);
       disc(7.5, 8.6, 2.6, 1.6, metal);
       pc.set(7, 8, metal[4]!);
+      break;
+    }
+    case 'molotov': {
+      // A bottle of fuel with a rag stuffed in the neck.
+      const glass = r;
+      for (let y = 6; y <= 14; y++) for (let x = 5; x <= 10; x++) pc.set(x, y, glass[x === 5 ? 4 : x === 10 ? 1 : y > 9 ? 2 : 3]!);
+      for (let y = 10; y <= 14; y++) for (let x = 6; x <= 9; x++) pc.set(x, y, [170, 110, 40]);
+      for (let y = 3; y <= 5; y++) for (let x = 7; x <= 8; x++) pc.set(x, y, glass[3]!);
+      for (const [x, y, c] of [[7, 1, 0], [8, 2, 1], [6, 2, 1], [9, 0, 0], [7, 2, 0]] as const) pc.set(x, y, c ? [220, 210, 190] : [200, 190, 160]);
+      pc.set(9, 7, [250, 250, 240]);
+      break;
+    }
+    case 'incendiary': {
+      // A can-shaped grenade with a red band.
+      for (let y = 5; y <= 14; y++) for (let x = 4; x <= 11; x++) pc.set(x, y, r[x === 4 ? 4 : x === 11 ? 1 : 3]!);
+      for (let x = 4; x <= 11; x++) for (const y of [8, 9]) pc.set(x, y, [190, 50, 40]);
+      pc.rect(6, 2, 4, 3, metal[2]!);
+      pc.hline(6, 2, 4, metal[4]!);
+      for (let i = 0; i < 6; i++) pc.set(10 + Math.floor(i / 2), 3 + i, metal[i % 2 ? 1 : 3]!);
       break;
     }
     case 'ied': {

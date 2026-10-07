@@ -56,6 +56,8 @@ export const SOUND_CUES = [
   'explosive_arm',
   'explosive_trigger',
   'explosion',
+  'thunder',
+  'ignite',
 ] as const;
 export type SoundCue = (typeof SOUND_CUES)[number];
 

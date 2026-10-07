@@ -1,4 +1,4 @@
-import type { AudioEngine } from '../audio/AudioEngine';
+import type { AudioEngine, LoopHandle } from '../audio/AudioEngine';
 import type { AnomalyDef } from '../content/types/anomaly';
 import { decayRate } from './radiation';
 import type { ContentRegistry } from '../content/Registry';
@@ -25,6 +25,8 @@ export class GameAudio {
   private heartbeatIn = 0;
   private idleIn = new Map<string, number>();
   private lastRads = 0;
+  /** Weather and fire loops, faded by how much of each there is. */
+  private loops = new Map<string, LoopHandle>();
   private radRate = 0;
 
   constructor(
@@ -82,6 +84,30 @@ export class GameAudio {
     events.on('explosive', (e) => a.play(e.phase === 'armed' ? ex(e.defId)?.arm : ex(e.defId)?.trigger, { x: e.x, y: e.y }, e.phase === 'armed' ? 'explosive_arm' : 'explosive_trigger'));
     events.on('explosion', (e) => a.play(ex(e.defId)?.explode, { x: e.x, y: e.y }, 'explosion'));
     events.on('broken', (b) => a.play(b.tile ? this.content.tryGet('tile', b.tile)?.sounds?.break : undefined, { x: b.x, y: b.y }, 'break'));
+  }
+
+  /** Rain, wind and the roar of nearby fire: loops faded in and out with how much of each there is (0..1). */
+  beds(levels: Record<string, number>): void {
+    for (const [id, level] of Object.entries(levels)) {
+      let h = this.loops.get(id);
+      if (level < 0.02) {
+        if (h) {
+          h.stop(2);
+          this.loops.delete(id);
+        }
+        continue;
+      }
+      if (!h) {
+        h = this.audio.loop(id, 2);
+        this.loops.set(id, h);
+      }
+      h.setLevel?.(level);
+    }
+  }
+
+  stopBeds(): void {
+    for (const h of this.loops.values()) h.stop(1);
+    this.loops.clear();
   }
 
   /** Idle hum, crackle and bubbling of anomalies near the player, each on its own rhythm. */

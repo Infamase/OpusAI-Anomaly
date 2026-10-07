@@ -140,5 +140,67 @@
       "trigger": "ied_beep",
       "explode": "explosion_heavy"
     }
+  },
+  {
+    "type": "explosive",
+    "id": "molotov",
+    "name": "Molotov Cocktail",
+    "description": "A bottle of fuel with a burning rag. It bursts where it lands and sets the ground alight; grass and wood catch and spread.",
+    "weight": 0.7,
+    "value": 40,
+    "maxStack": 4,
+    "use": "throw",
+    "trigger": "impact",
+    "range": 9,
+    "blast": {
+      "radius": 1.4,
+      "damage": 12,
+      "damageType": "thermal",
+      "ap": 0,
+      "knockback": 0,
+      "shatter": 0,
+      "fire": {
+        "radius": 2.2,
+        "fuel": 9
+      }
+    },
+    "art": {
+      "style": "molotov",
+      "color": "#6a8a5a"
+    },
+    "sounds": {
+      "explode": "glass_burst"
+    }
+  },
+  {
+    "type": "explosive",
+    "id": "incendiary",
+    "name": "ZG-6 Incendiary",
+    "description": "A thermite grenade: a short blast of white heat and a wide patch of fire that burns even on bare ground.",
+    "weight": 0.5,
+    "value": 110,
+    "use": "throw",
+    "trigger": "fuse",
+    "fuse": 1.5,
+    "range": 10,
+    "blast": {
+      "radius": 2.5,
+      "damage": 35,
+      "damageType": "thermal",
+      "ap": 0,
+      "knockback": 10,
+      "shatter": 40,
+      "fire": {
+        "radius": 3.4,
+        "fuel": 12
+      }
+    },
+    "art": {
+      "style": "incendiary",
+      "color": "#5a5e58"
+    },
+    "sounds": {
+      "explode": "fire_whoosh"
+    }
   }
 ]

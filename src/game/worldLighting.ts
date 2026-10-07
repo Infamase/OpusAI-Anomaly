@@ -5,6 +5,7 @@ import type { World } from '../ecs/World';
 import type { LightDraw } from '../render/LightRenderer';
 import { Aim, Anomaly, Character, Flashlight, Health, Transform, WorldItem } from './components';
 import { brighten, daylight, flickered, hexToRgb01, lightLevel, lightPolygon, luminance, type LightSource, type RGB01 } from './lighting';
+import { weatherTint, type Weather } from './weather';
 import type { StaticLightSpawn } from './world/generators';
 import { TILE_PX, type TileMap } from './world/TileMap';
 
@@ -44,6 +45,10 @@ export class WorldLighting {
   private time = 0;
   private dynamic: LightSource[] = [];
   private dynamicAt = -1;
+  /** Other lights the world supplies each frame (fires). */
+  extraSources: (() => LightSource[]) | null = null;
+  /** A lightning flash lighting everything up (seconds left). */
+  private lightning = 0;
 
   constructor(
     private content: ContentRegistry,
@@ -60,15 +65,31 @@ export class WorldLighting {
     return !!this.def;
   }
 
-  /** Sets the ambient for the time of day (minutes) and the player's brightness setting (0..1). */
-  setTime(minutes: number, brightness: number): void {
-    const base = !this.def ? ([1, 1, 1] as RGB01) : this.def.dayCycle ? daylight(minutes) : hexToRgb01(this.def.ambient);
-    this.ambient = luminance(base) > 0.97 ? base : brighten(base, brightness);
+  /**
+   * Sets the ambient for the time of day (minutes), the weather (clouds and
+   * rain dim the day) and the player's brightness setting (0..1).
+   */
+  setTime(minutes: number, brightness: number, weather?: Weather | null): void {
+    let base = !this.def ? ([1, 1, 1] as RGB01) : this.def.dayCycle ? daylight(minutes) : hexToRgb01(this.def.ambient);
+    if (weather && this.def?.dayCycle) base = weatherTint(base, weather);
+    let amb = luminance(base) > 0.97 ? base : brighten(base, brightness);
+    // A lightning flash: for a moment, everything is bright and bluish.
+    if (this.lightning > 0) {
+      const k = Math.min(1, this.lightning / 0.12);
+      amb = [amb[0] + (0.85 - amb[0]) * k, amb[1] + (0.9 - amb[1]) * k, amb[2] + (1 - amb[2]) * k];
+    }
+    this.ambient = amb;
     this.ambientLevel = luminance(this.ambient);
+  }
+
+  /** A lightning strike lights up the world for a moment. */
+  strike(): void {
+    this.lightning = 0.22;
   }
 
   update(dt: number): void {
     this.time += dt;
+    this.lightning = Math.max(0, this.lightning - dt);
     this.flashes = this.flashes.filter((f) => (f.life -= dt) > 0);
   }
 
@@ -146,6 +167,7 @@ export class WorldLighting {
       out.push({ x: t.x, y: t.y - 4, radius: T * 1.4, color: hexToRgb01(art.art.glow), intensity: 0.55 + 0.15 * Math.sin(this.time * 2 + t.x) });
     }
     for (const f of this.flashes) out.push({ ...f.src, intensity: f.src.intensity * (f.life / f.max) });
+    if (this.extraSources) out.push(...this.extraSources());
     this.dynamic = out;
     return out;
   }

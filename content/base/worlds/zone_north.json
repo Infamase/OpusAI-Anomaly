@@ -303,5 +303,12 @@
   },
   "lighting": {
     "dayCycle": true
+  },
+  "weather": {
+    "clear": 4,
+    "cloudy": 3,
+    "rain": 3,
+    "storm": 1.2,
+    "fog": 1.5
   }
 }

@@ -1,18 +1,257 @@
 [
-  { "type": "tile", "id": "water_deep", "name": "Deep Water", "solid": true, "low": true, "placeholder": { "style": "water", "color": "#2e4648", "accent": "#5a7a72" } },
-  { "type": "tile", "id": "water_shallow", "name": "Shallows", "solid": false, "speed": 0.6, "blend": 1, "sounds": { "step": "step_water" }, "placeholder": { "style": "water", "color": "#4a6258", "accent": "#7a927c" } },
-  { "type": "tile", "id": "mud", "name": "Mud", "solid": false, "speed": 0.8, "blend": 2, "sounds": { "step": "step_mud" }, "placeholder": { "style": "mud", "color": "#4c3c2c", "accent": "#6a6a58" } },
-  { "type": "tile", "id": "moss", "name": "Moss", "solid": false, "blend": 7, "sounds": { "step": "step_grass" }, "placeholder": { "style": "grass", "color": "#4a5228", "accent": "#626a30" } },
-  { "type": "tile", "id": "sand", "name": "Sand", "solid": false, "blend": 3, "sounds": { "step": "step_dirt" }, "placeholder": { "style": "sand", "color": "#8a7a58" } },
-  { "type": "tile", "id": "gravel", "name": "Gravel", "solid": false, "blend": 4, "sounds": { "step": "step_gravel" }, "placeholder": { "style": "gravel", "color": "#6a6458" } },
-  { "type": "tile", "id": "cracked_earth", "name": "Cracked Earth", "solid": false, "blend": 5, "sounds": { "step": "step_dirt" }, "placeholder": { "style": "cracked", "color": "#76624a" } },
-  { "type": "tile", "id": "asphalt", "name": "Road", "solid": false, "sounds": { "step": "step_hard" }, "placeholder": { "style": "asphalt", "color": "#4e4c46", "accent": "#a89a62" } },
-  { "type": "tile", "id": "concrete", "name": "Concrete", "solid": false, "sounds": { "step": "step_hard", "impact": "impact_rock" }, "placeholder": { "style": "concrete", "color": "#6e6a60" } },
-  { "type": "tile", "id": "planks", "name": "Planks", "solid": false, "sounds": { "step": "step_wood" }, "placeholder": { "style": "planks", "color": "#7a5a3a" } },
-  { "type": "tile", "id": "brick_wall", "name": "Brick Wall", "solid": true, "opaque": true, "sounds": { "impact": "impact_rock" }, "placeholder": { "style": "brick", "color": "#6e4a3a", "accent": "#8e7a62" } },
-  { "type": "tile", "id": "concrete_wall", "name": "Concrete Wall", "solid": true, "opaque": true, "sounds": { "impact": "impact_rock" }, "placeholder": { "style": "wall", "color": "#6a675e", "accent": "#b09048" } },
-  { "type": "tile", "id": "leafy_tree", "name": "Birch", "solid": true, "blend": 8, "prop": "leafy_tree", "sounds": { "impact": "impact_dirt" }, "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
-  { "type": "tile", "id": "reeds", "name": "Reeds", "solid": false, "speed": 0.85, "blend": 2, "prop": "reeds", "sounds": { "step": "rustle_bush" }, "placeholder": { "style": "mud", "color": "#4c3c2c", "accent": "#6a6a58" } },
-  { "type": "tile", "id": "car_wreck", "name": "Wreck", "solid": true, "blend": 6, "prop": "wreck", "sounds": { "impact": "impact_metal" }, "placeholder": { "style": "noise", "color": "#5e4232" } },
-  { "type": "tile", "id": "rubble", "name": "Rubble", "solid": false, "speed": 0.85, "prop": "rubble", "sounds": { "step": "step_gravel" }, "placeholder": { "style": "concrete", "color": "#6e6a60" } }
+  {
+    "type": "tile",
+    "id": "water_deep",
+    "name": "Deep Water",
+    "solid": true,
+    "low": true,
+    "placeholder": {
+      "style": "water",
+      "color": "#2e4648",
+      "accent": "#5a7a72"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "water_shallow",
+    "name": "Shallows",
+    "solid": false,
+    "speed": 0.6,
+    "blend": 1,
+    "sounds": {
+      "step": "step_water"
+    },
+    "placeholder": {
+      "style": "water",
+      "color": "#4a6258",
+      "accent": "#7a927c"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "mud",
+    "name": "Mud",
+    "solid": false,
+    "speed": 0.8,
+    "blend": 2,
+    "sounds": {
+      "step": "step_mud"
+    },
+    "placeholder": {
+      "style": "mud",
+      "color": "#4c3c2c",
+      "accent": "#6a6a58"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "moss",
+    "name": "Moss",
+    "solid": false,
+    "blend": 7,
+    "sounds": {
+      "step": "step_grass"
+    },
+    "placeholder": {
+      "style": "grass",
+      "color": "#4a5228",
+      "accent": "#626a30"
+    },
+    "burns": {
+      "fuel": 5,
+      "spread": 0.3,
+      "becomes": "scorched_earth"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "sand",
+    "name": "Sand",
+    "solid": false,
+    "blend": 3,
+    "sounds": {
+      "step": "step_dirt"
+    },
+    "placeholder": {
+      "style": "sand",
+      "color": "#8a7a58"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "gravel",
+    "name": "Gravel",
+    "solid": false,
+    "blend": 4,
+    "sounds": {
+      "step": "step_gravel"
+    },
+    "placeholder": {
+      "style": "gravel",
+      "color": "#6a6458"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "cracked_earth",
+    "name": "Cracked Earth",
+    "solid": false,
+    "blend": 5,
+    "sounds": {
+      "step": "step_dirt"
+    },
+    "placeholder": {
+      "style": "cracked",
+      "color": "#76624a"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "asphalt",
+    "name": "Road",
+    "solid": false,
+    "sounds": {
+      "step": "step_hard"
+    },
+    "placeholder": {
+      "style": "asphalt",
+      "color": "#4e4c46",
+      "accent": "#a89a62"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "concrete",
+    "name": "Concrete",
+    "solid": false,
+    "sounds": {
+      "step": "step_hard",
+      "impact": "impact_rock"
+    },
+    "placeholder": {
+      "style": "concrete",
+      "color": "#6e6a60"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "planks",
+    "name": "Planks",
+    "solid": false,
+    "sounds": {
+      "step": "step_wood"
+    },
+    "placeholder": {
+      "style": "planks",
+      "color": "#7a5a3a"
+    },
+    "burns": {
+      "fuel": 22,
+      "spread": 0.3,
+      "becomes": "charred_planks"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "brick_wall",
+    "name": "Brick Wall",
+    "solid": true,
+    "opaque": true,
+    "sounds": {
+      "impact": "impact_rock"
+    },
+    "placeholder": {
+      "style": "brick",
+      "color": "#6e4a3a",
+      "accent": "#8e7a62"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "concrete_wall",
+    "name": "Concrete Wall",
+    "solid": true,
+    "opaque": true,
+    "sounds": {
+      "impact": "impact_rock"
+    },
+    "placeholder": {
+      "style": "wall",
+      "color": "#6a675e",
+      "accent": "#b09048"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "leafy_tree",
+    "name": "Birch",
+    "solid": true,
+    "blend": 8,
+    "prop": "leafy_tree",
+    "sounds": {
+      "impact": "impact_dirt"
+    },
+    "placeholder": {
+      "style": "grass",
+      "color": "#5c5e2c",
+      "accent": "#7c7a38"
+    },
+    "burns": {
+      "fuel": 24,
+      "spread": 0.35,
+      "becomes": "charred_tree"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "reeds",
+    "name": "Reeds",
+    "solid": false,
+    "speed": 0.85,
+    "blend": 2,
+    "prop": "reeds",
+    "sounds": {
+      "step": "rustle_bush"
+    },
+    "placeholder": {
+      "style": "mud",
+      "color": "#4c3c2c",
+      "accent": "#6a6a58"
+    },
+    "burns": {
+      "fuel": 5,
+      "spread": 0.55,
+      "becomes": "scorched_earth"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "car_wreck",
+    "name": "Wreck",
+    "solid": true,
+    "blend": 6,
+    "prop": "wreck",
+    "sounds": {
+      "impact": "impact_metal"
+    },
+    "placeholder": {
+      "style": "noise",
+      "color": "#5e4232"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "rubble",
+    "name": "Rubble",
+    "solid": false,
+    "speed": 0.85,
+    "prop": "rubble",
+    "sounds": {
+      "step": "step_gravel"
+    },
+    "placeholder": {
+      "style": "concrete",
+      "color": "#6e6a60"
+    }
+  }
 ]

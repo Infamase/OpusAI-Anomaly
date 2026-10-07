@@ -215,6 +215,11 @@
       "style": "wood_door",
       "color": "#6e4e30",
       "accent": "#9a9a90"
+    },
+    "burns": {
+      "fuel": 14,
+      "spread": 0.4,
+      "becomes": "charred_planks"
     }
   },
   {
@@ -235,6 +240,11 @@
     "placeholder": {
       "style": "wood_door_open",
       "color": "#7a5a3a"
+    },
+    "burns": {
+      "fuel": 14,
+      "spread": 0.4,
+      "becomes": "charred_planks"
     }
   },
   {
@@ -270,7 +280,12 @@
       "style": "noise",
       "color": "#5a5232"
     },
-    "turned": "fence_ns"
+    "turned": "fence_ns",
+    "burns": {
+      "fuel": 12,
+      "spread": 0.5,
+      "becomes": "fence_broken"
+    }
   },
   {
     "type": "tile",
@@ -291,7 +306,12 @@
       "style": "noise",
       "color": "#5a5232"
     },
-    "turned": "fence"
+    "turned": "fence",
+    "burns": {
+      "fuel": 12,
+      "spread": 0.5,
+      "becomes": "fence_broken"
+    }
   },
   {
     "type": "tile",
@@ -305,6 +325,11 @@
     },
     "sounds": {
       "step": "step_grass"
+    },
+    "burns": {
+      "fuel": 4,
+      "spread": 0.2,
+      "becomes": "scorched_earth"
     }
   },
   {
@@ -325,6 +350,11 @@
     "placeholder": {
       "style": "concrete",
       "color": "#6e6a60"
+    },
+    "burns": {
+      "fuel": 16,
+      "spread": 0.35,
+      "becomes": "debris"
     }
   },
   {

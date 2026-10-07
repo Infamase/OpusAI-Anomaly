@@ -49,6 +49,8 @@ const schema = v.object({
   visibility: v.optional(v.number({ min: 0, max: 1 }), 0.5),
   /** Effect tint. */
   color: v.color(),
+  /** Its bursts set flammable things around it alight (burners). */
+  ignites: v.optional(v.boolean(), false),
   /** It glows in the dark (a burner's embers, an electro's sparks): color, strength, flicker. Reach is 1.6× its radius. */
   light: v.optional(v.object({ color: v.color(), intensity: v.optional(v.number({ min: 0, max: 2 }), 0.7), flicker: v.optional(v.number({ min: 0, max: 1 }), 0.3) })),
   sounds: soundRefs('idle', 'trigger'),

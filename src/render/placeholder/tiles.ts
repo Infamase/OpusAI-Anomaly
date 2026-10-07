@@ -142,6 +142,28 @@ function dirt(t: Tex, rng: Rng): void {
   for (let i = 0; i < 10; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), rng.chance(0.4) ? 1 : 4);
 }
 
+/** Burnt ground: charred soil with drifts of pale ash and black cinders. */
+function ash(t: Tex, rng: Rng, ashTone: Ramp): void {
+  t.fill(2);
+  const m = mottle(rng, 12, 2.5, 7);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const n = m[y * S + x]! + (rng.next() - 0.5) * 0.2;
+      if (n < 0.3) t.tone(x, y, 1);
+      else if (n > 0.7) t.tone(x, y, n > 0.82 ? 3 : 2, ashTone);
+      else if (n > 0.6) t.tone(x, y, 3);
+    }
+  }
+  // Cinders and burnt stalks.
+  for (let i = 0; i < 14; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), 0);
+  for (let i = 0; i < 4; i++) {
+    const x = rng.int(0, S - 1);
+    const y = rng.int(0, S - 1);
+    for (let k = 0; k < 3; k++) t.tone(x + (k === 2 ? 1 : 0), y - k, 0);
+  }
+  for (let i = 0; i < 8; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), 4, ashTone);
+}
+
 /** Cellular rock: lumpy stones, lit top-left, dark cracks between. */
 function rockTop(t: Tex, rng: Rng): void {
   const pts: [number, number][] = [];
@@ -871,6 +893,9 @@ export function generateTile(def: TileDef, variant: number, front: boolean): Pix
       break;
     case 'debris':
       debris(t, rng);
+      break;
+    case 'ash':
+      ash(t, rng, accent);
       break;
     case 'wall_cracked':
       wall(t, rng, variant, front, accent);

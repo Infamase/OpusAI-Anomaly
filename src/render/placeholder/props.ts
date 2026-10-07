@@ -23,6 +23,7 @@ const NEEDLES = ramp('#3e5a2e');
 const NEEDLES_LIGHT = ramp('#58703a');
 const BARK = ramp('#6a3c26');
 const DEAD_WOOD = ramp('#6e6052');
+const CHARCOAL = ramp('#2e2a28');
 const STONE = ramp('#7a7670');
 const MOSS = ramp('#6c6e34');
 const LEAVES = ramp('#5a6a2e');
@@ -53,6 +54,8 @@ export function generateProp(style: PropStyle, variant: number): PropArt {
       return pine(rng, variant);
     case 'dead_tree':
       return deadTree(rng);
+    case 'charred_tree':
+      return deadTree(rng, CHARCOAL);
     case 'boulder':
       return boulder(rng, variant);
     case 'bush':
@@ -116,7 +119,7 @@ function pine(rng: Rng, variant: number): PropArt {
   return { pixels: rig.finish(), anchor: [cx, base] };
 }
 
-function deadTree(rng: Rng): PropArt {
+function deadTree(rng: Rng, wood = DEAD_WOOD): PropArt {
   const W = 48;
   const H = 80;
   const cx = 24;
@@ -132,7 +135,7 @@ function deadTree(rng: Rng): PropArt {
     shapes.push(cap(v(cx, y), end, 1.4, 0.6));
     shapes.push(cap(end, v(end.x + side * 3, end.y - 4), 0.6, 0.4));
   }
-  rig.add({ region: 0, ramp: DEAD_WOOD }, shapes);
+  rig.add({ region: 0, ramp: wood }, shapes);
   return { pixels: rig.finish(), anchor: [cx, base] };
 }
 

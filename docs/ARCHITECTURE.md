@@ -34,6 +34,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 16 Doors & destructibles | `src/game/doors.ts`, `breakables.ts`, `src/render/CrackOverlay.ts`, `content/*/tiles/doors.json`, `content/*/keycards` | Doors, keycards and locked rooms, breakable walls / fences / barricades / crates |
 | 17 Explosives | `src/game/explosives.ts`, `src/content/types/explosive.ts`, `src/render/ExplosionFx.ts`, `content/*/explosives` | Grenades, placed charges, blasts, world hazards, NPC grenade use |
 | 18 Light & darkness | `src/game/lighting.ts`, `worldLighting.ts`, `src/render/LightRenderer.ts` | Clock and daylight, light sources and shadows, the lightmap, light levels for NPC eyes |
+| 19 Fire & weather | `src/game/fire.ts`, `weather.ts`, `src/render/FireFx.ts`, `WeatherFx.ts`, `content/*/tiles/fire.json` | Spreading fire, burning and cook-offs, incendiaries; weather spells, rain, storms, fog and wind |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -431,6 +432,44 @@ over the canvas and draw animated characters with `CharacterPreview`.
   close up, and out to full range as the light on it rises. In the dark,
   NPCs switch their flashlights on.
 
+## Fire & weather (Module 19)
+
+- **What burns** is content: `burns: { "fuel": seconds, "spread": 0..1, "becomes": "<tile>" }`
+  on a tile (grass, reeds, bushes, trees, planks, fences, barricades, wooden
+  doors). Burnt tiles turn into their `becomes` (scorched earth, charred
+  trees, charred planks). Water and walls never burn; bare floor burns only
+  where fuel was spilled (a Molotov's `blast.fire.fuel`).
+- **`FireMap`** holds the burning tiles and their heat. Each step a fire may
+  spread to a neighbour (chance from `spread`, heat, and the wind: it runs
+  downwind and barely creeps upwind); a child fire starts a little cooler, so
+  a blaze dies out over distance rather than eating a whole map. Rain
+  shortens burns, stops spreading in a downpour and puts fires out; a tile
+  put out early is left as it was. Capped at `MAX_CELLS`.
+- **`FireSystem`** burns anyone standing in flames (`BURN_DPS`, "Burned to
+  death."), cooks off placed charges after a short delay, and burns crates.
+  NPCs treat fire as a hazard (`avoid` hook): they dodge out of it and route
+  round it. Fires light the night (clustered into `extraSources`).
+- **Incendiaries:** an explosive with `blast.fire: { radius, fuel }` sets
+  flammable ground alight on detonation (line of sight from the blast);
+  `trigger: "impact"` bursts on landing with no roll or fuse (Molotov).
+  Anomalies with `ignites` (burners) light the grass when they go off.
+- **Weather** is a pure function, `weatherAt(seed, minutes, odds, override?)`:
+  time is cut into spells (`WEATHER_SPELL`, six game hours), each spell's kind
+  is picked from the world's `weather` odds by a hash of seed and spell, and
+  the last 50 minutes of a spell blend into the next. The first two spells
+  are always clear. So it needs no saving and is the same on every PC.
+  Kinds: clear, cloudy, rain, storm (heavy rain, gales, lightning), fog.
+- **Effects:** `weatherTint` dims and greys the daylight (dayCycle worlds),
+  `weatherSight` shortens NPC sight in fog and rain, wind steers fire and
+  smoke, rain douses fires. Storms strike lightning near the player (a flash
+  through `WorldLighting.strike()`, a bolt, thunder, and it can light the
+  grass). The HUD clock shows the weather; rain, gale and fire sound beds
+  fade with it (`GameAudio.beds`).
+- **Drawing:** `FireFx` (flames, embers and smoke drifting with the wind,
+  scorch), `WeatherFx` (rain streaks and splashes, two seamless fog layers
+  scrolling with the wind, lightning bolts). The dev panel can force a
+  weather kind.
+
 ## Extension points
 
 ### Add a playable race
@@ -526,6 +565,11 @@ generated tile.
 - **Lamps in an interior:** `lamps` in its params (color, radius, how many work, how many flicker).
 - **Glowing anomaly:** `light` on the anomaly def.
 - **A dark world:** `"lighting": { "ambient": "#20242c" }` (or `"dayCycle": true`) on its `worldGen`.
+
+### Make something burn, or add weather
+- **Flammable tile:** `"burns": { "fuel": 6, "spread": 0.6, "becomes": "<burnt tile>" }`.
+- **Incendiary:** `"blast": { ..., "fire": { "radius": 2.5, "fuel": 9 } }` on an explosive; `"trigger": "impact"` to burst on landing.
+- **Weather on a world:** `"weather": { "clear": 4, "cloudy": 3, "rain": 3, "storm": 1, "fog": 1.5 }` (relative odds) on its `worldGen`. New kinds go in the `KIND` table in `src/game/weather.ts`.
 
 ### Add a new kind of content (weapons, armor, factions, station chunks…)
 1. `src/content/types/<kind>.ts`: a schema (`v.object({...})`), a `crossCheck` for

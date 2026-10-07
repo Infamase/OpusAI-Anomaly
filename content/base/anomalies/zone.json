@@ -22,7 +22,8 @@
       "color": "#ff8a30",
       "intensity": 0.9,
       "flicker": 0.5
-    }
+    },
+    "ignites": true
   },
   {
     "type": "anomaly",

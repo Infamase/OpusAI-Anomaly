@@ -10,7 +10,7 @@ declare module '../Registry' {
   }
 }
 
-export const EXPLOSIVE_ART = ['frag', 'pineapple', 'claymore', 'landmine', 'ied'] as const;
+export const EXPLOSIVE_ART = ['frag', 'pineapple', 'claymore', 'landmine', 'ied', 'molotov', 'incendiary'] as const;
 
 /**
  * Something that goes bang: a grenade (thrown: it arcs, bounces and rolls to a
@@ -29,10 +29,11 @@ const schema = v.object({
   use: v.literal('throw', 'place'),
   /**
    * What sets it off: a `fuse` (grenades: seconds after it stops rolling),
+   * `impact` (a Molotov: it bursts where it lands or hits a wall),
    * `proximity` (anyone within `sense` tiles) or `tripwire` (anyone crossing
    * the line `sense` tiles out in front of it).
    */
-  trigger: v.literal('fuse', 'proximity', 'tripwire'),
+  trigger: v.literal('fuse', 'impact', 'proximity', 'tripwire'),
   /** Grenades: seconds from coming to rest until the bang. */
   fuse: v.optional(v.number({ min: 0.2, max: 10 }), 1.8),
   /** Charges: trigger reach, tiles. */
@@ -57,6 +58,8 @@ const schema = v.object({
     shatter: v.optional(v.number({ min: 0 }), 120),
     /** Directional (claymores): full damage only within this cone, degrees. */
     cone: v.optional(v.number({ min: 10, max: 360 }), 360),
+    /** Incendiaries: sets everything flammable within `radius` tiles alight, and spills burning fuel (`fuel` seconds) on bare ground. */
+    fire: v.optional(v.object({ radius: v.number({ min: 0.5, max: 8 }), fuel: v.optional(v.number({ min: 0 }), 0) })),
   }),
   /** Grenades: farthest throw, tiles. */
   range: v.optional(v.number({ min: 1 }), 10),
@@ -72,7 +75,7 @@ export const explosiveType: ContentTypeSpec<'explosive'> = {
   crossCheck(def, ctx) {
     checkUniqueItemId(def.id, 'explosive', ctx);
     checkSoundRefs(def.sounds, ctx);
-    if (def.use === 'throw' && def.trigger !== 'fuse') ctx.error('thrown explosives need trigger "fuse"');
-    if (def.use === 'place' && def.trigger === 'fuse') ctx.error('placed explosives need a proximity or tripwire trigger');
+    if (def.use === 'throw' && def.trigger !== 'fuse' && def.trigger !== 'impact') ctx.error('thrown explosives need trigger "fuse" or "impact"');
+    if (def.use === 'place' && (def.trigger === 'fuse' || def.trigger === 'impact')) ctx.error('placed explosives need a proximity or tripwire trigger');
   },
 };

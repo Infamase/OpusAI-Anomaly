@@ -38,6 +38,8 @@ interface Voice {
 
 export interface LoopHandle {
   stop(fade?: number): void;
+  /** Scales the loop's loudness (0..1 of its own volume), easing there. */
+  setLevel?(level: number): void;
 }
 
 const MAX_VOICES_TOTAL = 40;
@@ -161,6 +163,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     const def = this.content.tryGet('sound', id);
     if (!ctx || !def) return { stop() {} };
+    let level = 1;
     const out = ctx.createGain();
     out.gain.value = 0;
     out.connect(this.buses[def.bus]);
@@ -173,12 +176,16 @@ export class AudioEngine {
       src.loop = true;
       src.connect(out);
       src.start();
-      out.gain.setTargetAtTime(def.volume, ctx.currentTime, fadeIn / 3);
+      out.gain.setTargetAtTime(def.volume * level, ctx.currentTime, fadeIn / 3);
     };
     const ready = this.buffers.get(id);
     if (ready) begin(ready[0]!);
     else void this.load(def).then(() => this.buffers.get(id) && begin(this.buffers.get(id)![0]!));
     return {
+      setLevel: (v: number) => {
+        level = Math.max(0, Math.min(1, v));
+        if (!stopped && src) out.gain.setTargetAtTime(def.volume * level, ctx.currentTime, 0.4);
+      },
       stop: (fade = 1) => {
         stopped = true;
         out.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);

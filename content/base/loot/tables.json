@@ -63,6 +63,10 @@
       {
         "item": "rgd5",
         "chance": 0.06
+      },
+      {
+        "item": "molotov",
+        "chance": 0.06
       }
     ]
   },
@@ -146,6 +150,10 @@
           1,
           2
         ]
+      },
+      {
+        "item": "incendiary",
+        "chance": 0.08
       }
     ]
   },
@@ -212,6 +220,10 @@
       {
         "item": "ied",
         "chance": 0.04
+      },
+      {
+        "item": "molotov",
+        "chance": 0.15
       }
     ]
   }

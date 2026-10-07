@@ -33,6 +33,8 @@ export interface DevHooks {
   info(): Record<string, string | number>;
   /** Moves the clock on by some hours. */
   advanceTime(hours: number): void;
+  /** Pins the weather (null: let it change by itself). */
+  setWeather(kind: 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | null): void;
 }
 
 const SLOT_LABEL: Record<ArmorSlot, string> = { head: 'Helmet', torso: 'Top + gloves', legs: 'Pants + boots' };
@@ -128,7 +130,14 @@ export class DevTools {
     const night = el('button', '', '+6h');
     night.title = 'Move the clock on six hours';
     night.onclick = () => hooks.advanceTime(6);
-    saveRow.append(save, exp, reset, worldSelect, later, night);
+    const weatherSelect = el('select');
+    weatherSelect.append(new Option('Weather: natural', ''));
+    for (const k of ['clear', 'cloudy', 'rain', 'storm', 'fog']) weatherSelect.append(new Option(`Weather: ${k}`, k));
+    weatherSelect.onchange = () => {
+      hooks.setWeather((weatherSelect.value || null) as Parameters<DevHooks['setWeather']>[0]);
+      weatherSelect.blur();
+    };
+    saveRow.append(save, exp, reset, worldSelect, later, night, weatherSelect);
 
     const combat = el('div', 'dev-gear');
     const weaponSelect = el('select');

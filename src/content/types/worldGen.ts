@@ -30,6 +30,16 @@ const schema = v.object({
    * dead ship). Without this, it's always broad daylight.
    */
   lighting: v.optional(v.object({ dayCycle: v.optional(v.boolean(), false), ambient: v.optional(v.color(), '#ffffff') })),
+  /** Weather (open-air worlds): how often each kind comes round. Without it, it's always clear. */
+  weather: v.optional(
+    v.object({
+      clear: v.optional(v.number({ min: 0 }), 0),
+      cloudy: v.optional(v.number({ min: 0 }), 0),
+      rain: v.optional(v.number({ min: 0 }), 0),
+      storm: v.optional(v.number({ min: 0 }), 0),
+      fog: v.optional(v.number({ min: 0 }), 0),
+    }),
+  ),
 });
 
 export type WorldGenDef = Infer<typeof schema>;

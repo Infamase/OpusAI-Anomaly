@@ -1,10 +1,140 @@
 [
-  { "type": "tile", "id": "void", "name": "Void", "solid": true, "opaque": true, "placeholder": { "style": "noise", "color": "#0c0d0a" } },
-  { "type": "tile", "id": "dirt", "name": "Dirt", "solid": false, "sounds": { "step": "step_dirt" }, "blend": 6, "placeholder": { "style": "noise", "color": "#5e4232" } },
-  { "type": "tile", "id": "grass", "name": "Alien Grass", "solid": false, "sounds": { "step": "step_grass" }, "blend": 8, "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
-  { "type": "tile", "id": "rock_wall", "name": "Rock", "solid": true, "sounds": { "impact": "impact_rock" }, "opaque": true, "placeholder": { "style": "rock", "color": "#5d5a56" } },
-  { "type": "tile", "id": "pine_tree", "name": "Pine", "solid": true, "sounds": { "impact": "impact_dirt" }, "blend": 8, "prop": "pine", "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
-  { "type": "tile", "id": "dead_tree", "name": "Dead Tree", "solid": true, "sounds": { "impact": "impact_dirt" }, "blend": 6, "prop": "dead_tree", "placeholder": { "style": "noise", "color": "#5e4232" } },
-  { "type": "tile", "id": "boulder", "name": "Boulder", "solid": true, "sounds": { "impact": "impact_rock" }, "opaque": true, "blend": 8, "prop": "boulder", "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } },
-  { "type": "tile", "id": "bush", "name": "Shrub", "solid": false, "sounds": { "step": "rustle_bush" }, "blend": 8, "prop": "bush", "placeholder": { "style": "grass", "color": "#5c5e2c", "accent": "#7c7a38" } }
+  {
+    "type": "tile",
+    "id": "void",
+    "name": "Void",
+    "solid": true,
+    "opaque": true,
+    "placeholder": {
+      "style": "noise",
+      "color": "#0c0d0a"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "dirt",
+    "name": "Dirt",
+    "solid": false,
+    "sounds": {
+      "step": "step_dirt"
+    },
+    "blend": 6,
+    "placeholder": {
+      "style": "noise",
+      "color": "#5e4232"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "grass",
+    "name": "Alien Grass",
+    "solid": false,
+    "sounds": {
+      "step": "step_grass"
+    },
+    "blend": 8,
+    "placeholder": {
+      "style": "grass",
+      "color": "#5c5e2c",
+      "accent": "#7c7a38"
+    },
+    "burns": {
+      "fuel": 6,
+      "spread": 0.45,
+      "becomes": "scorched_earth"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "rock_wall",
+    "name": "Rock",
+    "solid": true,
+    "sounds": {
+      "impact": "impact_rock"
+    },
+    "opaque": true,
+    "placeholder": {
+      "style": "rock",
+      "color": "#5d5a56"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "pine_tree",
+    "name": "Pine",
+    "solid": true,
+    "sounds": {
+      "impact": "impact_dirt"
+    },
+    "blend": 8,
+    "prop": "pine",
+    "placeholder": {
+      "style": "grass",
+      "color": "#5c5e2c",
+      "accent": "#7c7a38"
+    },
+    "burns": {
+      "fuel": 28,
+      "spread": 0.4,
+      "becomes": "charred_tree"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "dead_tree",
+    "name": "Dead Tree",
+    "solid": true,
+    "sounds": {
+      "impact": "impact_dirt"
+    },
+    "blend": 6,
+    "prop": "dead_tree",
+    "placeholder": {
+      "style": "noise",
+      "color": "#5e4232"
+    },
+    "burns": {
+      "fuel": 18,
+      "spread": 0.45,
+      "becomes": "charred_tree"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "boulder",
+    "name": "Boulder",
+    "solid": true,
+    "sounds": {
+      "impact": "impact_rock"
+    },
+    "opaque": true,
+    "blend": 8,
+    "prop": "boulder",
+    "placeholder": {
+      "style": "grass",
+      "color": "#5c5e2c",
+      "accent": "#7c7a38"
+    }
+  },
+  {
+    "type": "tile",
+    "id": "bush",
+    "name": "Shrub",
+    "solid": false,
+    "sounds": {
+      "step": "rustle_bush"
+    },
+    "blend": 8,
+    "prop": "bush",
+    "placeholder": {
+      "style": "grass",
+      "color": "#5c5e2c",
+      "accent": "#7c7a38"
+    },
+    "burns": {
+      "fuel": 10,
+      "spread": 0.6,
+      "becomes": "scorched_earth"
+    }
+  }
 ]
