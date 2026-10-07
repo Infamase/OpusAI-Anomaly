@@ -28,7 +28,7 @@ import { HazardMap } from '../ai/hazards';
 import { AnomalySystem, BoltSystem, throwBolt } from '../systems/AnomalySystem';
 import { ArtifactSystem } from '../systems/ArtifactSystem';
 import { MapScene, type MapHost } from './MapScene';
-import type { Landmark, WorldGenerator } from '../world/generators';
+import type { Landmark, PortalSpawn, WorldGenerator } from '../world/generators';
 import { minimapColor, MINIMAP_RADIUS, type Blip } from '../../ui/Minimap';
 import { WorldLabels } from '../../ui/WorldLabels';
 import { NpcBrainSystem, type BarkKind } from '../ai/NpcBrainSystem';
@@ -91,11 +91,20 @@ import { TILE_PX, TileMap } from '../world/TileMap';
 import { TileSet } from '../world/TileSet';
 import '../world/testRangeGenerator';
 import '../world/planetGenerator';
+import '../world/interiorGenerator';
 import { DeathScene } from './DeathScene';
 import { PauseScene } from './PauseScene';
 
 /** Where new characters start. Becomes the real starting location once planets exist. */
 export const START_WORLD_ID = 'zone_north';
+
+/** Saved while changing worlds through a portal: where to come out on the other side. */
+interface Arrival {
+  /** The world being left. */
+  from: string;
+  /** The exact portal to come out of (a return trip); otherwise any portal leading back to `from`. */
+  portal?: string;
+}
 /** The player uncovers the map this far around them (px). */
 const REVEAL_RADIUS = TILE_PX * 22;
 const AUTOSAVE_SEC = 30;
@@ -185,6 +194,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private mapColors: RGB[] = [];
   private placeIn: Landmark | null = null;
   private biomeName = '';
+  /** The named part of the world the player is in (an interior's room), when the generator names them. */
+  private areaName: string | undefined;
+  /** Ways out of this world, and the one in reach right now. */
+  private portals: PortalSpawn[] = [];
+  private portalFocus: PortalSpawn | null = null;
+  private leaving = false;
   private locationIn = 0;
   private revealIn = 0;
   private minimapIn = 0;
@@ -289,6 +304,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     // --- Player.
     await prepareCharacterArt(g.content, g.sheets, save.player.raceId, save.player.equipment);
     let { x, y } = save.player;
+    this.portals = generator.portals?.(record.seed, params, this.map.widthTiles, this.map.heightTiles) ?? [];
+    const arrival = save.flags.arrive as Arrival | undefined;
+    delete save.flags.arrive;
+    const spot = arrival ? this.arrivalSpot(arrival) : null;
+    if (spot) ({ x, y } = spot);
     if (!Number.isFinite(x) || !Number.isFinite(y)) {
       const spawn = generator.spawnPoint(record.seed, params, this.map.widthTiles, this.map.heightTiles);
       x = (spawn.x + 0.5) * TILE_PX;
@@ -336,6 +356,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.exploration = new Exploration(save.flags, this.worldId, this.map.widthChunks, this.map.heightChunks);
     this.initMapCanvas();
     this.updateLocation(true);
+    if (arrival) this.message(`Entering ${genDef.name}`, '#e2c060');
     this.ready = true;
     await this.save();
   }
@@ -373,8 +394,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.world.update(dt);
     const alive = !this.world.get(this.playerEntity, Health)?.dead;
     this.focus = alive && !this.buildMode ? this.findInteractable() : null;
+    this.portalFocus = alive && !this.buildMode && this.focus === null ? this.findPortal() : null;
     if (this.buildMode && input.justPressed('interact')) this.toggleTileInFront();
     else if (alive && input.justPressed('interact') && this.focus !== null) this.interact(this.focus);
+    else if (alive && input.justPressed('interact') && this.portalFocus) void this.goThrough(this.portalFocus);
     else if (alive && input.justPressed('inventory')) void this.game.scenes.push(new InventoryScene(this.game, this));
     if (alive && input.justPressed('quickHeal')) this.quickHeal();
     if (alive && this.game.scenes.current === this && input.justPressed('bolt')) this.throwBolt();
@@ -455,7 +478,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.renderAnomalies(frameDt, alpha);
     this.renderCrosshair(frameDt, px, py);
     for (const e of this.world.query(PropViewC)) this.world.req(e, PropViewC).setHighlight(e === this.focus);
-    this.hud?.prompt(this.focus !== null && this.game.scenes.current === this ? this.promptFor(this.focus) : null);
+    const prompt = this.focus !== null ? this.promptFor(this.focus) : this.portalFocus ? `E  ${this.portalFocus.label}` : null;
+    this.hud?.prompt(this.game.scenes.current === this ? prompt : null);
     const chest = g.camera.worldToScreen(px, py - CHEST_HEIGHT);
     this.hud?.detector(this.detectorReading);
     this.hud?.update(this.hudState(), frameDt, { x: chest.x / g.renderer.pixelRatio, y: chest.y / g.renderer.pixelRatio });
@@ -678,7 +702,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   }
 
   locationName(): string {
-    return this.placeIn?.name ?? this.biomeName ?? '';
+    return this.areaName ?? this.placeIn?.name ?? this.biomeName ?? '';
   }
 
   private initMapCanvas(): void {
@@ -727,6 +751,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     }
     const biome = this.generator.biomeAt?.(this.seed, this.genParams as never, this.map!.widthTiles, this.map!.heightTiles, tx, ty);
     this.biomeName = biome?.name ?? this.genDef.name;
+    this.areaName = this.generator.areaAt?.(this.seed, this.genParams as never, this.map!.widthTiles, this.map!.heightTiles, tx, ty);
     this.hud?.location(this.locationName());
     const ambientCue = g.audio.cue('ambient');
     const base = this.genDef.ambient ?? (ambientCue ? [ambientCue] : []);
@@ -740,13 +765,79 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   }
 
   /** Dev: moves the character to another world (arriving at its spawn point). */
-  async travel(worldId: string): Promise<void> {
+  async travel(worldId: string, arrival?: Arrival): Promise<void> {
     const g = this.game;
-    if (worldId === this.worldId || !g.content.has('worldGen', worldId)) return;
+    if (this.leaving || worldId === this.worldId || !g.content.has('worldGen', worldId)) return;
+    this.leaving = true;
     this.world.req(this.playerEntity, Transform).x = NaN;
     this.syncPlayerSave();
     g.saves.data.player.worldId = worldId;
+    if (arrival) g.saves.data.flags.arrive = arrival;
     await g.scenes.change(new GameplayScene(g, this.slotId));
+  }
+
+  // ---- portals -------------------------------------------------------------------
+
+  /** The portal within reach of the player's feet. */
+  private findPortal(): PortalSpawn | null {
+    const t = this.world.req(this.playerEntity, Transform);
+    let best: PortalSpawn | null = null;
+    let bestD = TILE_PX * 1.3;
+    for (const p of this.portals) {
+      const d = Math.hypot(p.x - t.x, p.y - t.y);
+      if (d < bestD) {
+        best = p;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Goes through a portal. Going in remembers the way back (per world), so
+   * "@return" portals lead out the same door you came in by.
+   */
+  async goThrough(p: PortalSpawn): Promise<void> {
+    const flags = this.game.saves.data.flags;
+    let dest = p.world;
+    let portal: string | undefined;
+    if (dest === '@return') {
+      const back = flags[`return:${this.worldId}`] as { world: string; portal: string } | undefined;
+      dest = back && this.game.content.has('worldGen', back.world) ? back.world : START_WORLD_ID;
+      portal = back?.world === dest ? back.portal : undefined;
+    }
+    if (dest === this.worldId || !this.game.content.has('worldGen', dest)) {
+      this.message("It won't open.");
+      return;
+    }
+    if (p.world !== '@return') flags[`return:${dest}`] = { world: this.worldId, portal: p.id };
+    this.game.audio.playCue('portal');
+    await this.travel(dest, { from: this.worldId, portal });
+  }
+
+  /** Where to stand after coming through a portal: the nearest open tile beside it. */
+  private arrivalSpot(arrival: Arrival): { x: number; y: number } | null {
+    const map = this.map!;
+    const p =
+      this.portals.find((q) => q.id === arrival.portal) ??
+      this.portals.find((q) => q.world === arrival.from) ??
+      this.portals.find((q) => q.world === '@return');
+    if (!p) return null;
+    const px = Math.floor(p.x / TILE_PX);
+    const py = Math.floor(p.y / TILE_PX);
+    const taken = new Set(this.portals.map((q) => `${Math.floor(q.x / TILE_PX)},${Math.floor(q.y / TILE_PX)}`));
+    let best: { x: number; y: number; d: number } | null = null;
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        const tx = px + dx;
+        const ty = py + dy;
+        if (!map.inBounds(tx, ty) || map.isSolid(tx, ty) || taken.has(`${tx},${ty}`)) continue;
+        // Nearest first; ties go to the tile below (facing the camera), then sideways.
+        const d = Math.hypot(dx, dy) - (dy > 0 ? 0.1 : 0) + (dy < 0 ? 0.05 : 0);
+        if (!best || d < best.d) best = { x: (tx + 0.5) * TILE_PX, y: (ty + 0.5) * TILE_PX, d };
+      }
+    }
+    return best ? { x: best.x, y: best.y } : { x: p.x, y: p.y };
   }
 
   // ---- anomalies, bolts, detectors --------------------------------------------

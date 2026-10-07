@@ -16,6 +16,9 @@
     "start": "loner_village",
     "startBiomes": ["meadow"],
     "structures": [
+      { "id": "research_bunker", "count": [1, 1], "spacing": 30, "biomes": ["wasteland", "pine_forest", "highlands", "meadow"] },
+      { "id": "crashed_freighter", "count": [1, 1], "spacing": 30 },
+      { "id": "launch_site", "count": [1, 1], "spacing": 30, "biomes": ["meadow", "wasteland", "highlands"] },
       { "id": "farmhouse", "count": [5, 8], "spacing": 22, "biomes": ["meadow", "pine_forest", "wasteland"] },
       { "id": "roadside_shack", "count": [4, 7], "spacing": 16 },
       { "id": "bandit_hideout", "count": [2, 3], "spacing": 40, "biomes": ["wasteland", "highlands", "meadow", "swamp"] },

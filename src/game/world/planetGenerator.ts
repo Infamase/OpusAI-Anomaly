@@ -2,9 +2,10 @@ import { parseOrThrow, v } from '../../content/schema';
 import type { AnomalyDef } from '../../content/types/anomaly';
 import type { ArtifactDef } from '../../content/types/artifact';
 import type { BiomeDef } from '../../content/types/biome';
-import type { LegendEntry, StructureDef } from '../../content/types/structure';
+import type { StructureDef } from '../../content/types/structure';
+import { orientedCell, resolveDrawing, type Cell, type Drawing } from './drawings';
 import { deriveSeed, fbm2D, hashInts, Rng } from '../../core/rng';
-import { registerGenerator, type CampSpawn, type Landmark, type WorldGenerator, type WorldObjectSpawn } from './generators';
+import { registerGenerator, type CampSpawn, type Landmark, type PortalSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
 import type { TileSet } from './TileSet';
 
 /**
@@ -103,24 +104,8 @@ interface Biome {
   poolThreshold: number;
 }
 
-interface Cell {
-  /** Tile index, or -1 to keep terrain. */
-  tile: number;
-  /** Terrain kept but without rocks or decorations. */
-  clear: boolean;
-  wall: boolean;
-  crate: { lootTable: string; variant: 'supply' | 'military' } | null;
-  camp: boolean;
-  spawn: boolean;
-  entrance: boolean;
-}
-
-interface Structure {
+interface Structure extends Drawing {
   def: StructureDef;
-  w: number;
-  h: number;
-  /** cells[j * w + i] for the drawing as authored; null = not part of it. */
-  cells: (Cell | null)[];
   rubble: number;
 }
 
@@ -228,32 +213,7 @@ interface Plan {
 }
 
 /** The authored cell at a placed structure's local (i, j), undoing its rotation/mirror. */
-function cellAt(p: Placed, i: number, j: number): Cell | null {
-  const { w: sw, h: sh } = p.s;
-  let x = i;
-  let y = j;
-  if (p.orient >= 4) x = p.w - 1 - x;
-  let sx: number;
-  let sy: number;
-  switch (p.orient & 3) {
-    case 0:
-      sx = x;
-      sy = y;
-      break;
-    case 1:
-      sx = y;
-      sy = sh - 1 - x;
-      break;
-    case 2:
-      sx = sw - 1 - x;
-      sy = sh - 1 - y;
-      break;
-    default:
-      sx = sw - 1 - y;
-      sy = x;
-  }
-  return p.s.cells[sy * sw + sx] ?? null;
-}
+const cellAt = (p: Placed, i: number, j: number): Cell | null => orientedCell(p.s, p.orient, i, j);
 
 /** Large fields are sampled every STEP tiles and interpolated (they're smooth at that scale). */
 const STEP = 4;
@@ -435,7 +395,8 @@ function makePlan(p: Params, seed: number, W: number, H: number): Plan {
   for (const entry of p.structures) {
     const n = srng.int(entry.count[0], Math.max(entry.count[0], entry.count[1]));
     for (let k = 0; k < n; k++) {
-      const q = tryPlace(entry.s, entry.spacing, entry.biomes, false);
+      // The minimum is a promise (a way into an interior must exist): if the rules leave no room, relax them.
+      const q = tryPlace(entry.s, entry.spacing, entry.biomes, false) ?? (k < entry.count[0] ? tryPlace(entry.s, 10, null, false) : null);
       if (q && entry.road) roadNodes.push(q.index);
     }
   }
@@ -619,7 +580,8 @@ class RoadGrid {
     const goal = Math.floor(b.y / C) * gw + Math.floor(b.x / C);
     const gx = goal % gw;
     const gy = Math.floor(goal / gw);
-    const g = new Float32Array(this.cost.length).fill(Infinity);
+    // Float64: a float32 g rounds up on store, so the same path keeps looking "better" and the search never ends.
+    const g = new Float64Array(this.cost.length).fill(Infinity);
     const from = new Int32Array(this.cost.length).fill(-1);
     const heap = new MinHeap();
     g[start] = 0;
@@ -815,25 +777,7 @@ function classify(plan: Plan, near: Placed[], gx: number, gy: number): number {
 // ---- the generator ---------------------------------------------------------------
 
 function resolveStructure(def: StructureDef, tiles: TileSet): Structure {
-  const w = Math.max(...def.map.map((r) => r.length));
-  const h = def.map.length;
-  const cells: (Cell | null)[] = [];
-  const lookup = new Map<string, Cell>();
-  for (const [ch, e] of Object.entries(def.legend) as [string, LegendEntry][]) {
-    const o = typeof e === 'string' ? { tile: e } : e;
-    const tile = o.tile && o.tile !== 'terrain' ? tiles.index(o.tile) : -1;
-    lookup.set(ch, {
-      tile,
-      clear: !!o.clear,
-      wall: tile >= 0 && tiles.solid[tile] === 1,
-      crate: o.crate ?? null,
-      camp: !!o.camp,
-      spawn: !!o.spawn,
-      entrance: !!o.entrance,
-    });
-  }
-  for (const row of def.map) for (let i = 0; i < w; i++) cells.push(lookup.get(row[i] ?? ' ') ?? null);
-  return { def, w, h, cells, rubble: def.rubble ? tiles.index(def.rubble) : -1 };
+  return { ...resolveDrawing(def, tiles), def, rubble: def.rubble ? tiles.index(def.rubble) : -1 };
 }
 
 export const planetGenerator: WorldGenerator<Params> = {
@@ -921,7 +865,9 @@ export const planetGenerator: WorldGenerator<Params> = {
       for (let j = 0; j < q.h; j++) {
         for (let i = 0; i < q.w; i++) {
           const cell = cellAt(q, i, j);
-          if (!cell?.crate || !inChunk(q.x + i, q.y + j)) continue;
+          if (!cell || !inChunk(q.x + i, q.y + j)) continue;
+          if (cell.anomaly) out.push({ id: `anomaly:${q.s.def.id}:${q.index}:${i},${j}`, kind: 'anomaly', x: (q.x + i + 0.5) * T, y: (q.y + j + 0.5) * T, anomaly: cell.anomaly });
+          if (!cell.crate) continue;
           out.push({ id: `crate:${q.s.def.id}:${q.index}:${i},${j}`, kind: 'crate', x: (q.x + i + 0.5) * T, y: (q.y + j + 0.8) * T, variant: cell.crate.variant, lootTable: cell.crate.lootTable });
         }
       }
@@ -993,6 +939,21 @@ export const planetGenerator: WorldGenerator<Params> = {
     if (!start) return { x: Math.floor(W / 2), y: Math.floor(H / 2) };
     for (let j = 0; j < start.h; j++) for (let i = 0; i < start.w; i++) if (cellAt(start, i, j)?.spawn) return { x: start.x + i, y: start.y + j };
     return { x: start.x + Math.floor(start.w / 2), y: start.y + start.h };
+  },
+
+  /** Ways into other worlds drawn into places (a bunker hatch, a wreck's door). */
+  portals(seed, params, W, H): PortalSpawn[] {
+    const plan = planFor(params, seed, W, H);
+    const out: PortalSpawn[] = [];
+    for (const q of plan.placed) {
+      for (let j = 0; j < q.h; j++) {
+        for (let i = 0; i < q.w; i++) {
+          const p = cellAt(q, i, j)?.portal;
+          if (p) out.push({ id: `portal:${q.s.def.id}:${q.index}:${i},${j}`, x: (q.x + i + 0.5) * T, y: (q.y + j + 0.5) * T, world: p.world, label: p.label });
+        }
+      }
+    }
+    return out;
   },
 
   landmarks(seed, params, W, H): Landmark[] {

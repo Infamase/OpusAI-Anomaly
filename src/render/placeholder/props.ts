@@ -36,6 +36,13 @@ const GLASS = ramp('#2a3436');
 const TYRE = ramp('#2a2826');
 const CONCRETE = ramp('#7a766c');
 const REBAR = ramp('#6a4a36');
+const STEEL = ramp('#5a646c');
+const STEEL_DARK = ramp('#3e464c');
+const SCREEN = ramp('#2a6a5a');
+const SCREEN_BLUE = ramp('#2a4a7a');
+const HAZARD = ramp('#c8a030');
+const FABRIC = ramp('#5a6a4a');
+const SHEET = ramp('#a8a8a0');
 
 export function generateProp(style: PropStyle, variant: number): PropArt {
   const rng = new Rng(hashInts(variant, style.length, style.charCodeAt(0)));
@@ -56,6 +63,12 @@ export function generateProp(style: PropStyle, variant: number): PropArt {
       return wreck(rng, variant);
     case 'rubble':
       return rubble(rng, variant);
+    case 'console':
+      return consoleProp(rng, variant);
+    case 'machine':
+      return machine(rng, variant);
+    case 'bunk':
+      return bunk(variant);
   }
 }
 
@@ -221,5 +234,52 @@ function rubble(rng: Rng, variant: number): PropArt {
   for (let i = 0; i < 7 + variant; i++) chunks.push(ell(v(cx + rng.range(-8, 8), base - rng.range(3, 8)), rng.range(4, 7), rng.range(3, 4.5)));
   rig.add({ region: 0, ramp: CONCRETE }, chunks);
   rig.add({ region: 0, ramp: REBAR }, [cap(v(cx + rng.range(-6, 2), base - 6), v(cx + rng.range(4, 10), base - 16), 0.7, 0.6)]);
+  return { pixels: rig.finish(), anchor: [cx, base - 1] };
+}
+
+const box = (x0: number, y0: number, x1: number, y1: number, inset = 0) => [
+  tri(v(x0, y1), v(x1, y1), v(x1 - inset, y0), { dome: 0.2 }),
+  tri(v(x0, y1), v(x1 - inset, y0), v(x0 + inset, y0), { dome: 0.2 }),
+];
+
+/** A computer console: a cabinet with a glowing screen and a row of buttons. */
+function consoleProp(rng: Rng, variant: number): PropArt {
+  const W = 36;
+  const H = 40;
+  const cx = 18;
+  const base = 36;
+  const rig = new Rig(W, H);
+  const cab = rig.add({ region: 0, ramp: STEEL }, box(cx - 14, base - 30, cx + 14, base, 1));
+  rig.decal(variant === 1 ? SCREEN_BLUE : SCREEN, box(cx - 10, base - 27, cx + 10, base - 15, 0), { parts: [cab] });
+  for (let i = 0; i < 5; i++) rig.decal(rng.chance(0.4) ? HAZARD : STEEL_DARK, [ell(v(cx - 9 + i * 4.5, base - 9), 1.3, 1)], { parts: [cab] });
+  rig.markLine(v(cx - 13, base - 13), v(cx + 13, base - 13), 1);
+  return { pixels: rig.finish(), anchor: [cx, base - 1] };
+}
+
+/** Machinery: a squat generator drum with pipes and a hazard band. */
+function machine(rng: Rng, variant: number): PropArt {
+  const W = 40;
+  const H = 52;
+  const cx = 20;
+  const base = 48;
+  const rig = new Rig(W, H);
+  rig.add({ region: 0, ramp: STEEL_DARK }, box(cx - 16, base - 10, cx + 16, base, 0));
+  const drum = rig.add({ region: 0, ramp: STEEL, relief: 1.2 }, [cap(v(cx, base - 10), v(cx, base - 38), 12, 12), ell(v(cx, base - 38), 12, 5)]);
+  rig.decal(HAZARD, [cap(v(cx - 12, base - 22), v(cx + 12, base - 22), 1.6, 1.6)], { parts: [drum] });
+  const pipeX = variant % 2 ? cx - 15 : cx + 15;
+  rig.add({ region: 0, ramp: STEEL_DARK }, [cap(v(pipeX, base - 2), v(pipeX, base - 30 - rng.range(0, 6)), 2.2, 2.2)]);
+  return { pixels: rig.finish(), anchor: [cx, base - 1] };
+}
+
+/** A bunk: metal frame, a thin mattress and a pillow. */
+function bunk(variant: number): PropArt {
+  const W = 36;
+  const H = 26;
+  const cx = 18;
+  const base = 22;
+  const rig = new Rig(W, H);
+  rig.add({ region: 0, ramp: STEEL_DARK }, [...box(cx - 15, base - 8, cx + 15, base, 0)]);
+  const mat = rig.add({ region: 0, ramp: variant === 2 ? SHEET : FABRIC, relief: 0.8 }, box(cx - 14, base - 13, cx + 14, base - 6, 1));
+  rig.decal(SHEET, [ell(v(cx - 10, base - 10), 3.5, 2)], { parts: [mat] });
   return { pixels: rig.finish(), anchor: [cx, base - 1] };
 }

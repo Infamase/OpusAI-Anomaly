@@ -30,6 +30,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 11 Sound | `src/audio/`, `src/game/GameAudio.ts`, `content/*/sounds/` | Synthesized (or recorded) sounds as content, WebAudio mixer with positional audio, gameplay and UI sounds, ambience |
 | 13 Planets | `src/game/world/planetGenerator.ts`, `exploration.ts`, `scenes/MapScene.ts`, `content/*/biomes`, `content/*/structures` | Planet generation (biomes, lakes, rivers, structures, roads), explored-area map |
 | 14 Anomalies & artifacts | `src/game/systems/AnomalySystem.ts`, `ArtifactSystem.ts`, `radiation.ts`, `ai/hazards.ts`, `src/render/AnomalyFx.ts`, `content/*/anomalies`, `content/*/artifacts` | Hazards, bolts, radiation, artifacts on the belt, detectors |
+| 15 Interiors | `src/game/world/interiorGenerator.ts`, `drawings.ts`, `content/*/rooms`, `src/content/types/{room,legend}.ts` | Labs, ships and stations assembled from room drawings; portals between worlds |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -290,6 +291,37 @@ over the canvas and draw animated characters with `CharacterPreview`.
   paths treat those tiles as very expensive, straight-line shortcuts never
   cross them, and they never pick a goal inside one.
 
+## Interiors (Module 15)
+
+- **Rooms** (`content/*/rooms/`) are drawings like structures, but in theme
+  slots instead of fixed tiles: `$wall`, `$floor`, `$floor2`, `$door`,
+  `$outside`, `$accent`, `$window`. The same storage room becomes a white lab,
+  a rusty hold or a station module depending on the world's `theme`. `D`
+  cells on the outer wall (not corners) are **door sockets**. Rooms may hold
+  crates, anomalies, camps (`camp` with a `chance`), a `spawn` cell and
+  **portals**. Tags group them (`corridor`, `lab`, `cargo`, `landmark`…).
+- **The interior generator** (`generator: "interior"`) starts with the
+  `start` room in the middle and keeps attaching rooms at open sockets:
+  rotated to fit, sharing the wall, never covering another room's floor.
+  Pools in `rooms` (by id or tag) have `weight`, `min` and `max`; minimums
+  are filled first. Where two rooms' sockets happen to meet, a door opens
+  with chance `loops` (more loops, fewer dead ends); every other socket is
+  sealed. The whole layout is one plan per seed, cut into chunks like any
+  world. `areaAt` names the room you're in (the HUD shows it); rooms tagged
+  `landmark` go on the map.
+- **Drawings** (`world/drawings.ts`, `content/types/legend.ts`) are shared by
+  structures and rooms: one legend format, one resolver, one validator
+  (rooms may use theme slots, structures may not).
+- **Portals** are legend cells: `{ "tile": "hatch", "portal": { "world":
+  "underground_lab", "label": "Climb down into the lab" } }`. A generator lists
+  them (`portals()`); standing next to one shows `E <label>`. Going in records
+  `return:<world>` in the save's flags (which world and which door you came
+  from), so a `"@return"` portal leads back out the same door. Arrival puts
+  you on the nearest open tile beside the matching portal.
+- The Zone has three: a **Research Bunker** (down into Lab X-16), a
+  **Crashed Freighter** (half-buried, outside is rock), and a **Launch Site**
+  (a shuttle up to the orbital station, outside is space).
+
 ## Extension points
 
 ### Add a playable race
@@ -340,6 +372,9 @@ generated tile.
 - **Structure:** a def in `content/base/structures/`: draw `map` rows of equal
   width, define every character in `legend`, give it an `entrance` cell, then
   add `{ "id": ..., "count": [min, max] }` to a planet's `structures`.
+  Structures are placed in list order, so put important ones first; the
+  minimum count is always met (if the biome and spacing rules leave no room,
+  they're relaxed).
 
 ### Add a world/planet type
 - **Another planet:** a new `worldGen` JSON with `"generator": "planet"` and its own biomes and structures.
@@ -348,6 +383,17 @@ generated tile.
   and call `registerGenerator()`. Generation must be a pure function of
   `(seed, chunk coords, params)`. Bump `version` whenever the output for a seed
   changes. Worlds record the generator version they were created with.
+
+### Add a room, an interior or a way in
+- **Room:** a def in `content/base/rooms/`: draw it with theme slots
+  (`$wall`, `$floor`…), put `D` sockets on the outer walls (at least one, never
+  on a corner), tag it, then let an interior's `rooms` pool pick it up by tag
+  or id.
+- **Interior:** a `worldGen` JSON with `"generator": "interior"`: a `theme`
+  (a tile for every slot), a `start` room holding a `"@return"` portal, room
+  pools, a room `count` and `loops`.
+- **Way in:** a legend cell with a `portal` in a planet structure (or another
+  room), pointing at the interior's id.
 
 ### Add a new kind of content (weapons, armor, factions, station chunks…)
 1. `src/content/types/<kind>.ts`: a schema (`v.object({...})`), a `crossCheck` for

@@ -306,5 +306,223 @@
         }
       ]
     }
+  },
+  {
+    "type": "sound",
+    "id": "amb_lab",
+    "bus": "ambient",
+    "range": 0,
+    "volume": 0.35,
+    "synth": {
+      "loop": true,
+      "layers": [
+        {
+          "wave": "sine",
+          "freq": [
+            60,
+            60
+          ],
+          "length": 10,
+          "curve": 0,
+          "gain": 0.4,
+          "lfo": [
+            0.2,
+            0.3
+          ]
+        },
+        {
+          "wave": "saw",
+          "freq": [
+            120,
+            120
+          ],
+          "length": 10,
+          "curve": 0,
+          "gain": 0.06,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              500,
+              500
+            ]
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            1800,
+            900
+          ],
+          "start": 1.3,
+          "length": 0.08,
+          "curve": 3,
+          "gain": 0.25
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            1700,
+            850
+          ],
+          "start": 4.9,
+          "length": 0.08,
+          "curve": 3,
+          "gain": 0.2
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            1900,
+            950
+          ],
+          "start": 7.6,
+          "length": 0.08,
+          "curve": 3,
+          "gain": 0.22
+        },
+        {
+          "wave": "crackle",
+          "freq": [
+            3,
+            3
+          ],
+          "length": 10,
+          "curve": 0,
+          "gain": 0.3,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              3000,
+              3000
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "sound",
+    "id": "amb_ship",
+    "bus": "ambient",
+    "range": 0,
+    "volume": 0.4,
+    "synth": {
+      "loop": true,
+      "layers": [
+        {
+          "wave": "brown",
+          "length": 12,
+          "curve": 0,
+          "gain": 0.6,
+          "lfo": [
+            0.12,
+            0.5
+          ],
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              250,
+              250
+            ]
+          }
+        },
+        {
+          "wave": "saw",
+          "freq": [
+            48,
+            46
+          ],
+          "start": 3.0,
+          "length": 1.6,
+          "attack": 0.4,
+          "curve": 1.2,
+          "gain": 0.15,
+          "lfo": [
+            9,
+            0.6
+          ],
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              600,
+              300
+            ]
+          }
+        },
+        {
+          "wave": "saw",
+          "freq": [
+            52,
+            50
+          ],
+          "start": 8.5,
+          "length": 1.2,
+          "attack": 0.3,
+          "curve": 1.2,
+          "gain": 0.12,
+          "lfo": [
+            11,
+            0.6
+          ],
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              500,
+              300
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "type": "sound",
+    "id": "amb_station",
+    "bus": "ambient",
+    "range": 0,
+    "volume": 0.3,
+    "synth": {
+      "loop": true,
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 10,
+          "curve": 0,
+          "gain": 0.3,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              700,
+              700
+            ],
+            "q": 0.6
+          }
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            100,
+            100
+          ],
+          "length": 10,
+          "curve": 0,
+          "gain": 0.25,
+          "lfo": [
+            0.1,
+            0.2
+          ]
+        },
+        {
+          "wave": "sine",
+          "freq": [
+            200,
+            200
+          ],
+          "length": 10,
+          "curve": 0,
+          "gain": 0.08
+        }
+      ]
+    }
   }
 ]

@@ -45,6 +45,7 @@ export const SOUND_CUES = [
   'bolt_throw',
   'bolt_land',
   'detector_beep',
+  'portal',
 ] as const;
 export type SoundCue = (typeof SOUND_CUES)[number];
 

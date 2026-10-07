@@ -544,6 +544,109 @@ function brick(t: Tex, rng: Rng, front: boolean, mortar: Ramp): void {
   }
 }
 
+/** Ceramic floor tiles: 8px squares with grout, the odd stain and cracked tile. */
+function floorTiles(t: Tex, rng: Rng, variant: number): void {
+  t.fill(3);
+  for (let ty = 0; ty < S; ty += 8) {
+    for (let tx = 0; tx < S; tx += 8) {
+      const tone = rng.chance(0.25) ? 4 : rng.chance(0.15) ? 2 : 3;
+      for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+          const gx = tx + x;
+          const gy = ty + y;
+          if (x === 7 || y === 7) t.tone(gx, gy, 1);
+          else if (x === 0 || y === 0) t.tone(gx, gy, Math.min(4, tone + 1));
+          else t.tone(gx, gy, tone);
+        }
+      }
+    }
+  }
+  if (variant === 2) for (let i = 0; i < 9; i++) t.tone(18 + i, 10 + Math.round(i * 0.6), 1);
+  if (variant === 3) {
+    const m = mottle(rng, 2, 3, 5);
+    for (let i = 0; i < S * S; i++) if (m[i]! < 0.3) t.tone(i % S, Math.floor(i / S), 2);
+  }
+}
+
+/** A doorway: worn deck plate with a threshold seam and painted corner brackets. */
+function doorway(t: Tex, accent: Ramp): void {
+  t.fill(3);
+  for (let i = 0; i < S; i++) {
+    t.tone(i, 0, 1);
+    t.tone(i, S - 1, 1);
+    t.tone(0, i, 1);
+    t.tone(S - 1, i, 1);
+    t.tone(i, 15, 2);
+    t.tone(i, 16, 4);
+  }
+  for (const [x, y, dx, dy] of [
+    [2, 2, 1, 1],
+    [S - 3, 2, -1, 1],
+    [2, S - 3, 1, -1],
+    [S - 3, S - 3, -1, -1],
+  ] as const) {
+    for (let k = 0; k < 6; k++) {
+      t.tone(x + dx * k, y, 3, accent);
+      t.tone(x, y + dy * k, 3, accent);
+    }
+  }
+}
+
+/** Open space: near-black with a scatter of stars (a few bright, one coloured). */
+function space(t: Tex, rng: Rng, accent: Ramp): void {
+  t.fill(1);
+  const m = mottle(rng, 3, 6, 12);
+  for (let i = 0; i < S * S; i++) if (m[i]! > 0.68) t.tone(i % S, Math.floor(i / S), 2);
+  for (let i = 0; i < 7; i++) t.tone(rng.int(0, S - 1), rng.int(0, S - 1), rng.chance(0.6) ? 3 : 4, accent);
+  if (rng.chance(0.5)) {
+    const x = rng.int(2, S - 3);
+    const y = rng.int(2, S - 3);
+    t.tone(x, y, 4, accent);
+    t.tone(x - 1, y, 2, accent);
+    t.tone(x + 1, y, 2, accent);
+    t.tone(x, y - 1, 2, accent);
+    t.tone(x, y + 1, 2, accent);
+  }
+}
+
+/** A viewport: a heavy frame; the glass shows stars. With floor below, a tall pane of glass. */
+function viewport(t: Tex, rng: Rng, front: boolean, glass: Ramp): void {
+  t.fill(2);
+  for (let i = 0; i < S; i++) {
+    t.tone(i, 0, 4);
+    t.tone(i, S - 1, 0);
+  }
+  const pane = (x0: number, y0: number, x1: number, y1: number) => {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) t.pc.set(x, y, glass[(x + y) % 11 === 0 ? 2 : 0]!);
+    for (let i = 0; i < 3; i++) t.pc.set(rng.int(x0, x1), rng.int(y0, y1), glass[4]!);
+    for (let x = x0; x <= x1; x++) t.pc.set(x, y0, glass[1]!);
+  };
+  pane(4, 4, S - 5, front ? 9 : S - 5);
+  if (!front) return;
+  const face = 18;
+  const top = S - face;
+  for (let y = top; y < S; y++) for (let x = 0; x < S; x++) t.pc.set(x, y, t.ramp[x < 3 || x > S - 4 ? 1 : 2]!);
+  pane(3, top + 2, S - 4, S - 3);
+  for (let x = 0; x < S; x++) t.pc.set(x, top, t.ramp[4]!);
+}
+
+/** A round hatch in the floor: rim, lid with a cross of braces, a painted handle. */
+function hatch(t: Tex, accent: Ramp): void {
+  t.fill(3);
+  const c = S / 2 - 0.5;
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const d = Math.hypot(x - c, y - c);
+      if (d < 13 && d >= 11.5) t.tone(x, y, x + y < S ? 4 : 1);
+      else if (d < 11.5) t.tone(x, y, (x === Math.round(c) || y === Math.round(c)) && d < 10 ? 2 : d > 10 ? 1 : 3);
+    }
+  }
+  for (let x = 12; x < 20; x++) {
+    t.tone(x, 9, 4, accent);
+    t.tone(x, 10, 2, accent);
+  }
+}
+
 export function generateTile(def: TileDef, variant: number, front: boolean): PixelCanvas {
   const ramp = buildRamp(def.placeholder.color);
   const accent = def.placeholder.accent ? buildRamp(def.placeholder.accent) : ramp;
@@ -600,6 +703,21 @@ export function generateTile(def: TileDef, variant: number, front: boolean): Pix
       break;
     case 'brick':
       brick(t, rng, front, accent);
+      break;
+    case 'tiles':
+      floorTiles(t, rng, variant);
+      break;
+    case 'door':
+      doorway(t, accent);
+      break;
+    case 'space':
+      space(t, rng, accent);
+      break;
+    case 'window':
+      viewport(t, rng, front, accent);
+      break;
+    case 'hatch':
+      hatch(t, accent);
       break;
   }
   return t.pc;

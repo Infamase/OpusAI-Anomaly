@@ -409,5 +409,177 @@
       "-----------",
       "-----E-----"
     ]
+  },
+  {
+    "type": "structure",
+    "id": "research_bunker",
+    "name": "Research Bunker",
+    "label": "Research Bunker",
+    "camp": {
+      "faction": "military",
+      "templates": [
+        "military_rifleman",
+        "military_rifleman",
+        "military_marksman"
+      ],
+      "behavior": "guard",
+      "radius": 8,
+      "chance": 0.7
+    },
+    "legend": {
+      "%": "concrete_wall",
+      "_": "concrete",
+      "=": "hazard_floor",
+      "-": {
+        "clear": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "@": {
+        "tile": "concrete",
+        "camp": true
+      },
+      "P": {
+        "tile": "hatch",
+        "portal": {
+          "world": "underground_lab",
+          "label": "Climb down into the lab"
+        }
+      },
+      "K": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "military_crate",
+          "variant": "military"
+        }
+      },
+      "r": "rubble"
+    },
+    "map": [
+      "--------------",
+      "-%%%%%%%%%%%%-",
+      "-%____%_____%-",
+      "-%_K__%_===_%-",
+      "-%____%_=P=_%-",
+      "-%%__%%_===_%-",
+      "-%__________%-",
+      "-%____@_____%-",
+      "-%%%%%__%%%%%-",
+      "--r-----------",
+      "------E-------"
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "crashed_freighter",
+    "name": "Crashed Freighter",
+    "label": "Crashed Freighter",
+    "decay": 0.12,
+    "rubble": "rubble",
+    "legend": {
+      "H": "hull_wall",
+      "_": "metal_floor",
+      "#": "metal_grate",
+      "-": {
+        "clear": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "r": "rubble",
+      "P": {
+        "tile": "door_floor",
+        "portal": {
+          "world": "derelict_freighter",
+          "label": "Climb into the wreck"
+        }
+      },
+      "k": {
+        "tile": "metal_floor",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      }
+    },
+    "map": [
+      "  ------------------------  ",
+      " -----rr------------------- ",
+      "---HHHHHHHHHHHHHHHHHHHH-----",
+      "--HH__________________HHH---",
+      "-HH___####____####______HH--",
+      "-HH___####____####__k___HH--",
+      "--HH__________________HHH---",
+      "---HHHHHHHHHPHHHHHHHHHH--r--",
+      "-------r---------------r----",
+      " ----------E--------------- "
+    ]
+  },
+  {
+    "type": "structure",
+    "id": "launch_site",
+    "name": "Launch Site",
+    "label": "Launch Site",
+    "camp": {
+      "faction": "loners",
+      "templates": [
+        "loner_veteran",
+        "loner_rookie"
+      ],
+      "behavior": "guard",
+      "radius": 7
+    },
+    "legend": {
+      "%": "concrete_wall",
+      "_": "concrete",
+      "=": "hazard_floor",
+      "H": "hull_wall",
+      "m": "metal_floor",
+      "-": {
+        "clear": true
+      },
+      "E": {
+        "clear": true,
+        "entrance": true
+      },
+      "@": {
+        "tile": "concrete",
+        "camp": true
+      },
+      "P": {
+        "tile": "hatch",
+        "portal": {
+          "world": "orbital_station",
+          "label": "Board the shuttle"
+        }
+      },
+      "k": {
+        "tile": "concrete",
+        "crate": {
+          "lootTable": "supply_crate",
+          "variant": "supply"
+        }
+      }
+    },
+    "map": [
+      "--------------------",
+      "-==================-",
+      "-=________________=-",
+      "-=_____HHHHHH_____=-",
+      "-=____HHmmmmHH____=-",
+      "-=____HmmmmmmH____=-",
+      "-=____HHmmmmHH____=-",
+      "-=_____HHHPHH_____=-",
+      "-=________________=-",
+      "-==================-",
+      "--------------------",
+      "--%%%%--------------",
+      "--%k_%---@----------",
+      "--%__%--------------",
+      "---------E----------"
+    ]
   }
 ]

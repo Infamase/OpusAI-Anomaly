@@ -46,6 +46,22 @@ describe('planet generation', () => {
     expect(differs).toBe(true);
   });
 
+  it('finishes quickly on seeds whose roads once sent the search into an endless loop', () => {
+    for (const seed of [213813, 261327]) {
+      const t0 = performance.now();
+      const { plan } = planet(seed);
+      expect(plan.roads.length).toBeGreaterThan(0);
+      expect(performance.now() - t0).toBeLessThan(3000);
+    }
+  });
+
+  it('always places a structure its minimum count promises', () => {
+    for (const seed of [11, 213813, 229651, 467221]) {
+      const ids = new Set(planet(seed).plan.placed.map((q) => q.s.def.id));
+      for (const id of ['research_bunker', 'crashed_freighter', 'launch_site']) expect(ids.has(id), `${id} (seed ${seed})`).toBe(true);
+    }
+  });
+
   it('places the start near the middle and every structure on solid ground', () => {
     for (const seed of [1, 77, 31337]) {
       const { plan, map } = planet(seed);

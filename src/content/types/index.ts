@@ -10,6 +10,7 @@ import { factionType } from './faction';
 import { npcTemplateType } from './npcTemplate';
 import { lootTableType } from './lootTable';
 import { raceType } from './race';
+import { roomType } from './room';
 import { soundType } from './sound';
 import { spriteLayoutType } from './spriteLayout';
 import { statType } from './stat';
@@ -41,6 +42,7 @@ export function defineCoreContentTypes(registry: ContentRegistry): void {
   registry.defineType(tileType);
   registry.defineType(biomeType);
   registry.defineType(structureType);
+  registry.defineType(roomType);
   registry.defineType(worldGenType);
 }
 
@@ -56,6 +58,7 @@ export type { FactionDef } from './faction';
 export type { NpcTemplateDef } from './npcTemplate';
 export type { LootTableDef } from './lootTable';
 export type { RaceDef } from './race';
+export type { RoomDef } from './room';
 export type { SoundDef } from './sound';
 export type { SpriteLayoutDef } from './spriteLayout';
 export type { TileDef } from './tile';

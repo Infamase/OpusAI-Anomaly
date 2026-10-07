@@ -1,0 +1,80 @@
+[
+  {
+    "type": "sound",
+    "id": "hatch_clank",
+    "cue": "portal",
+    "bus": "ui",
+    "range": 0,
+    "volume": 0.7,
+    "pitchJitter": 0.06,
+    "variants": 2,
+    "synth": {
+      "layers": [
+        {
+          "wave": "noise",
+          "length": 0.09,
+          "attack": 0.002,
+          "curve": 3,
+          "gain": 0.9,
+          "filter": {
+            "type": "bandpass",
+            "freq": [
+              900,
+              500
+            ],
+            "q": 1.5
+          }
+        },
+        {
+          "wave": "square",
+          "freq": [
+            95,
+            70
+          ],
+          "length": 0.22,
+          "attack": 0.002,
+          "curve": 3,
+          "gain": 0.5,
+          "filter": {
+            "type": "lowpass",
+            "freq": [
+              700,
+              300
+            ]
+          }
+        },
+        {
+          "wave": "noise",
+          "start": 0.12,
+          "length": 0.55,
+          "attack": 0.08,
+          "curve": 1.5,
+          "gain": 0.35,
+          "filter": {
+            "type": "highpass",
+            "freq": [
+              2500,
+              1200
+            ]
+          }
+        },
+        {
+          "wave": "triangle",
+          "freq": [
+            220,
+            180
+          ],
+          "start": 0.05,
+          "length": 0.3,
+          "curve": 4,
+          "gain": 0.25
+        }
+      ],
+      "echo": {
+        "delay": 0.09,
+        "feedback": 0.3,
+        "mix": 0.25
+      }
+    }
+  }
+]

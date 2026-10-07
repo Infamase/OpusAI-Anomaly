@@ -1,0 +1,14 @@
+[
+  { "type": "tile", "id": "lab_tiles", "name": "Lab Tiles", "solid": false, "sounds": { "step": "step_hard" }, "placeholder": { "style": "tiles", "color": "#9a9a8e" } },
+  { "type": "tile", "id": "station_floor", "name": "Station Deck", "solid": false, "sounds": { "step": "step_metal", "impact": "impact_metal" }, "placeholder": { "style": "plate", "color": "#5e6872" } },
+  { "type": "tile", "id": "door_floor", "name": "Doorway", "solid": false, "sounds": { "step": "step_metal", "impact": "impact_metal" }, "placeholder": { "style": "door", "color": "#5a5a54", "accent": "#c8a030" } },
+  { "type": "tile", "id": "hatch", "name": "Hatch", "solid": false, "sounds": { "step": "step_metal", "impact": "impact_metal" }, "placeholder": { "style": "hatch", "color": "#5a5a52", "accent": "#d0a830" } },
+  { "type": "tile", "id": "lab_wall", "name": "Lab Wall", "solid": true, "opaque": true, "sounds": { "impact": "impact_rock" }, "placeholder": { "style": "wall", "color": "#8a8a80", "accent": "#d0b040" } },
+  { "type": "tile", "id": "hull_wall", "name": "Hull", "solid": true, "opaque": true, "sounds": { "impact": "impact_metal" }, "placeholder": { "style": "wall", "color": "#4a5256", "accent": "#c06a30" } },
+  { "type": "tile", "id": "station_wall", "name": "Station Wall", "solid": true, "opaque": true, "sounds": { "impact": "impact_metal" }, "placeholder": { "style": "wall", "color": "#66707c", "accent": "#4ab0d8" } },
+  { "type": "tile", "id": "window_wall", "name": "Viewport", "solid": true, "sounds": { "impact": "impact_metal" }, "placeholder": { "style": "window", "color": "#4a5256", "accent": "#6aa8c8" } },
+  { "type": "tile", "id": "space", "name": "Space", "solid": true, "low": true, "placeholder": { "style": "space", "color": "#0a0c14", "accent": "#c8d8ff" } },
+  { "type": "tile", "id": "console", "name": "Console", "solid": true, "prop": "console", "sounds": { "impact": "impact_metal" }, "placeholder": { "style": "plate", "color": "#5e6872" } },
+  { "type": "tile", "id": "machine", "name": "Machinery", "solid": true, "opaque": true, "prop": "machine", "sounds": { "impact": "impact_metal" }, "placeholder": { "style": "plate", "color": "#5e6872" } },
+  { "type": "tile", "id": "bunk", "name": "Bunk", "solid": true, "prop": "bunk", "sounds": { "impact": "impact_dirt" }, "placeholder": { "style": "plate", "color": "#5e6872" } }
+]

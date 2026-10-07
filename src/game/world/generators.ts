@@ -45,6 +45,17 @@ export interface CampSpawn {
   waypoints: { x: number; y: number }[];
 }
 
+/** A way to another world (a hatch, a ladder, a shuttle). World pixels. */
+export interface PortalSpawn {
+  /** Stable id: arrivals from elsewhere use it to find where to appear. */
+  id: string;
+  x: number;
+  y: number;
+  /** worldGen id, or "@return" for back to where the player came from. */
+  world: string;
+  label: string;
+}
+
 /** A named place, for the map. Tile coordinates (center) and size. */
 export interface Landmark {
   id: string;
@@ -74,6 +85,10 @@ export interface WorldGenerator<P = unknown> {
   population?(seed: number, params: P, widthTiles: number, heightTiles: number, walkable: (tx: number, ty: number) => boolean): CampSpawn[];
   /** Named places, for the map. */
   landmarks?(seed: number, params: P, widthTiles: number, heightTiles: number): Landmark[];
+  /** Ways to other worlds. */
+  portals?(seed: number, params: P, widthTiles: number, heightTiles: number): PortalSpawn[];
+  /** A name for the area at a tile (a room in a station), for the HUD. */
+  areaAt?(seed: number, params: P, widthTiles: number, heightTiles: number, tx: number, ty: number): string | undefined;
   /** The biome at a tile, if this world has biomes (ambience, map). */
   biomeAt?(seed: number, params: P, widthTiles: number, heightTiles: number, tx: number, ty: number): BiomeDef;
   /** Where the player appears on arrival, in tile coordinates. */

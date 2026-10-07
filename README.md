@@ -22,6 +22,14 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > squad. Dead NPCs stay dead and their bodies keep their loot. Five weapons,
 > six ammo types, a weight-limited backpack, saves you can move between PCs.
 >
+> **Interiors:** a research bunker hatch leads down into Lab X-16, a crashed
+> freighter can be searched deck by deck, and a shuttle at the launch site
+> docks with an orbital station. Each is assembled from hand-drawn rooms
+> (corridors, labs, containment cells, cargo holds, an engine room, a
+> bridge, hydroponics, observation decks) into a new layout per world, with
+> crates, anomalies and the odd camp inside. Press E at a hatch or door to go
+> in; the way back out leads to the door you came in by.
+>
 > **Sound:** every sound is synthesized from recipes in content files
 > (gunshots per weapon, footsteps per surface, impacts, pain and death per
 > race, reloads, radio chatter, UI, wind and the hum of the Zone), positioned

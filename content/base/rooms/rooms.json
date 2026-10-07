@@ -1,0 +1,863 @@
+[
+ {
+  "type": "room",
+  "id": "corr_short",
+  "name": "Corridor",
+  "tags": [
+   "corridor"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   }
+  },
+  "map": [
+   "#D#",
+   "#.#",
+   "#.#",
+   "#.#",
+   "#D#"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "corr_long",
+  "name": "Corridor",
+  "tags": [
+   "corridor"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   }
+  },
+  "map": [
+   "#D#",
+   "#.#",
+   "#.#",
+   "#.#",
+   "#.#",
+   "#.#",
+   "#.#",
+   "#.#",
+   "#D#"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "corr_wide",
+  "name": "Hall",
+  "tags": [
+   "corridor"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   }
+  },
+  "map": [
+   "##D##",
+   "#...#",
+   "#...#",
+   "D...D",
+   "#...#",
+   "#...#",
+   "#...#",
+   "D...D",
+   "#...#",
+   "#...#",
+   "##D##"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "corr_corner",
+  "name": "Corridor",
+  "tags": [
+   "corridor"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   }
+  },
+  "map": [
+   "#D###",
+   "#...#",
+   "#...D",
+   "#...#",
+   "#####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "corr_tee",
+  "name": "Junction",
+  "tags": [
+   "corridor"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   }
+  },
+  "map": [
+   "##D##",
+   "#...#",
+   "D...D",
+   "#...#",
+   "#####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "corr_cross",
+  "name": "Junction",
+  "tags": [
+   "corridor"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "=": "$accent",
+   "D": {
+    "door": true
+   }
+  },
+  "map": [
+   "##D##",
+   "#...#",
+   "D.=.D",
+   "#...#",
+   "##D##"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "storage",
+  "name": "Storage",
+  "tags": [
+   "storage"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "D": {
+    "door": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   }
+  },
+  "map": [
+   "###D###",
+   "#c...c#",
+   "#.....#",
+   "D..,..D",
+   "#.....#",
+   "#c..c.#",
+   "#######"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "quarters",
+  "name": "Crew Quarters",
+  "tags": [
+   "quarters"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   },
+   "b": "bunk",
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   }
+  },
+  "map": [
+   "####D####",
+   "#b.....b#",
+   "#b.....b#",
+   "#.......D",
+   "#b.....b#",
+   "#b..c..b#",
+   "#########"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "medbay",
+  "name": "Medbay",
+  "tags": [
+   "medbay"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "=": "$accent",
+   "D": {
+    "door": true
+   },
+   "b": "bunk",
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   }
+  },
+  "map": [
+   "###D####",
+   "#b....b#",
+   "#......#",
+   "D..==..#",
+   "#......#",
+   "#b..c.b#",
+   "########"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "reactor",
+  "name": "Reactor Room",
+  "tags": [
+   "reactor",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "R": {
+    "tile": "$floor",
+    "anomaly": "hot_spot"
+   },
+   "m": "machine"
+  },
+  "map": [
+   "#####D#####",
+   "#.........#",
+   "#.mm,,,mm.#",
+   "#.mm,R,mm.#",
+   "D..,,,,,..D",
+   "#.mm,,,mm.#",
+   "#.mm...mm.#",
+   "#....C....#",
+   "#####D#####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "control",
+  "name": "Control Room",
+  "tags": [
+   "control",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "@": {
+    "tile": "$floor",
+    "camp": true
+   },
+   "D": {
+    "door": true
+   },
+   "k": "console",
+   "w": "$window"
+  },
+  "map": [
+   "##wwwww##",
+   "#kkk.kkk#",
+   "#.......#",
+   "#..k.k..#",
+   "D...@...D",
+   "#.......#",
+   "####D####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "lab_entrance",
+  "name": "Lab Entrance",
+  "tags": [
+   "entrance"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "D": {
+    "door": true
+   },
+   "P": {
+    "tile": "hatch",
+    "portal": {
+     "world": "@return",
+     "label": "Climb out"
+    }
+   },
+   "S": {
+    "tile": "$floor",
+    "spawn": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   }
+  },
+  "map": [
+   "#######",
+   "#.,P,.#",
+   "#..S..#",
+   "#.....#",
+   "D..c..D",
+   "#.....#",
+   "###D###"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "lab_room",
+  "name": "Laboratory",
+  "tags": [
+   "lab"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "=": "$accent",
+   "D": {
+    "door": true
+   },
+   "k": "console"
+  },
+  "map": [
+   "###D#####",
+   "#kk...kk#",
+   "#.......#",
+   "D..===..D",
+   "#..=,=..#",
+   "#..===..#",
+   "#k.....k#",
+   "#####D###"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "lab_anomaly",
+  "name": "Containment",
+  "tags": [
+   "containment",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "E": {
+    "tile": "$floor2",
+    "anomaly": "electro"
+   }
+  },
+  "map": [
+   "####D####",
+   "#.......#",
+   "#.#####.#",
+   "#.#,,,#.#",
+   "D.#,E,..D",
+   "#.#,,,#.#",
+   "#.#####.#",
+   "#...C...#",
+   "#########"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "lab_vortex",
+  "name": "Gravity Chamber",
+  "tags": [
+   "containment",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "V": {
+    "tile": "$floor2",
+    "anomaly": "vortex"
+   }
+  },
+  "map": [
+   "#####D#####",
+   "#.........#",
+   "#.,,,,,,,.#",
+   "#.,,,,,,,.#",
+   "D.,,,V,,,.D",
+   "#.,,,,,,,.#",
+   "#.,,,,,,,.#",
+   "#....C....#",
+   "###########"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "lab_security",
+  "name": "Security Post",
+  "tags": [
+   "security"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "@": {
+    "tile": "$floor",
+    "camp": true
+   },
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   },
+   "k": "console"
+  },
+  "map": [
+   "###D###",
+   "#k...k#",
+   "#..@..#",
+   "D.....D",
+   "#C...c#",
+   "#######"
+  ],
+  "camp": {
+   "faction": "military",
+   "templates": [
+    "military_rifleman",
+    "military_rifleman",
+    "military_marksman"
+   ],
+   "radius": 4,
+   "chance": 0.6
+  }
+ },
+ {
+  "type": "room",
+  "id": "lab_acid",
+  "name": "Flooded Lab",
+  "tags": [
+   "lab"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "A": {
+    "tile": "$floor",
+    "anomaly": "acid_pool"
+   },
+   "D": {
+    "door": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   },
+   "k": "console"
+  },
+  "map": [
+   "####D####",
+   "#k.....k#",
+   "#..AAA..#",
+   "D.......D",
+   "#k..c..k#",
+   "####D####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "ship_airlock",
+  "name": "Airlock",
+  "tags": [
+   "entrance"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "=": "$accent",
+   "D": {
+    "door": true
+   },
+   "P": {
+    "tile": "hatch",
+    "portal": {
+     "world": "@return",
+     "label": "Leave the ship"
+    }
+   },
+   "S": {
+    "tile": "$floor",
+    "spawn": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   },
+   "w": "$window"
+  },
+  "map": [
+   "###w###",
+   "#=,P,=#",
+   "#==S==#",
+   "#.....#",
+   "D..c..D",
+   "###D###"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "ship_cargo",
+  "name": "Cargo Hold",
+  "tags": [
+   "cargo"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "@": {
+    "tile": "$floor",
+    "camp": true
+   },
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   }
+  },
+  "map": [
+   "#####D#####",
+   "#c.c...C.c#",
+   "#.........#",
+   "D..,,,,,..D",
+   "#..,@,,,..#",
+   "#.........#",
+   "#c...c..c.#",
+   "#####D#####"
+  ],
+  "camp": {
+   "faction": "bandits",
+   "templates": [
+    "bandit_thug",
+    "bandit_gunner",
+    "bandit_thug"
+   ],
+   "radius": 4,
+   "chance": 0.5
+  }
+ },
+ {
+  "type": "room",
+  "id": "ship_engine",
+  "name": "Engine Room",
+  "tags": [
+   "engine",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "B": {
+    "tile": "$floor2",
+    "anomaly": "burner"
+   },
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "m": "machine"
+  },
+  "map": [
+   "####D####",
+   "#mm...mm#",
+   "#mm,,,mm#",
+   "D..,B,..D",
+   "#mm,,,mm#",
+   "#mm.C.mm#",
+   "#########"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "ship_bridge",
+  "name": "Bridge",
+  "tags": [
+   "bridge",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "C": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "military_crate",
+     "variant": "military"
+    }
+   },
+   "D": {
+    "door": true
+   },
+   "k": "console",
+   "w": "$window"
+  },
+  "map": [
+   "#wwwwwww#",
+   "#kk...kk#",
+   "#.......#",
+   "#..k.k..#",
+   "#...C...#",
+   "####D####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "station_dock",
+  "name": "Docking Bay",
+  "tags": [
+   "entrance"
+  ],
+  "legend": {
+   "#": "$wall",
+   ",": "$floor2",
+   ".": "$floor",
+   "=": "$accent",
+   "D": {
+    "door": true
+   },
+   "P": {
+    "tile": "hatch",
+    "portal": {
+     "world": "@return",
+     "label": "Board the shuttle"
+    }
+   },
+   "S": {
+    "tile": "$floor",
+    "spawn": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   },
+   "w": "$window"
+  },
+  "map": [
+   "##wwwww##",
+   "#=,,P,,=#",
+   "#=,,S,,=#",
+   "#.......#",
+   "D...c...D",
+   "####D####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "station_hub",
+  "name": "Station Hub",
+  "tags": [
+   "hub",
+   "landmark"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "=": "$accent",
+   "@": {
+    "tile": "$floor",
+    "camp": true
+   },
+   "D": {
+    "door": true
+   },
+   "c": {
+    "tile": "$floor",
+    "crate": {
+     "lootTable": "supply_crate",
+     "variant": "supply"
+    }
+   },
+   "k": "console"
+  },
+  "map": [
+   "######D######",
+   "#k.........k#",
+   "#...........#",
+   "#...=====...#",
+   "D...=.@.=...D",
+   "#...=====...#",
+   "#...........#",
+   "#c.........c#",
+   "######D######"
+  ],
+  "camp": {
+   "faction": "loners",
+   "templates": [
+    "loner_veteran",
+    "loner_rookie",
+    "loner_rookie"
+   ],
+   "radius": 5,
+   "chance": 1
+  }
+ },
+ {
+  "type": "room",
+  "id": "hydroponics",
+  "name": "Hydroponics",
+  "tags": [
+   "hydroponics"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   },
+   "g": "grass",
+   "o": "moss",
+   "~": "water_shallow"
+  },
+  "map": [
+   "#####D#####",
+   "#gg.ooo.gg#",
+   "#gg.ooo.gg#",
+   "D....~....D",
+   "#gg.ooo.gg#",
+   "#gg.ooo.gg#",
+   "#####D#####"
+  ]
+ },
+ {
+  "type": "room",
+  "id": "observation",
+  "name": "Observation Deck",
+  "tags": [
+   "observation"
+  ],
+  "legend": {
+   "#": "$wall",
+   ".": "$floor",
+   "D": {
+    "door": true
+   },
+   "k": "console",
+   "w": "$window"
+  },
+  "map": [
+   "#wwwwwww#",
+   "w.......w",
+   "w..k.k..w",
+   "#.......#",
+   "####D####"
+  ]
+ }
+]
