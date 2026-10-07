@@ -87,6 +87,13 @@ export class Rig {
   private toneMarks = new Map<number, number>();
   readonly parts: PartOptions[] = [];
   readonly ramps: Ramp[] = [];
+  private scratch: Float32Array | null = null;
+  /** Bounding box of everything painted so far (finish() only looks there). */
+  private bx0 = Infinity;
+  private by0 = Infinity;
+  private bx1 = -Infinity;
+  private by1 = -Infinity;
+  private scratchReg: Uint8Array | null = null;
 
   /** Results of finish(). */
   tone: Int8Array | null = null;
@@ -131,6 +138,7 @@ export class Rig {
     for (const p of pixels) {
       const i = this.idx(p.x, p.y);
       if (i < 0) continue;
+      this.grow(p.x, p.y, p.x, p.y);
       this.part[i] = index;
       this.regions[i] = p.region;
       this.rampOf[i] = ramp;
@@ -148,8 +156,11 @@ export class Rig {
   add(opts: PartOptions, shapes: Shape[]): number {
     const W = this.width;
     const H = this.height_;
-    const hm = new Float32Array(W * H).fill(-Infinity);
-    const reg = new Uint8Array(W * H);
+    // Scratch height field, kept at -Infinity between calls (only the touched box is reset).
+    this.scratch ??= new Float32Array(W * H).fill(-Infinity);
+    this.scratchReg ??= new Uint8Array(W * H);
+    const hm = this.scratch;
+    const reg = this.scratchReg;
     let x0 = W;
     let y0 = H;
     let x1 = -1;
@@ -170,6 +181,7 @@ export class Rig {
     }
     const index = this.parts.length;
     this.parts.push(opts);
+    this.grow(x0, y0, x1, y1);
     const ramp = this.rampIndex(opts.ramp);
     const relief = opts.relief ?? 1;
     const at = (x: number, y: number, fallback: number) => {
@@ -197,7 +209,29 @@ export class Rig {
         this.toneMarks.delete(i);
       }
     }
+    for (let y = y0; y <= y1; y++) hm.fill(-Infinity, y * W + x0, y * W + x1 + 1);
     return index;
+  }
+
+  private grow(x0: number, y0: number, x1: number, y1: number): void {
+    if (x0 < this.bx0) this.bx0 = x0;
+    if (y0 < this.by0) this.by0 = y0;
+    if (x1 > this.bx1) this.bx1 = x1;
+    if (y1 > this.by1) this.by1 = y1;
+  }
+
+  /** Clears everything painted so the rig can be reused for another frame. */
+  reset(): void {
+    this.bx0 = this.by0 = Infinity;
+    this.bx1 = this.by1 = -Infinity;
+    this.part.fill(EMPTY);
+    this.rampOf.fill(EMPTY);
+    this.fixed.clear();
+    this.toneMarks.clear();
+    this.parts.length = 0;
+    this.ramps.length = 0;
+    this.tone = null;
+    this.contour = null;
   }
 
   /**
@@ -222,6 +256,7 @@ export class Rig {
   dot(x: number, y: number, c: RGB, region?: number): void {
     const i = this.idx(Math.round(x), Math.round(y));
     if (i < 0) return;
+    this.grow(Math.round(x), Math.round(y), Math.round(x), Math.round(y));
     if (this.part[i] === EMPTY) {
       // Painting onto empty space: attach to the nearest part so outlines work.
       this.part[i] = this.parts.length - 1;
@@ -257,48 +292,54 @@ export class Rig {
   }
 
   /** Lights, outlines and flattens everything into pixels (with region tags). */
-  finish(): PixelCanvas {
+  finish(target?: PixelCanvas): PixelCanvas {
     const W = this.width;
     const H = this.height_;
     const n = W * H;
     const tone = new Int8Array(n).fill(-1);
     const contour = new Uint8Array(n);
+    // Only the painted area (plus a pixel for the outline) needs any work.
+    const X0 = Math.max(0, this.bx0 - 1);
+    const Y0 = Math.max(0, this.by0 - 1);
+    const X1 = Math.min(W - 1, this.bx1 + 1);
+    const Y1 = Math.min(H - 1, this.by1 + 1);
+    const part = this.part;
+    const parts = this.parts;
     // 1. Light.
-    for (let i = 0; i < n; i++) {
-      const p = this.part[i]!;
-      if (p === EMPTY) continue;
-      const d = this.nx[i]! * L.x + this.ny[i]! * L.y + this.nz[i]! * L.z;
-      let t = d > 0.9 ? 4 : d > 0.66 ? 3 : d > 0.36 ? 2 : 1;
-      t += this.parts[p]!.toneShift ?? 0;
-      tone[i] = Math.max(1, Math.min(4, t));
+    for (let y = Y0; y <= Y1; y++) {
+      for (let x = X0, i = y * W + X0; x <= X1; x++, i++) {
+        const p = part[i]!;
+        if (p === EMPTY) continue;
+        const d = this.nx[i]! * L.x + this.ny[i]! * L.y + this.nz[i]! * L.z;
+        let t = d > 0.9 ? 4 : d > 0.66 ? 3 : d > 0.36 ? 2 : 1;
+        t += parts[p]!.toneShift ?? 0;
+        tone[i] = t < 1 ? 1 : t > 4 ? 4 : t;
+      }
     }
     // 2. Cast shadows: a part in front darkens what's just below-right of it.
-    for (let y = 1; y < H; y++) {
-      for (let x = 1; x < W; x++) {
+    const casts = (o: number, p: number) => o !== EMPTY && o > p && parts[o]!.shadow !== false;
+    for (let y = Math.max(1, Y0); y <= Y1; y++) {
+      for (let x = Math.max(1, X0); x <= X1; x++) {
         const i = y * W + x;
-        const p = this.part[i]!;
+        const p = part[i]!;
         if (p === EMPTY) continue;
-        const q = this.part[i - W - 1]!;
-        const q2 = this.part[i - W]!;
-        const casts = (o: number) => o !== EMPTY && o > p && this.parts[o]!.shadow !== false;
-        if (casts(q) || casts(q2)) tone[i] = Math.max(1, tone[i]! - 1);
+        if (casts(part[i - W - 1]!, p) || casts(part[i - W]!, p)) tone[i] = Math.max(1, tone[i]! - 1);
       }
     }
     // 3. Inner contours where a part overlaps one behind it.
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
+    for (let y = Y0; y <= Y1; y++) {
+      for (let x = X0; x <= X1; x++) {
         const i = y * W + x;
-        const p = this.part[i]!;
-        if (p === EMPTY || this.parts[p]!.line === false) continue;
+        const p = part[i]!;
+        if (p === EMPTY || parts[p]!.line === false) continue;
         for (const [dx, dy] of NEIGHBORS) {
-          const j = this.idx(x + dx, y + dy);
-          if (j < 0) continue;
-          const q = this.part[j]!;
-          if (q !== EMPTY && q < p && this.rampOf[j] !== this.rampOf[i]) {
-            contour[i] = 1;
-            break;
-          }
-          if (q !== EMPTY && q < p && this.height[i]! - this.height[j]! > 1.5) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          const j = ny * W + nx;
+          const q = part[j]!;
+          if (q === EMPTY || q >= p) continue;
+          if (this.rampOf[j] !== this.rampOf[i] || this.height[i]! - this.height[j]! > 1.5) {
             contour[i] = 1;
             break;
           }
@@ -306,36 +347,50 @@ export class Rig {
       }
     }
     for (const [i, t] of this.toneMarks) tone[i] = t;
-    for (let i = 0; i < n; i++) if (contour[i]) tone[i] = 0;
+    for (let y = Y0; y <= Y1; y++) for (let i = y * W + X0, e = y * W + X1; i <= e; i++) if (contour[i]) tone[i] = 0;
     this.tone = tone;
     this.contour = contour;
 
     // 4. Flatten, then sel-out silhouette outline.
-    const out = new PixelCanvas(W, H).enableRegions();
-    for (let i = 0; i < n; i++) {
-      if (this.part[i] === EMPTY) continue;
-      const x = i % W;
-      const y = (i / W) | 0;
-      out.region = this.regions[i]!;
-      out.set(x, y, this.fixed.get(i) ?? this.ramps[this.rampOf[i]!]![tone[i]!]!);
+    let out: PixelCanvas;
+    if (target) {
+      out = target;
+      out.data.fill(0);
+      out.regions?.fill(0);
+    } else out = new PixelCanvas(W, H).enableRegions();
+    const data = out.data;
+    const regions = out.regions;
+    const put = (i: number, c: RGB, r: number) => {
+      const k = i * 4;
+      data[k] = c[0];
+      data[k + 1] = c[1];
+      data[k + 2] = c[2];
+      data[k + 3] = 255;
+      if (regions) regions[i] = r;
+    };
+    for (let y = Y0; y <= Y1; y++) {
+      for (let x = X0, i = y * W + X0; x <= X1; x++, i++) {
+        if (part[i] === EMPTY) continue;
+        put(i, this.fixed.get(i) ?? this.ramps[this.rampOf[i]!]![tone[i]!]!, this.regions[i]!);
+      }
     }
-    const marks: [number, number, RGB, number][] = [];
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        if (this.part[y * W + x] !== EMPTY) continue;
+    const marks: [number, RGB, number][] = [];
+    for (let y = Y0; y <= Y1; y++) {
+      for (let x = X0; x <= X1; x++) {
+        if (part[y * W + x] !== EMPTY) continue;
         // Prefer the neighbor below (feet on the ground), then sides, then above.
         for (const [dx, dy] of OUTLINE_ORDER) {
-          const j = this.idx(x + dx, y + dy);
-          if (j < 0 || this.part[j] === EMPTY || this.parts[this.part[j]!]!.outline === false) continue;
-          marks.push([x, y, this.ramps[this.rampOf[j]!]![0], this.regions[j]!]);
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          const j = ny * W + nx;
+          if (part[j] === EMPTY || parts[part[j]!]!.outline === false) continue;
+          marks.push([y * W + x, this.ramps[this.rampOf[j]!]![0], this.regions[j]!]);
           break;
         }
       }
     }
-    for (const [x, y, c, r] of marks) {
-      out.region = r;
-      out.set(x, y, c);
-    }
+    for (const [i, c, r] of marks) put(i, c, r);
     out.region = 0;
     return out;
   }

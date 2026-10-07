@@ -1,0 +1,546 @@
+[
+  {
+    "type": "creature",
+    "id": "loper",
+    "name": "Loper",
+    "family": "fauna",
+    "faction": "fauna",
+    "temperament": "passive",
+    "description": "A six-legged grazer that roams the meadows in herds. Skittish: it bolts at the first gunshot.",
+    "health": 90,
+    "speed": {
+      "walk": 38,
+      "run": 205
+    },
+    "agility": 6,
+    "senses": {
+      "sight": 360,
+      "hearing": 520,
+      "smell": 110
+    },
+    "flee": 1,
+    "activity": "day",
+    "pack": [
+      4,
+      8
+    ],
+    "hitbox": {
+      "w": 20,
+      "h": 9
+    },
+    "body": {
+      "plan": "hexapod",
+      "length": 30,
+      "height": 17,
+      "build": 1.0,
+      "neck": 0.55,
+      "head": 0.8,
+      "snout": 1.2,
+      "legs": 0.65,
+      "tail": 0.35,
+      "tailWidth": 0.8,
+      "ears": "long",
+      "eyes": {
+        "count": 2,
+        "color": "#1a1410"
+      },
+      "colors": {
+        "hide": "#b8a26a",
+        "belly": "#e4d6ae",
+        "accent": "#7a663a"
+      },
+      "pattern": "stripes"
+    },
+    "parts": [
+      {
+        "item": "loper_hide",
+        "chance": 0.9
+      },
+      {
+        "item": "loper_steak",
+        "chance": 0.8,
+        "count": [
+          1,
+          2
+        ]
+      }
+    ],
+    "sounds": {
+      "alert": "loper_bleat",
+      "hurt": "loper_bleat",
+      "death": "loper_death",
+      "idle": "loper_grunt"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "thornback",
+    "name": "Thornback",
+    "family": "fauna",
+    "faction": "fauna",
+    "temperament": "territorial",
+    "description": "A plated, club-tailed herbivore the size of a car. Harmless at a distance; get close and it charges.",
+    "health": 380,
+    "resist": {
+      "ballistic": 0.25,
+      "rupture": 0.3
+    },
+    "speed": {
+      "walk": 30,
+      "run": 175
+    },
+    "agility": 3,
+    "senses": {
+      "sight": 260,
+      "hearing": 360,
+      "smell": 90
+    },
+    "territory": 130,
+    "leash": 380,
+    "flee": 0.15,
+    "activity": "day",
+    "pack": [
+      1,
+      2
+    ],
+    "hitbox": {
+      "w": 32,
+      "h": 12
+    },
+    "attacks": [
+      {
+        "kind": "charge",
+        "damage": 38,
+        "range": 230,
+        "minRange": 60,
+        "windup": 0.9,
+        "cooldown": 6,
+        "knockback": 90
+      },
+      {
+        "kind": "claw",
+        "damage": 18,
+        "range": 42,
+        "windup": 0.45,
+        "cooldown": 1.6,
+        "knockback": 40
+      }
+    ],
+    "body": {
+      "plan": "quadruped",
+      "length": 46,
+      "height": 17,
+      "build": 1.3,
+      "neck": 0.22,
+      "head": 1.05,
+      "snout": 0.75,
+      "legs": 1.35,
+      "tail": 1.0,
+      "tailWidth": 1.6,
+      "slope": -0.12,
+      "eyes": {
+        "count": 2,
+        "color": "#e0c040"
+      },
+      "features": [
+        "plates",
+        "tailClub",
+        "horns"
+      ],
+      "colors": {
+        "hide": "#5c6a4a",
+        "belly": "#8e9878",
+        "accent": "#a65c3a",
+        "bone": "#c8bc9c"
+      },
+      "pattern": "bands"
+    },
+    "parts": [
+      {
+        "item": "thornback_spine",
+        "chance": 0.9,
+        "count": [
+          1,
+          3
+        ]
+      },
+      {
+        "item": "loper_steak",
+        "chance": 0.6,
+        "count": [
+          2,
+          3
+        ]
+      }
+    ],
+    "sounds": {
+      "alert": "thornback_bellow",
+      "attack": "thornback_bellow",
+      "hurt": "thornback_hurt",
+      "death": "thornback_death",
+      "step": "heavy_step"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "skitter",
+    "name": "Skitter",
+    "family": "fauna",
+    "faction": "predators",
+    "temperament": "predator",
+    "description": "A dog-sized insect that hunts in swarms. One is a nuisance; a nest is a death trap.",
+    "health": 18,
+    "speed": {
+      "walk": 55,
+      "run": 150
+    },
+    "agility": 12,
+    "senses": {
+      "sight": 220,
+      "hearing": 380,
+      "smell": 120,
+      "nightVision": true
+    },
+    "leash": 520,
+    "flee": 0,
+    "morale": 0.7,
+    "pack": [
+      5,
+      9
+    ],
+    "hitbox": {
+      "w": 12,
+      "h": 6
+    },
+    "attacks": [
+      {
+        "kind": "bite",
+        "damage": 4,
+        "range": 18,
+        "windup": 0.15,
+        "cooldown": 0.7
+      }
+    ],
+    "body": {
+      "plan": "hexapod",
+      "length": 14,
+      "height": 7,
+      "build": 1.0,
+      "neck": 0,
+      "head": 1.3,
+      "snout": 0,
+      "legs": 0.9,
+      "tail": 0,
+      "eyes": {
+        "count": 4,
+        "color": "#e03a2a",
+        "glow": true
+      },
+      "features": [
+        "mandibles",
+        "carapace",
+        "antennae"
+      ],
+      "colors": {
+        "hide": "#5c4a3c",
+        "accent": "#9a6440",
+        "bone": "#cdb48e"
+      }
+    },
+    "parts": [
+      {
+        "item": "skitter_mandible",
+        "chance": 0.35
+      },
+      {
+        "item": "skitter_chitin",
+        "chance": 0.4
+      }
+    ],
+    "sounds": {
+      "alert": "skitter_chitter",
+      "attack": "skitter_chitter",
+      "hurt": "skitter_hurt",
+      "death": "skitter_death",
+      "idle": "skitter_click"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "prowler",
+    "name": "Prowler",
+    "family": "fauna",
+    "faction": "predators",
+    "temperament": "ambush",
+    "description": "A sleek night hunter with a fan of a frill. It waits in the dark, then pounces.",
+    "health": 150,
+    "resist": {
+      "rupture": 0.1
+    },
+    "speed": {
+      "walk": 55,
+      "run": 215
+    },
+    "agility": 9,
+    "senses": {
+      "sight": 420,
+      "hearing": 520,
+      "smell": 140,
+      "nightVision": true
+    },
+    "leash": 900,
+    "flee": 0.3,
+    "activity": "night",
+    "pack": [
+      1,
+      2
+    ],
+    "hitbox": {
+      "w": 20,
+      "h": 8
+    },
+    "attacks": [
+      {
+        "kind": "leap",
+        "damage": 30,
+        "range": 220,
+        "minRange": 70,
+        "windup": 0.45,
+        "cooldown": 5,
+        "knockback": 30,
+        "bleed": 0.6
+      },
+      {
+        "kind": "bite",
+        "damage": 16,
+        "range": 30,
+        "windup": 0.25,
+        "cooldown": 1.0,
+        "bleed": 0.5
+      }
+    ],
+    "body": {
+      "plan": "quadruped",
+      "length": 32,
+      "height": 15,
+      "build": 0.8,
+      "neck": 0.35,
+      "head": 0.9,
+      "snout": 0.9,
+      "legs": 0.85,
+      "tail": 1.3,
+      "tailWidth": 0.8,
+      "ears": "pointed",
+      "eyes": {
+        "count": 2,
+        "color": "#f0a020",
+        "glow": true
+      },
+      "features": [
+        "frill",
+        "claws"
+      ],
+      "colors": {
+        "hide": "#3e4a58",
+        "belly": "#6a7888",
+        "accent": "#2a8a8a"
+      },
+      "pattern": "spots"
+    },
+    "parts": [
+      {
+        "item": "prowler_eye",
+        "chance": 0.7
+      },
+      {
+        "item": "mutant_heart",
+        "chance": 0.15
+      }
+    ],
+    "sounds": {
+      "alert": "prowler_hiss",
+      "attack": "prowler_snarl",
+      "hurt": "prowler_hurt",
+      "death": "prowler_death",
+      "idle": "prowler_purr"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "spitter",
+    "name": "Spitter",
+    "family": "fauna",
+    "faction": "predators",
+    "temperament": "territorial",
+    "description": "A bloated swamp insect. Keeps its distance and lobs globs of acid at anything near its pool.",
+    "health": 140,
+    "resist": {
+      "chemical": 0.8
+    },
+    "speed": {
+      "walk": 28,
+      "run": 70
+    },
+    "agility": 4,
+    "senses": {
+      "sight": 340,
+      "hearing": 380,
+      "smell": 80
+    },
+    "territory": 280,
+    "leash": 420,
+    "flee": 0,
+    "pack": [
+      1,
+      3
+    ],
+    "hitbox": {
+      "w": 20,
+      "h": 9
+    },
+    "attacks": [
+      {
+        "kind": "spit",
+        "damage": 16,
+        "type": "chemical",
+        "range": 330,
+        "minRange": 40,
+        "windup": 0.6,
+        "cooldown": 3.2,
+        "speed": 230,
+        "splash": 26,
+        "color": "#a8e040"
+      },
+      {
+        "kind": "bite",
+        "damage": 10,
+        "range": 26,
+        "windup": 0.3,
+        "cooldown": 1.2
+      }
+    ],
+    "body": {
+      "plan": "hexapod",
+      "length": 26,
+      "height": 10,
+      "build": 1.1,
+      "neck": 0,
+      "head": 1.0,
+      "snout": 0,
+      "legs": 1.1,
+      "tail": 0,
+      "eyes": {
+        "count": 2,
+        "color": "#e0e040"
+      },
+      "features": [
+        "sac",
+        "mandibles"
+      ],
+      "colors": {
+        "hide": "#6a7040",
+        "belly": "#a0a868",
+        "accent": "#9adc3a",
+        "bone": "#c8c090"
+      },
+      "pattern": "spots"
+    },
+    "parts": [
+      {
+        "item": "spitter_gland",
+        "chance": 0.8
+      }
+    ],
+    "sounds": {
+      "alert": "spitter_gurgle",
+      "attack": "spitter_spit",
+      "hurt": "spitter_hurt",
+      "death": "spitter_death"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "sandmaw",
+    "name": "Sandmaw",
+    "family": "fauna",
+    "faction": "predators",
+    "temperament": "ambush",
+    "description": "A burrowing worm of the wastes. You see the ground ripple a moment before it erupts.",
+    "health": 320,
+    "resist": {
+      "ballistic": 0.2,
+      "thermal": 0.3
+    },
+    "speed": {
+      "walk": 60,
+      "run": 125
+    },
+    "agility": 3,
+    "senses": {
+      "sight": 0,
+      "hearing": 620,
+      "smell": 200
+    },
+    "leash": 620,
+    "flee": 0.2,
+    "pack": [
+      1,
+      1
+    ],
+    "hitbox": {
+      "w": 18,
+      "h": 8
+    },
+    "abilities": {
+      "burrow": true
+    },
+    "attacks": [
+      {
+        "kind": "bite",
+        "damage": 34,
+        "range": 44,
+        "windup": 0.55,
+        "cooldown": 2.4,
+        "knockback": 45,
+        "bleed": 0.4
+      }
+    ],
+    "body": {
+      "plan": "serpent",
+      "length": 66,
+      "height": 6,
+      "build": 1.2,
+      "head": 1.6,
+      "snout": 0.55,
+      "segments": 12,
+      "tail": 0,
+      "eyes": {
+        "count": 0
+      },
+      "colors": {
+        "hide": "#a08860",
+        "belly": "#c8b088",
+        "accent": "#6a5438",
+        "bone": "#ece2c8"
+      },
+      "pattern": "bands"
+    },
+    "parts": [
+      {
+        "item": "sandmaw_tooth",
+        "chance": 0.85,
+        "count": [
+          1,
+          2
+        ]
+      }
+    ],
+    "sounds": {
+      "alert": "sandmaw_rumble",
+      "attack": "sandmaw_roar",
+      "hurt": "sandmaw_hurt",
+      "death": "sandmaw_death",
+      "idle": "sandmaw_rumble"
+    }
+  }
+]

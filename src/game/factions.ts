@@ -1,7 +1,7 @@
 import type { ContentRegistry } from '../content/Registry';
 import type { Attitude } from '../content/types/faction';
 import type { Entity, World } from '../ecs/World';
-import { Faction, Npc } from './components';
+import { Creature, Faction, Npc } from './components';
 
 /** Faction id used for the player character (their real side is `affiliation`). */
 export const PLAYER_FACTION = 'player';
@@ -61,6 +61,7 @@ export class Relations {
   attitude(world: World, a: Entity, b: Entity): Attitude {
     if (a === b) return 'friendly';
     if (world.get(a, Npc)?.grudges.has(b) || world.get(b, Npc)?.grudges.has(a)) return 'hostile';
+    if (world.get(a, Creature)?.grudges.has(b) || world.get(b, Creature)?.grudges.has(a)) return 'hostile';
     const fa = world.get(a, Faction)?.id;
     const fb = world.get(b, Faction)?.id;
     if (!fa || !fb) return 'neutral';

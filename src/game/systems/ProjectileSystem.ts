@@ -3,7 +3,7 @@ import type { ContentRegistry } from '../../content/Registry';
 import type { Entity, System, World } from '../../ecs/World';
 import { applyDamage, hurtbox, segmentBoxEntry, segmentHitsSolid } from '../combat';
 import type { CombatEvents } from '../combatEvents';
-import { Breakable, Faction, Health, Projectile, Transform } from '../components';
+import { Breakable, Creature, Faction, Health, Projectile, Transform } from '../components';
 import { TILE_PX } from '../world/TileMap';
 import type { TileMap } from '../world/TileMap';
 
@@ -23,7 +23,7 @@ export class ProjectileSystem implements System {
   update(world: World, dt: number): void {
     const map = this.map();
     const targets: Entity[] = [];
-    for (const e of world.query(Health, Transform)) if (!world.req(e, Health).dead) targets.push(e);
+    for (const e of world.query(Health, Transform)) if (!world.req(e, Health).dead && !world.get(e, Creature)?.hidden) targets.push(e);
     const props = [...world.query(Breakable, Transform)];
 
     for (const p of world.query(Projectile, Transform)) {

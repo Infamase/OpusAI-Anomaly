@@ -10,7 +10,8 @@
       { "tile": "leafy_tree", "density": 0.035, "clump": 0.85 },
       { "tile": "pine_tree", "density": 0.008, "clump": 0.6 },
       { "tile": "boulder", "density": 0.004, "clump": 0.2 }
-    ]
+    ],
+    "fauna": { "density": 0.11, "creatures": [ { "creature": "loper", "weight": 4 }, { "creature": "blind_hound", "weight": 3 }, { "creature": "tusker", "weight": 2 }, { "creature": "thornback", "weight": 1 } ] }
   },
   {
     "type": "biome", "id": "pine_forest", "name": "Pine Forest",
@@ -24,7 +25,8 @@
       { "tile": "dead_tree", "density": 0.008, "clump": 0.3 },
       { "tile": "boulder", "density": 0.01, "clump": 0.3 }
     ],
-    "ambient": ["amb_forest"]
+    "ambient": ["amb_forest"],
+    "fauna": { "density": 0.12, "creatures": [ { "creature": "prowler", "weight": 3 }, { "creature": "blind_hound", "weight": 2 }, { "creature": "tusker", "weight": 2 }, { "creature": "thornback", "weight": 1.5 }, { "creature": "crawler", "weight": 1 } ] }
   },
   {
     "type": "biome", "id": "swamp", "name": "Swamp",
@@ -38,7 +40,8 @@
       { "tile": "bush", "density": 0.02, "clump": 0.5, "on": "moss" },
       { "tile": "leafy_tree", "density": 0.012, "clump": 0.7, "on": "moss" }
     ],
-    "ambient": ["amb_swamp"]
+    "ambient": ["amb_swamp"],
+    "fauna": { "density": 0.13, "creatures": [ { "creature": "spitter", "weight": 4 }, { "creature": "shade", "weight": 1 }, { "creature": "tusker", "weight": 1 }, { "creature": "blind_hound", "weight": 1 }, { "creature": "skitter", "weight": 1 } ] }
   },
   {
     "type": "biome", "id": "wasteland", "name": "Wasteland",
@@ -52,7 +55,8 @@
       { "tile": "car_wreck", "density": 0.002, "clump": 0 },
       { "tile": "rubble", "density": 0.004, "clump": 0.3 }
     ],
-    "ambient": ["amb_geiger"]
+    "ambient": ["amb_geiger"],
+    "fauna": { "density": 0.12, "creatures": [ { "creature": "sandmaw", "weight": 3 }, { "creature": "skitter", "weight": 3 }, { "creature": "blind_hound", "weight": 2 }, { "creature": "crawler", "weight": 2 } ] }
   },
   {
     "type": "biome", "id": "highlands", "name": "Rocky Highlands",
@@ -64,6 +68,7 @@
       { "tile": "boulder", "density": 0.04, "clump": 0.5 },
       { "tile": "pine_tree", "density": 0.025, "clump": 0.7 },
       { "tile": "dead_tree", "density": 0.01, "clump": 0.3 }
-    ]
+    ],
+    "fauna": { "density": 0.1, "creatures": [ { "creature": "thornback", "weight": 3 }, { "creature": "skitter", "weight": 2 }, { "creature": "prowler", "weight": 1 }, { "creature": "loper", "weight": 1 } ] }
   }
 ]

@@ -147,7 +147,15 @@ export function hurtbox(world: World, e: Entity): { x0: number; y0: number; x1: 
   const c = world.get(e, Collider);
   if (!t || !c) return null;
   const half = c.w / 2 + 4;
+  // Low creatures get a little extra below the feet: shots aimed at them come in at chest height.
+  if (c.tall !== undefined) return { x0: t.x - half, y0: t.y - c.tall - 3, x1: t.x + half, y1: t.y + Math.max(4, 14 - c.tall * 0.3) };
   return { x0: t.x - half, y0: t.y - 50, x1: t.x + half, y1: t.y + 1 };
+}
+
+/** Height above the feet to aim at (the middle of the body). */
+export function aimHeight(world: World, e: Entity): number {
+  const tall = world.get(e, Collider)?.tall;
+  return tall === undefined ? CHEST_HEIGHT / 2 : Math.min(CHEST_HEIGHT / 2, tall * 0.5);
 }
 
 /** Liang–Barsky: entry fraction (0..1) of segment p0→p1 into the box, or null if it misses. */

@@ -1,0 +1,372 @@
+[
+  {
+    "type": "creature",
+    "id": "blind_hound",
+    "name": "Blind Hound",
+    "family": "mutant",
+    "faction": "mutants",
+    "temperament": "predator",
+    "description": "An eyeless mutated dog. It hunts in packs by ear and nose, circling and darting in.",
+    "health": 45,
+    "speed": {
+      "walk": 60,
+      "run": 172
+    },
+    "agility": 10,
+    "senses": {
+      "sight": 0,
+      "hearing": 620,
+      "smell": 170
+    },
+    "leash": 900,
+    "flee": 0.3,
+    "morale": 0.5,
+    "pack": [
+      3,
+      6
+    ],
+    "hitbox": {
+      "w": 16,
+      "h": 8
+    },
+    "attacks": [
+      {
+        "kind": "bite",
+        "damage": 9,
+        "range": 26,
+        "windup": 0.22,
+        "cooldown": 1.0,
+        "bleed": 0.3
+      }
+    ],
+    "body": {
+      "plan": "quadruped",
+      "length": 24,
+      "height": 13,
+      "build": 0.85,
+      "neck": 0.3,
+      "head": 0.95,
+      "snout": 1.25,
+      "legs": 0.9,
+      "tail": 0.7,
+      "tailWidth": 0.8,
+      "ears": "pointed",
+      "eyes": {
+        "count": 0
+      },
+      "features": [
+        "claws"
+      ],
+      "colors": {
+        "hide": "#8a6e58",
+        "belly": "#c29c86",
+        "accent": "#5a4436"
+      },
+      "pattern": "mottled"
+    },
+    "parts": [
+      {
+        "item": "hound_tail",
+        "chance": 0.6
+      }
+    ],
+    "sounds": {
+      "alert": "hound_bark",
+      "attack": "hound_snarl",
+      "hurt": "hound_yelp",
+      "death": "hound_death",
+      "idle": "hound_growl"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "tusker",
+    "name": "Tusker",
+    "family": "mutant",
+    "faction": "mutants",
+    "temperament": "territorial",
+    "description": "A mutated boar the size of a pony. It will charge anyone who wanders too close.",
+    "health": 220,
+    "resist": {
+      "ballistic": 0.15,
+      "rupture": 0.2
+    },
+    "speed": {
+      "walk": 40,
+      "run": 190
+    },
+    "agility": 4,
+    "senses": {
+      "sight": 240,
+      "hearing": 380,
+      "smell": 110
+    },
+    "territory": 170,
+    "leash": 420,
+    "flee": 0.15,
+    "pack": [
+      1,
+      3
+    ],
+    "hitbox": {
+      "w": 26,
+      "h": 10
+    },
+    "attacks": [
+      {
+        "kind": "charge",
+        "damage": 30,
+        "range": 240,
+        "minRange": 70,
+        "windup": 0.7,
+        "cooldown": 5,
+        "knockback": 75
+      },
+      {
+        "kind": "bite",
+        "damage": 14,
+        "range": 30,
+        "windup": 0.35,
+        "cooldown": 1.4,
+        "knockback": 20
+      }
+    ],
+    "body": {
+      "plan": "quadruped",
+      "length": 34,
+      "height": 15,
+      "build": 1.35,
+      "neck": 0.15,
+      "head": 1.3,
+      "snout": 0.8,
+      "legs": 1.3,
+      "tail": 0.25,
+      "slope": 0.1,
+      "ears": "round",
+      "eyes": {
+        "count": 2,
+        "color": "#d04020"
+      },
+      "features": [
+        "tusks",
+        "mane"
+      ],
+      "colors": {
+        "hide": "#6b5a4a",
+        "belly": "#8c7a68",
+        "accent": "#3c3028",
+        "bone": "#e0d2b0"
+      }
+    },
+    "parts": [
+      {
+        "item": "tusker_hoof",
+        "chance": 0.7
+      },
+      {
+        "item": "mutant_heart",
+        "chance": 0.1
+      }
+    ],
+    "sounds": {
+      "alert": "tusker_squeal",
+      "attack": "tusker_squeal",
+      "hurt": "tusker_grunt",
+      "death": "tusker_death",
+      "idle": "tusker_grunt",
+      "step": "heavy_step"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "crawler",
+    "name": "Crawler",
+    "family": "mutant",
+    "faction": "mutants",
+    "temperament": "predator",
+    "description": "What's left of a stalker, gas mask and all. It scuttles on all fours and leaps for your throat.",
+    "health": 110,
+    "speed": {
+      "walk": 55,
+      "run": 182
+    },
+    "agility": 10,
+    "senses": {
+      "sight": 320,
+      "hearing": 500,
+      "smell": 120,
+      "nightVision": true
+    },
+    "leash": 800,
+    "flee": 0,
+    "pack": [
+      1,
+      3
+    ],
+    "hitbox": {
+      "w": 14,
+      "h": 8
+    },
+    "attacks": [
+      {
+        "kind": "leap",
+        "damage": 22,
+        "range": 210,
+        "minRange": 60,
+        "windup": 0.55,
+        "cooldown": 4,
+        "knockback": 30
+      },
+      {
+        "kind": "claw",
+        "damage": 12,
+        "range": 28,
+        "windup": 0.25,
+        "cooldown": 0.9,
+        "bleed": 0.4
+      }
+    ],
+    "body": {
+      "plan": "biped",
+      "length": 15,
+      "height": 18,
+      "build": 0.9,
+      "neck": 0.1,
+      "head": 0.75,
+      "snout": 0.2,
+      "legs": 0.75,
+      "tail": 0,
+      "hunch": 0.65,
+      "eyes": {
+        "count": 0,
+        "color": "#c84030",
+        "glow": true
+      },
+      "features": [
+        "mask",
+        "claws"
+      ],
+      "colors": {
+        "hide": "#a49688",
+        "belly": "#c0b4a8",
+        "accent": "#4a4f44"
+      }
+    },
+    "parts": [
+      {
+        "item": "crawler_claw",
+        "chance": 0.55
+      }
+    ],
+    "sounds": {
+      "alert": "crawler_screech",
+      "attack": "crawler_screech",
+      "hurt": "crawler_hurt",
+      "death": "crawler_death",
+      "idle": "crawler_mutter"
+    }
+  },
+  {
+    "type": "creature",
+    "id": "shade",
+    "name": "Shade",
+    "family": "mutant",
+    "faction": "mutants",
+    "temperament": "ambush",
+    "description": "A tall mutant that bends the light around itself. Only a shimmer, and red eyes, until it feeds.",
+    "health": 260,
+    "resist": {
+      "rupture": 0.2
+    },
+    "speed": {
+      "walk": 70,
+      "run": 165
+    },
+    "agility": 8,
+    "senses": {
+      "sight": 380,
+      "hearing": 520,
+      "smell": 160,
+      "nightVision": true
+    },
+    "leash": 900,
+    "flee": 0.2,
+    "activity": "night",
+    "pack": [
+      1,
+      1
+    ],
+    "hitbox": {
+      "w": 14,
+      "h": 8
+    },
+    "abilities": {
+      "cloak": true,
+      "regen": 4
+    },
+    "attacks": [
+      {
+        "kind": "claw",
+        "damage": 20,
+        "range": 32,
+        "windup": 0.3,
+        "cooldown": 1.1,
+        "bleed": 0.8
+      },
+      {
+        "kind": "drain",
+        "damage": 7,
+        "range": 28,
+        "windup": 0.4,
+        "cooldown": 3,
+        "bleed": 1.0,
+        "heal": 1.2,
+        "weight": 0.6
+      }
+    ],
+    "body": {
+      "plan": "biped",
+      "length": 18,
+      "height": 23,
+      "build": 0.9,
+      "neck": 0.15,
+      "head": 0.85,
+      "snout": 0.35,
+      "legs": 0.8,
+      "tail": 0,
+      "hunch": 0.35,
+      "eyes": {
+        "count": 2,
+        "color": "#ff3020",
+        "glow": true
+      },
+      "features": [
+        "tentacles",
+        "claws"
+      ],
+      "colors": {
+        "hide": "#6a5260",
+        "belly": "#8c7484",
+        "accent": "#3a2a34"
+      },
+      "pattern": "mottled"
+    },
+    "parts": [
+      {
+        "item": "shade_tentacles",
+        "chance": 0.75
+      },
+      {
+        "item": "mutant_heart",
+        "chance": 0.2
+      }
+    ],
+    "sounds": {
+      "alert": "shade_whisper",
+      "attack": "shade_shriek",
+      "hurt": "shade_hurt",
+      "death": "shade_death",
+      "idle": "shade_breath"
+    }
+  }
+]

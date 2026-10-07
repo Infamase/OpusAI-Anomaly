@@ -434,7 +434,8 @@
       "-##D##-----",
       "-----------",
       "-----E-----"
-    ]
+    ],
+    "camp": { "faction": "husks", "templates": ["husk", "husk"], "radius": 5, "chance": 0.35 }
   },
   {
     "type": "structure",

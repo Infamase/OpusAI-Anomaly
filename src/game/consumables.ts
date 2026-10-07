@@ -18,6 +18,7 @@ export function useConsumable(world: World, content: ContentRegistry, e: Entity,
   if (fx.healOverTime) health.regen.push({ rate: fx.healOverTime.amount / fx.healOverTime.seconds, left: fx.healOverTime.seconds });
   if (fx.stopBleed) health.bleed = Math.max(0, health.bleed - fx.stopBleed);
   if (fx.antiRad) health.rads = Math.max(0, health.rads - fx.antiRad);
+  if (fx.rads) health.rads += fx.rads;
   const stamina = world.get(e, Stamina);
   if (fx.stamina && stamina) {
     stamina.current = Math.min(world.get(e, Stats)?.get('max_stamina') ?? 100, stamina.current + fx.stamina);

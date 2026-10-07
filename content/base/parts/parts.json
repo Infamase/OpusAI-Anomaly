@@ -1,0 +1,158 @@
+[
+  {
+    "type": "part",
+    "id": "hound_tail",
+    "name": "Blind Hound Tail",
+    "description": "A mangy tail. Proof of a kill; some traders pay for them.",
+    "weight": 0.3,
+    "value": 60,
+    "art": {
+      "shape": "tail",
+      "color": "#7a6250",
+      "accent": "#4a3a30"
+    }
+  },
+  {
+    "type": "part",
+    "id": "tusker_hoof",
+    "name": "Tusker Hoof",
+    "description": "Split, heavy and still warm. Collectors grind them for folk remedies.",
+    "weight": 0.7,
+    "value": 110,
+    "art": {
+      "shape": "hoof",
+      "color": "#5e5046",
+      "accent": "#2e2620"
+    }
+  },
+  {
+    "type": "part",
+    "id": "crawler_claw",
+    "name": "Crawler Claw",
+    "description": "Long yellowed nails on a hand that was once human.",
+    "weight": 0.3,
+    "value": 180,
+    "art": {
+      "shape": "claw",
+      "color": "#d0c4a0",
+      "accent": "#9a8c80"
+    }
+  },
+  {
+    "type": "part",
+    "id": "shade_tentacles",
+    "name": "Shade Tentacles",
+    "description": "The feeding tendrils of a shade. Scientists pay well.",
+    "weight": 0.4,
+    "value": 420,
+    "art": {
+      "shape": "tentacle",
+      "color": "#4a3442",
+      "accent": "#c06080"
+    }
+  },
+  {
+    "type": "part",
+    "id": "loper_hide",
+    "name": "Loper Hide",
+    "description": "Soft striped hide. Warm, light and water-tight.",
+    "weight": 1.2,
+    "value": 90,
+    "art": {
+      "shape": "hide",
+      "color": "#c0a870",
+      "accent": "#7a6a3a"
+    }
+  },
+  {
+    "type": "part",
+    "id": "thornback_spine",
+    "name": "Thornback Spine",
+    "description": "A dorsal plate spike as long as your forearm.",
+    "weight": 0.9,
+    "value": 150,
+    "art": {
+      "shape": "spine",
+      "color": "#e0d4b8",
+      "accent": "#a05a38"
+    }
+  },
+  {
+    "type": "part",
+    "id": "skitter_mandible",
+    "name": "Skitter Mandible",
+    "description": "A serrated pincer. Hard as steel.",
+    "weight": 0.1,
+    "value": 40,
+    "art": {
+      "shape": "mandible",
+      "color": "#c8b090",
+      "accent": "#3a3430"
+    }
+  },
+  {
+    "type": "part",
+    "id": "prowler_eye",
+    "name": "Prowler Eye",
+    "description": "Still faintly glowing. Prized for night-sight research.",
+    "weight": 0.1,
+    "value": 260,
+    "art": {
+      "shape": "eye",
+      "color": "#f0a020",
+      "accent": "#2a8a8a"
+    }
+  },
+  {
+    "type": "part",
+    "id": "spitter_gland",
+    "name": "Acid Gland",
+    "description": "A sac of caustic fluid. Handle with gloves.",
+    "weight": 0.5,
+    "value": 200,
+    "art": {
+      "shape": "gland",
+      "color": "#7a8a3a",
+      "accent": "#c8f060"
+    }
+  },
+  {
+    "type": "part",
+    "id": "sandmaw_tooth",
+    "name": "Sandmaw Tooth",
+    "description": "A curved fang from the burrowing worm's maw.",
+    "weight": 0.4,
+    "value": 320,
+    "art": {
+      "shape": "tooth",
+      "color": "#e8dcc0",
+      "accent": "#8a6a48"
+    }
+  },
+  {
+    "type": "part",
+    "id": "skitter_chitin",
+    "name": "Skitter Chitin",
+    "description": "A plate of insect shell. Light, tough armor material.",
+    "weight": 0.2,
+    "value": 30,
+    "art": {
+      "shape": "chitin",
+      "color": "#6a4a3a",
+      "accent": "#c8a070"
+    }
+  },
+  {
+    "type": "part",
+    "id": "mutant_heart",
+    "name": "Mutant Heart",
+    "description": "Twice the size it should be, and still twitching.",
+    "weight": 0.8,
+    "value": 240,
+    "art": {
+      "shape": "heart",
+      "color": "#8a2a30",
+      "accent": "#c86068"
+    }
+  }
+]

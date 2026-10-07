@@ -49,6 +49,21 @@ export interface CampSpawn {
   waypoints: { x: number; y: number }[];
 }
 
+/**
+ * Where a group of creatures lives: a den on a planet, a nest in a ship's
+ * hold. World pixels. Members are `<id>:<index>`; how many is rolled from the
+ * creature's `pack` with the world seed.
+ */
+export interface LairSpawn {
+  id: string;
+  creature: string;
+  count: number;
+  x: number;
+  y: number;
+  /** How far they roam from it. */
+  radius: number;
+}
+
 /** A way to another world (a hatch, a ladder, a shuttle). World pixels. */
 /** A fixed light placed by a generator (tile coords of its center; reach in tiles). */
 export interface StaticLightSpawn {
@@ -97,6 +112,8 @@ export interface WorldGenerator<P = unknown> {
   objects?(ctx: ChunkGenContext<P>, tiles: Uint16Array): WorldObjectSpawn[];
   /** NPC camps and patrols for the whole world. Deterministic from the seed. */
   population?(seed: number, params: P, widthTiles: number, heightTiles: number, walkable: (tx: number, ty: number) => boolean): CampSpawn[];
+  /** Creature dens and nests for the whole world. Deterministic from the seed. */
+  lairs?(seed: number, params: P, widthTiles: number, heightTiles: number, walkable: (tx: number, ty: number) => boolean): LairSpawn[];
   /** Named places, for the map. */
   landmarks?(seed: number, params: P, widthTiles: number, heightTiles: number): Landmark[];
   /** Fixed lights (ceiling lamps), tile coords; reach in tiles. */

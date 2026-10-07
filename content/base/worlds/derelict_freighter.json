@@ -78,6 +78,14 @@
       ],
       "chance": 0.15
     },
+    "fauna": {
+      "count": [3, 5],
+      "creatures": [
+        { "creature": "skitter", "weight": 4, "tags": ["cargo", "storage", "engine", "corridor"] },
+        { "creature": "spitter", "weight": 1, "tags": ["cargo", "engine"] },
+        { "creature": "crawler", "weight": 1, "tags": ["quarters", "medbay"] }
+      ]
+    },
     "lamps": {
       "color": "#ff4a30",
       "radius": 5,

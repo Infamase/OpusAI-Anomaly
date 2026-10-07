@@ -22,6 +22,9 @@ export interface DevHooks {
   /** Spawns a small squad from an NPC template near the player. */
   spawnSquad(templateId: string, count: number): Promise<void>;
   clearNpcs(): void;
+  listCreatures(): { id: string; name: string; family: string }[];
+  /** Spawns a pack of a creature near the player. */
+  spawnCreatures(id: string): void;
   /** Resets the player's reputation with every faction to 0. */
   resetReputation(): void;
   buildMode: boolean;
@@ -165,6 +168,14 @@ export class DevTools {
       npcSelect.value = '';
       npcSelect.blur();
     };
+    const creatureSelect = el('select');
+    creatureSelect.append(new Option('Spawn creatures…', ''));
+    for (const c of hooks.listCreatures()) creatureSelect.append(new Option(`${c.name} (${c.family})`, c.id));
+    creatureSelect.onchange = () => {
+      if (creatureSelect.value) hooks.spawnCreatures(creatureSelect.value);
+      creatureSelect.value = '';
+      creatureSelect.blur();
+    };
     const combatRow = el('div', 'row');
     const clear = el('button', '', 'Clear NPCs');
     clear.onclick = () => hooks.clearNpcs();
@@ -174,7 +185,7 @@ export class DevTools {
     const heal = el('button', '', 'Heal');
     heal.onclick = () => hooks.heal();
     combatRow.append(clear, rep, heal);
-    combat.append(weaponSelect, npcSelect, godLabel, combatRow);
+    combat.append(weaponSelect, npcSelect, creatureSelect, godLabel, combatRow);
 
     const colorRow = el('label', 'row');
     colorRow.append(this.colorLabel, this.colorInput);

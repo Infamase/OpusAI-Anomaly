@@ -46,6 +46,13 @@ const schema = v.object({
   ),
   /** Extra shallow water pools (swamps): share of the area. */
   pools: v.optional(v.number({ min: 0, max: 0.5 }), 0),
+  /**
+   * Wildlife: `density` = chance of a creature den per 16×16-tile area; each den
+   * holds one pack of a creature picked by `weight`.
+   */
+  fauna: v.optional(
+    v.object({ density: v.number({ min: 0, max: 1 }), creatures: v.array(v.object({ creature: v.id(), weight: v.optional(v.number({ min: 0 }), 1) }), { min: 1 }) }),
+  ),
   /** Looping background sounds while the player is in this biome. */
   ambient: v.optional(v.array(v.id())),
 });
@@ -64,5 +71,6 @@ export const biomeType: ContentTypeSpec<'biome'> = {
       if (d.on) ctx.ref('tile', d.on, `decor[${i}].on`);
     });
     def.ambient?.forEach((id, i) => ctx.ref('sound', id, `ambient[${i}]`));
+    def.fauna?.creatures.forEach((c, i) => ctx.ref('creature', c.creature, `fauna.creatures[${i}]`));
   },
 };

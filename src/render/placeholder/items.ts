@@ -58,6 +58,14 @@ export function drawConsumable(icon: string, colorHex: string): PixelCanvas {
       pc.rect(0, 2, 1, 5, [90, 94, 100]);
       return finish(pc);
     }
+    case 'meat': {
+      // A raw steak with a bone end.
+      const rig = new Rig(14, 12);
+      const p = rig.add({ region: 0, ramp: rampOf(colorHex), relief: 0.9 }, [ell(v(6, 6.5), 5.2, 3.8, { rot: -0.3 })]);
+      rig.decal(rampOf('#e8d0c0'), [cap(v(3, 5), v(9, 8), 0.6), cap(v(5, 3.5), v(8, 4.5), 0.5)], { parts: [p] });
+      rig.add({ region: 0, ramp: rampOf('#e8e0cc') }, [cap(v(10, 4), v(12.5, 2.5), 1.1, 1.3)]);
+      return rig.finish();
+    }
     case 'food': {
       const pc = new PixelCanvas(12, 12);
       pc.rect(2, 2, 8, 9, [150, 156, 164]);
@@ -385,4 +393,80 @@ export function cropToContent(src: PixelCanvas, x0: number, y0: number, w: numbe
     }
   }
   return out;
+}
+
+/** Creature parts (trophies): 16x16, lit like everything else. */
+export function drawPart(shape: string, colorHex: string, accentHex?: string): PixelCanvas {
+  const S = 16;
+  const rig = new Rig(S, S);
+  const body = rampOf(colorHex);
+  const acc = rampOf(accentHex ?? colorHex);
+  switch (shape) {
+    case 'tail': {
+      const pts = [v(3, 12), v(6, 9), v(9, 8), v(12, 6), v(13, 3)];
+      const shapes: Shape[] = [];
+      for (let i = 0; i < pts.length - 1; i++) shapes.push(cap(pts[i]!, pts[i + 1]!, 2.4 - i * 0.4, 2 - i * 0.4));
+      const p = rig.add({ region: 0, ramp: body }, shapes);
+      rig.decal(acc, [ell(v(13, 4), 2, 2)], { parts: [p] });
+      rig.add({ region: 0, ramp: rampOf('#c8b8a0') }, [ell(v(3, 12), 2.4, 2.4)]);
+      break;
+    }
+    case 'claw':
+      rig.add({ region: 0, ramp: acc }, [cap(v(4, 12), v(7, 11), 2.6, 2.4)]);
+      rig.add({ region: 0, ramp: body, relief: 1.2 }, [cap(v(7, 11), v(11, 8), 2, 1.5), cap(v(11, 8), v(12, 3), 1.5, 0.5)]);
+      break;
+    case 'eye': {
+      const p = rig.add({ region: 0, ramp: rampOf('#e8e0d0'), relief: 1.3 }, [ell(v(8, 8), 5.5, 5.5)]);
+      rig.decal(body, [ell(v(9, 7), 2.6, 2.6)], { parts: [p] });
+      rig.decal(rampOf('#101010'), [ell(v(9, 7), 1, 1.6)], { parts: [p] });
+      rig.decal(rampOf('#c03030'), [cap(v(3, 9), v(5, 10), 0.4), cap(v(5, 13), v(6, 11), 0.4)], { parts: [p] });
+      break;
+    }
+    case 'hide': {
+      const p = rig.add({ region: 0, ramp: body, relief: 0.5 }, [tri(v(1, 4), v(14, 2), v(13, 13), { dome: 0.5 }), tri(v(1, 4), v(13, 13), v(3, 14), { dome: 0.5 })]);
+      rig.decal(acc, [ell(v(5, 7), 1.6, 1.2), ell(v(10, 6), 1.3, 1), ell(v(8, 11), 1.5, 1.1)], { parts: [p] });
+      break;
+    }
+    case 'gland': {
+      const p = rig.add({ region: 0, ramp: body, relief: 1.2 }, [ell(v(8, 9), 5, 4.5), cap(v(8, 5), v(9, 2), 1.2, 0.8)]);
+      rig.decal(acc, [ell(v(6, 8), 1.4, 1.4), ell(v(10, 10), 1.1, 1.1), ell(v(9, 7), 0.8, 0.8)], { parts: [p] });
+      break;
+    }
+    case 'tooth':
+      rig.add({ region: 0, ramp: acc }, [ell(v(6, 4), 3, 2.2)]);
+      rig.add({ region: 0, ramp: body, relief: 1.3 }, [cap(v(6, 5), v(9, 10), 2.4, 1.4), cap(v(9, 10), v(11, 14), 1.4, 0.4)]);
+      break;
+    case 'spine':
+      rig.add({ region: 0, ramp: acc }, [ell(v(4, 12), 2.5, 2)]);
+      rig.add({ region: 0, ramp: body, relief: 1.2 }, [cap(v(4, 12), v(13, 2), 1.8, 0.4)]);
+      break;
+    case 'mandible':
+      rig.add({ region: 0, ramp: body, relief: 1.2 }, [cap(v(3, 13), v(7, 6), 2.2, 1.8), cap(v(7, 6), v(12, 3), 1.8, 1), cap(v(12, 3), v(13, 7), 1, 0.4)]);
+      rig.add({ region: 0, ramp: acc }, [ell(v(3, 13), 2, 2)]);
+      break;
+    case 'tentacle': {
+      const pts = [v(3, 3), v(5, 7), v(4, 10), v(7, 13), v(11, 13), v(13, 10)];
+      const shapes: Shape[] = [];
+      for (let i = 0; i < pts.length - 1; i++) shapes.push(cap(pts[i]!, pts[i + 1]!, 2 - i * 0.3, 1.8 - i * 0.3));
+      const p = rig.add({ region: 0, ramp: body }, shapes);
+      rig.decal(acc, [ell(v(5, 8), 0.8, 0.8), ell(v(6, 12), 0.8, 0.8), ell(v(10, 13), 0.7, 0.7)], { parts: [p] });
+      break;
+    }
+    case 'hoof':
+      rig.add({ region: 0, ramp: body }, [cap(v(8, 2), v(8, 9), 2.4, 3)]);
+      rig.add({ region: 0, ramp: acc, relief: 1.2 }, [ell(v(8, 11.5), 4.5, 3), tri(v(7.5, 9), v(8.5, 9), v(8, 14), { dome: 0.3 })]);
+      break;
+    case 'chitin': {
+      const p = rig.add({ region: 0, ramp: body, relief: 1.4 }, [tri(v(2, 10), v(8, 2), v(14, 9), { dome: 1 }), tri(v(2, 10), v(14, 9), v(8, 14), { dome: 1 })]);
+      rig.decal(acc, [cap(v(4, 10), v(12, 9), 0.6), cap(v(8, 4), v(8, 12), 0.5)], { parts: [p] });
+      break;
+    }
+    default: {
+      // heart
+      const p = rig.add({ region: 0, ramp: body, relief: 1.2 }, [ell(v(6, 8), 4, 4.5), ell(v(10, 8), 4, 4.5), tri(v(3, 10), v(13, 10), v(8, 15), { dome: 1 })]);
+      rig.add({ region: 0, ramp: acc }, [cap(v(7, 4), v(6, 1), 1.2, 1), cap(v(10, 4), v(11, 2), 1, 0.8)]);
+      rig.decal(acc, [cap(v(5, 7), v(9, 12), 0.5)], { parts: [p] });
+    }
+  }
+  return rig.finish();
 }

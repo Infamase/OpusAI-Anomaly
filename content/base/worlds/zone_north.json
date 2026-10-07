@@ -144,6 +144,16 @@
     ],
     "patrols": [
       {
+        "id": "husk_wanderers",
+        "faction": "husks",
+        "templates": [
+          "husk",
+          "husk",
+          "husk_soldier"
+        ],
+        "count": 2
+      },
+      {
         "id": "bandit_patrol",
         "faction": "bandits",
         "templates": [

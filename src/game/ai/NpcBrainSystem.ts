@@ -3,7 +3,7 @@ import { toDirection } from '../../core/math';
 import type { ContentRegistry } from '../../content/Registry';
 import type { WeaponDef } from '../../content/types';
 import type { Entity, System, World } from '../../ecs/World';
-import { CHEST_HEIGHT, lineOfSight, segmentHitsSolid } from '../combat';
+import { aimHeight, CHEST_HEIGHT, lineOfSight, segmentHitsSolid } from '../combat';
 import { liveGrenades, throwGrenade } from '../explosives';
 import type { CombatEvents } from '../combatEvents';
 import {
@@ -11,6 +11,7 @@ import {
   Brain,
   Character,
   Combatant,
+  Creature,
   Equipment,
   Faction,
   Health,
@@ -143,7 +144,11 @@ export class NpcBrainSystem implements System {
     const dx = ot.x - t.x;
     const dy = ot.y - t.y;
     const dist = Math.hypot(dx, dy);
-    const sight = SIGHT * (this.sightScale?.() ?? 1);
+    let sight = SIGHT * (this.sightScale?.() ?? 1);
+    // Burrowed creatures can't be seen at all; cloaked ones only up close.
+    const cr = world.get(o, Creature);
+    if (cr?.hidden) return { seen: false, dist };
+    if (cr && cr.visibility < 0.5) sight = Math.min(sight, 70);
     if (dist > sight) return { seen: false, dist };
     // Darkness shortens sight: someone unlit is only made out close by.
     if (dist > CLOSE_SENSE && this.lightAt) {
@@ -316,6 +321,7 @@ export class NpcBrainSystem implements System {
       world.req(e, Character).sprinting = true;
       return true;
     }
+    if (this.husk(world, e)) return false;
     let threat = b.dodging !== null ? this.grenades.find((g) => g.e === b.dodging) : undefined;
     if (!threat) {
       if (b.dodging !== null) {
@@ -362,6 +368,7 @@ export class NpcBrainSystem implements System {
    * everyone). It shouts first, so the target gets a warning.
    */
   private considerGrenade(world: World, map: TileMap, e: Entity, b: Brain): boolean {
+    if (this.husk(world, e)) return false;
     if (b.grenadeIn > 0 || this.groupGrenadeIn > 0 || b.targetVisible || b.reaction > 0) return false;
     if (b.sinceSeen < 2.5 || b.sinceSeen > 9) return false;
     const inv = world.req(e, Inventory);
@@ -543,7 +550,8 @@ export class NpcBrainSystem implements System {
     }
 
     // Hurt: get out of sight and patch up (or flee if out of supplies).
-    const hpFrac = h.hp / maxHp;
+    const husk = this.husk(world, e);
+    const hpFrac = husk ? 1 : h.hp / maxHp;
     const hasMeds = !!pickQuickHeal(this.content, world.req(e, Inventory), hpFrac, h.bleed);
     if ((hpFrac < 0.35 && hasMeds) || (hpFrac < 0.2 && this.rand() < (1 - npc.skill) * dt * 2)) {
       return this.startRetreat(world, map, e, b);
@@ -552,7 +560,7 @@ export class NpcBrainSystem implements System {
     // Aim at the target (or where it was last seen).
     const tt = world.req(target, Transform);
     const ax = b.targetVisible ? tt.x : b.lastSeenX;
-    const ay = (b.targetVisible ? tt.y : b.lastSeenY) - CHEST_HEIGHT / 2;
+    const ay = (b.targetVisible ? tt.y : b.lastSeenY) - aimHeight(world, target);
     const dx = ax - t.x;
     const dy = ay - (t.y - CHEST_HEIGHT);
     const dist = Math.hypot(dx, dy);
@@ -574,7 +582,10 @@ export class NpcBrainSystem implements System {
     if (!b.goal && b.repathIn <= 0) {
       b.repathIn = 0.9 + this.rand() * 0.8;
       const range = weapon ? preferredRange(weapon.def) : 180;
-      if (c.reloadLeft > 0 && npc.skill > 0.35) {
+      if (husk) {
+        // Straight at you, stopping now and then to fire.
+        b.goal = !b.targetVisible ? { x: b.lastSeenX, y: b.lastSeenY } : dist > range * 0.5 && this.rand() < 0.75 ? { x: t.x + (dx / dist) * 80, y: t.y + (dy / dist) * 80 } : null;
+      } else if (c.reloadLeft > 0 && npc.skill > 0.35) {
         b.goal = hideSpot(map, t, tt) ?? null;
       } else if (!b.targetVisible) {
         b.goal = { x: b.lastSeenX, y: b.lastSeenY };
@@ -692,7 +703,9 @@ export class NpcBrainSystem implements System {
     const dy = next.y - t.y;
     const d = Math.hypot(dx, dy);
     // Running from a grenade (or for cover) is flat out; walking about is easy.
-    const pace = b.dodging !== null || b.state === 'retreat' ? 1 : b.state === 'combat' ? 0.85 : 0.55;
+    const husk = this.husk(world, e);
+    if (husk) ch.sprinting = false;
+    const pace = husk ? 0.5 : b.dodging !== null || b.state === 'retreat' ? 1 : b.state === 'combat' ? 0.85 : 0.55;
     const speed = speedStat * pace * (ch.sprinting ? world.get(e, Stats)?.get('sprint_multiplier') ?? 1.5 : 1);
     vel.x = (dx / d) * speed;
     vel.y = (dy / d) * speed;
@@ -729,6 +742,12 @@ export class NpcBrainSystem implements System {
   }
 
   // ---- helpers ---------------------------------------------------------------
+
+  /** Husks: burnt-out minds that shamble at you firing, never hide, heal or run. */
+  private husk(world: World, e: Entity): boolean {
+    const id = world.get(e, Npc)?.templateId;
+    return !!id && this.content.tryGet('npcTemplate', id)?.mind === 'husk';
+  }
 
   private activeWeapon(world: World, e: Entity) {
     const c = world.req(e, Combatant);

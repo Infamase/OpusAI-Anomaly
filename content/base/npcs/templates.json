@@ -293,5 +293,94 @@
         ]
       }
     ]
+  },
+  {
+    "type": "npcTemplate",
+    "id": "husk",
+    "name": "Husk",
+    "faction": "husks",
+    "rank": "rookie",
+    "mind": "husk",
+    "tint": "#a8b4a0",
+    "skill": [
+      0.05,
+      0.2
+    ],
+    "armorSets": [
+      "stalker"
+    ],
+    "armorChance": 0.7,
+    "primaries": [
+      "toz12_shotgun",
+      "kestrel_smg"
+    ],
+    "primaryChance": 0.6,
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      1,
+      3
+    ],
+    "pockets": "bandit_pockets",
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.3
+      },
+      {
+        "item": "canned_meat",
+        "chance": 0.3
+      },
+      {
+        "item": "vodka",
+        "chance": 0.2
+      }
+    ]
+  },
+  {
+    "type": "npcTemplate",
+    "id": "husk_soldier",
+    "name": "Husk Soldier",
+    "faction": "husks",
+    "rank": "experienced",
+    "mind": "husk",
+    "tint": "#a0aca0",
+    "skill": [
+      0.15,
+      0.3
+    ],
+    "armorSets": [
+      "military"
+    ],
+    "armorChance": 0.85,
+    "primaries": [
+      "akr5_rifle"
+    ],
+    "sidearms": [
+      "vz9_pistol"
+    ],
+    "spareMagazines": [
+      1,
+      3
+    ],
+    "carries": [
+      {
+        "item": "bandage",
+        "chance": 0.4
+      },
+      {
+        "item": "ammo_545x39",
+        "chance": 0.4,
+        "count": [
+          10,
+          30
+        ]
+      },
+      {
+        "item": "army_medkit",
+        "chance": 0.1
+      }
+    ]
   }
 ]

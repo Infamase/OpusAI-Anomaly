@@ -581,6 +581,8 @@ export class InventoryScene implements Scene {
       if (d.use === 'throw') rows.push(['Throw', `up to ${d.range} m (F)`]);
       else rows.push(['Place', 'in front of you (V), arms after a moment']);
       rows.push(['Count', `${countOf(item)}`]);
+    } else if (info.kind === 'part') {
+      rows.push(['Count', `${countOf(item)}`]);
     } else {
       const fx = info.def.effects;
       if (fx.heal) rows.push(['Heals', `${fx.heal}`]);
@@ -588,6 +590,7 @@ export class InventoryScene implements Scene {
       if (fx.stopBleed) rows.push(['Stops bleeding', `${fx.stopBleed}/s`]);
       if (fx.stamina) rows.push(['Stamina', `+${fx.stamina}`]);
       if (fx.antiRad) rows.push(['Removes radiation', `${fx.antiRad} rads`]);
+      if (fx.rads) rows.push(['Radiation', `+${fx.rads} rads`]);
       rows.push(['Count', `${countOf(item)}`]);
     }
     const weight = info.def.weight * countOf(item);
@@ -626,6 +629,8 @@ function kindLabel(info: ItemInfo): string {
       return 'Keycard · opens locked doors';
     case 'explosive':
       return info.def.use === 'throw' ? 'Grenade · thrown' : 'Explosive · placed';
+    case 'part':
+      return 'Creature part · trade good';
   }
 }
 

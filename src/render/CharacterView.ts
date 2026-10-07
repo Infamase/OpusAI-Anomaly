@@ -151,6 +151,8 @@ export class CharacterView {
   private lastKey = '';
   private flashLeft = 0;
   private dead = false;
+  /** Tint over the whole character (a husk's dead skin); white = none. */
+  private baseTint = 0xffffff;
   private phase = 0;
   private time = Math.random() * 10;
   private recoilLeft = 0;
@@ -231,6 +233,12 @@ export class CharacterView {
     this.root.zIndex = this.dead ? y - 1000 : y;
   }
 
+  /** Tints the whole character (0xffffff for none). */
+  setTint(color: number): void {
+    this.baseTint = color;
+    this.figure.tint = this.dead ? mulTint(color, 0x8a8a8a) : color;
+  }
+
   /** Brief red tint when hit. */
   flash(): void {
     this.flashLeft = HIT_FLASH;
@@ -243,7 +251,7 @@ export class CharacterView {
     // Lying down: the body is centered on where the character stood.
     this.figure.rotation = dead ? Math.PI / 2 : 0;
     this.figure.position.set(dead ? -26 : 0, dead ? 5 : 0);
-    this.figure.tint = dead ? 0x8a8a8a : 0xffffff;
+    this.figure.tint = dead ? mulTint(this.baseTint, 0x8a8a8a) : this.baseTint;
     this.dirty = true;
     this.redraw();
   }
@@ -252,7 +260,7 @@ export class CharacterView {
   tick(dt: number): void {
     if (this.flashLeft <= 0) return;
     this.flashLeft -= dt;
-    this.figure.tint = this.flashLeft > 0 ? 0xff7070 : this.dead ? 0x8a8a8a : 0xffffff;
+    this.figure.tint = this.flashLeft > 0 ? 0xff7070 : this.dead ? mulTint(this.baseTint, 0x8a8a8a) : this.baseTint;
   }
 
   destroy(): void {
@@ -341,4 +349,10 @@ export class CharacterView {
     this.figure.texture = texture;
     if (old !== Texture.EMPTY) old.destroy(false);
   }
+}
+
+/** Multiplies two tints channel by channel. */
+function mulTint(a: number, b: number): number {
+  const ch = (s: number) => Math.round((((a >> s) & 255) * ((b >> s) & 255)) / 255) << s;
+  return ch(16) | ch(8) | ch(0);
 }

@@ -29,6 +29,8 @@ export interface BodyData {
   /** Worn gear still on the body, by slot → uid of an entry in `items`. */
   worn: Partial<Record<EquipmentSlot, string>>;
   items: ItemInstance[];
+  /** Whole-body tint (husks). */
+  tint?: string;
 }
 
 export interface SpawnNpcOptions {
@@ -109,6 +111,7 @@ export class Population {
       facing: o.rng.pick(['down', 'left', 'right', 'up'] as const),
     });
     addCombatComponents(this.world, e, { faction: template.faction, inventory: loadout.inventory });
+    if (template.tint) this.world.req(e, View).setTint(parseInt(template.tint.slice(1), 16));
     this.world.add(e, Npc, { id: o.id, campId: o.campId, templateId: template.id, name: loadout.name, skill: loadout.skill, grudges: new Set() });
     const brain = newBrain(o.behavior, o.homeX ?? o.x, o.homeY ?? o.y, o.radius, o.waypoints ?? []);
     brain.thinkIn = o.rng.range(0, 0.2); // stagger perception across NPCs
@@ -180,6 +183,7 @@ export class Population {
       facing: ch.facing,
       worn,
       items: structuredClone(c.items),
+      tint: this.content.tryGet('npcTemplate', this.world.get(e, Npc)?.templateId ?? '')?.tint,
     };
     this.deltas.putEntity(c.chunkKey, { id: c.id, kind: BODY_KIND, x: t.x, y: t.y, data });
   }
@@ -212,6 +216,7 @@ export class Population {
       h.hp = 0;
       h.dead = true;
       this.world.add(e, Container, { id: record.id, label: `${d.name}'s body`, kind: 'body', chunkKey: key, lootTable: null, items });
+      if (d.tint) this.world.req(e, View).setTint(parseInt(d.tint.slice(1), 16));
       this.world.req(e, View).setDead(true);
       this.show(e);
       out.push(e);

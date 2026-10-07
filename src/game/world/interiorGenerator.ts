@@ -1,9 +1,10 @@
 import { parseOrThrow, v } from '../../content/schema';
 import { THEME_SLOTS, type ThemeSlot } from '../../content/types/legend';
+import type { CreatureDef } from '../../content/types/creature';
 import type { RoomDef } from '../../content/types/room';
 import { deriveSeed, Rng } from '../../core/rng';
 import { orientedCell, orientedSize, resolveDrawing, type Cell, type Drawing } from './drawings';
-import { registerGenerator, type CampSpawn, type Landmark, type PortalSpawn, type StaticLightSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
+import { registerGenerator, type CampSpawn, type LairSpawn, type Landmark, type PortalSpawn, type StaticLightSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
 import type { TileSet } from './TileSet';
 
 /**
@@ -57,6 +58,17 @@ const paramsSchema = v.object({
    * Ceiling lamps: one per room (two in long ones). `working` of them light
    * up, and `flickering` of those stutter like failing tubes.
    */
+  /**
+   * Creature nests: `count` of them, each a pack of a creature picked by
+   * `weight`, in rooms with one of its `tags` (any room but the entrance if
+   * none are given) that don't already have people in them.
+   */
+  fauna: v.optional(
+    v.object({
+      count: v.tuple2(v.number({ int: true, min: 0 }), v.number({ int: true, min: 0 })),
+      creatures: v.array(v.object({ creature: v.id(), weight: v.optional(v.number({ min: 0 }), 1), tags: v.optional(v.array(v.id()), []) }), { min: 1 }),
+    }),
+  ),
   lamps: v.optional(
     v.object({
       color: v.color(),
@@ -92,6 +104,7 @@ interface Params {
   barricades: { tile: number; chance: number } | null;
   traps: { explosives: string[]; chance: number } | null;
   lamps: { color: string; radius: number; intensity: number; working: number; flickering: number } | null;
+  fauna: { count: [number, number]; creatures: { def: CreatureDef; weight: number; tags: string[] }[] } | null;
   plans: Map<string, Plan>;
 }
 
@@ -506,6 +519,7 @@ export const interiorGenerator: WorldGenerator<Params> = {
       barricades: r.barricades ? { tile: tiles.index(r.barricades.tile), chance: r.barricades.chance } : null,
       traps: r.traps ? { explosives: r.traps.explosives.map((id) => content.get('explosive', id).id), chance: r.traps.chance } : null,
       lamps: r.lamps ?? null,
+      fauna: r.fauna ? { count: r.fauna.count, creatures: r.fauna.creatures.map((c) => ({ def: content.get('creature', c.creature), weight: c.weight, tags: c.tags })) } : null,
       plans: new Map(),
     };
   },
@@ -548,6 +562,42 @@ export const interiorGenerator: WorldGenerator<Params> = {
       camps.push({ id: `${r.room.def.id}_${r.index}`, faction: c.faction, templates: c.templates, behavior: c.behavior, x: home.x * T, y: home.y * T, radius: c.radius * T, waypoints: [] });
     }
     return camps;
+  },
+
+  lairs(seed, params, W, H, walkable) {
+    const f = params.fauna;
+    if (!f) return [];
+    const plan = planFor(params, seed, W, H);
+    const rng = new Rng(deriveSeed(seed, 'nests'));
+    const out: LairSpawn[] = [];
+    const used = new Set<number>();
+    const n = rng.int(f.count[0], f.count[1]);
+    for (let k = 0; k < n; k++) {
+      let r = rng.next() * f.creatures.reduce((s, c) => s + c.weight, 0);
+      const pick = f.creatures.find((c) => (r -= c.weight) <= 0) ?? f.creatures[0]!;
+      const rooms = plan.placed.filter((p) => p.index !== 0 && !p.hasCamp && !used.has(p.index) && (!pick.tags.length || pick.tags.some((t) => p.room.def.tags.includes(t))));
+      if (!rooms.length) continue;
+      const room = rooms[rng.int(0, rooms.length - 1)]!;
+      used.add(room.index);
+      // The middle of the room, or the nearest open floor to it.
+      let best: { x: number; y: number } | null = null;
+      let bestD = Infinity;
+      for (let j = 0; j < room.h; j++) {
+        for (let i = 0; i < room.w; i++) {
+          const x = room.x + i;
+          const y = room.y + j;
+          if (!walkable(x, y)) continue;
+          const d = Math.hypot(i - room.w / 2, j - room.h / 2);
+          if (d < bestD) {
+            bestD = d;
+            best = { x, y };
+          }
+        }
+      }
+      if (!best) continue;
+      out.push({ id: `nest_${room.index}`, creature: pick.def.id, count: rng.int(pick.def.pack[0], pick.def.pack[1]), x: (best.x + 0.5) * T, y: (best.y + 0.5) * T, radius: Math.max(2, Math.min(room.w, room.h) / 2) * T });
+    }
+    return out;
   },
 
   spawnPoint(seed, params, W, H) {

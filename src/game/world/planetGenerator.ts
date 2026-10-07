@@ -2,10 +2,11 @@ import { parseOrThrow, v } from '../../content/schema';
 import type { AnomalyDef } from '../../content/types/anomaly';
 import type { ArtifactDef } from '../../content/types/artifact';
 import type { BiomeDef } from '../../content/types/biome';
+import type { CreatureDef } from '../../content/types/creature';
 import type { StructureDef } from '../../content/types/structure';
 import { orientedCell, resolveDrawing, type Cell, type Drawing } from './drawings';
 import { deriveSeed, fbm2D, hashInts, Rng } from '../../core/rng';
-import { registerGenerator, type CampSpawn, type Landmark, type PortalSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
+import { registerGenerator, type CampSpawn, type LairSpawn, type Landmark, type PortalSpawn, type WorldGenerator, type WorldObjectSpawn } from './generators';
 import type { TileSet } from './TileSet';
 
 /**
@@ -116,6 +117,7 @@ interface Biome {
   /** The highest total decoration chance any tile can have (rolls above it skip the noise). */
   decorMax: number;
   poolThreshold: number;
+  fauna: { density: number; creatures: { def: CreatureDef; weight: number }[] } | null;
 }
 
 interface Structure extends Drawing {
@@ -874,6 +876,7 @@ export const planetGenerator: WorldGenerator<Params> = {
         decor: def.decor.map((d) => ({ tile: tiles.index(d.tile), density: d.density, clump: d.clump, on: d.on ? tiles.index(d.on) : null })),
         decorMax: def.decor.reduce((n, d) => n + Math.min(0.6, d.density * (1 - d.clump + (d.clump * 0.6) / GROVE_MEAN)), 0),
         poolThreshold: def.pools > 0 ? quantile(CDF3, 1 - def.pools) : 1,
+        fauna: def.fauna ? { density: def.fauna.density, creatures: def.fauna.creatures.map((c) => ({ def: content.get('creature', c.creature), weight: c.weight })) } : null,
       };
     });
     const biomeIndex = new Map(biomes.map((b) => [b.def.id, b.index]));
@@ -1016,6 +1019,37 @@ export const planetGenerator: WorldGenerator<Params> = {
       }
     }
     return camps;
+  },
+
+  lairs(seed, params, W, H, walkable) {
+    const plan = planFor(params, seed, W, H);
+    const out: LairSpawn[] = [];
+    const AREA = 16;
+    const start = plan.placed[0];
+    const near = (x: number, y: number, margin: number, q: { x: number; y: number; w: number; h: number }) =>
+      x >= q.x - margin && y >= q.y - margin && x < q.x + q.w + margin && y < q.y + q.h + margin;
+    for (let ay = 0; ay < Math.ceil(H / AREA); ay++) {
+      for (let ax = 0; ax < Math.ceil(W / AREA); ax++) {
+        const rng = new Rng(deriveSeed(seed, 'lair', ax, ay));
+        const cx = ax * AREA + rng.int(3, AREA - 4);
+        const cy = ay * AREA + rng.int(3, AREA - 4);
+        if (cx < 4 || cy < 4 || cx >= W - 4 || cy >= H - 4) continue;
+        const biome = plan.terrain.biome(cx + 0.5, cy + 0.5);
+        if (!biome.fauna || !rng.chance(biome.fauna.density)) continue;
+        // Away from where people live (and well away from where new arrivals start), and off the roads.
+        if (start && near(cx, cy, 34, start)) continue;
+        if (plan.placed.some((q) => near(cx, cy, 7, q))) continue;
+        if (plan.roadDist[cy * W + cx]! < 4) continue;
+        if (plan.fields.some((f) => Math.hypot(f.x - cx, f.y - cy) < f.spread + 3)) continue;
+        if (!walkable(cx, cy)) continue;
+        let r = rng.next() * biome.fauna.creatures.reduce((n, c) => n + c.weight, 0);
+        const pick = biome.fauna.creatures.find((c) => (r -= c.weight) <= 0) ?? biome.fauna.creatures[0]!;
+        const def = pick.def;
+        const roam = def.temperament === 'passive' ? 10 : def.temperament === 'predator' ? 9 : def.temperament === 'territorial' ? 5 : 4;
+        out.push({ id: `lair_${ax}_${ay}`, creature: def.id, count: rng.int(def.pack[0], def.pack[1]), x: (cx + 0.5) * T, y: (cy + 0.5) * T, radius: roam * T });
+      }
+    }
+    return out;
   },
 
   spawnPoint(seed, params, W, H) {

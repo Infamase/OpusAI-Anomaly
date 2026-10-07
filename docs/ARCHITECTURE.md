@@ -35,6 +35,7 @@ content/<pack>/**/*.json ──► ContentRegistry ──► systems read defs b
 | 17 Explosives | `src/game/explosives.ts`, `src/content/types/explosive.ts`, `src/render/ExplosionFx.ts`, `content/*/explosives` | Grenades, placed charges, blasts, world hazards, NPC grenade use |
 | 18 Light & darkness | `src/game/lighting.ts`, `worldLighting.ts`, `src/render/LightRenderer.ts` | Clock and daylight, light sources and shadows, the lightmap, light levels for NPC eyes |
 | 19 Fire & weather | `src/game/fire.ts`, `weather.ts`, `src/render/FireFx.ts`, `WeatherFx.ts`, `content/*/tiles/fire.json` | Spreading fire, burning and cook-offs, incendiaries; weather spells, rain, storms, fog and wind |
+| 20 Fauna & mutants | `content/types/creature.ts`, `src/game/ai/CreatureBrainSystem.ts`, `wildlife.ts`, `src/render/creatureBody.ts`, `CreatureView.ts`, `CreatureFx.ts`, `content/*/creatures`, `content/*/parts` | Creature defs, procedural creature art, creature AI and attacks, dens and respawns, carcasses and parts, husks |
 | 12 HUD & options | `src/ui/Hud.ts`, `Minimap.ts`, `OptionsPanel.ts` | Vitals, status effects, weapon panel, minimap, damage direction, kill feed; per-device options |
 
 ### Frame flow
@@ -470,6 +471,59 @@ over the canvas and draw animated characters with `CharacterPreview`.
   scrolling with the wind, lightning bolts). The dev panel can force a
   weather kind.
 
+## Fauna & mutants (Module 20)
+
+- **Creatures are content** (`creature`): faction, temperament, health and
+  resistances, speeds, senses (sight, hearing, smell, night vision), territory
+  and leash, when it flees (`flee`, pack `morale`), when it's about
+  (`activity`), pack size, attacks, abilities (`cloak`, `burrow`, `regen`), a
+  body description, the parts its carcass yields, and sounds. Native wildlife
+  (`fauna`, `predators` factions) and Zone mutants (`mutants`) are just
+  different factions.
+- **Art** (`render/creatureBody.ts`): no sprite sheets. The body description
+  (plan: quadruped, hexapod, biped, serpent; length, height, build, neck,
+  head, snout, legs, tail, ears, eyes, features like horns, tusks,
+  mandibles, plates, frills, a gas mask, tentacles; colors and a pattern)
+  becomes a small 3D skeleton of tapered capsules. Each frame it is posed
+  (gaits from the distance walked: walk, trot, gallop, insect tripods,
+  bipeds dropping to all fours; wind-ups, bites, charges, pounces, spitting,
+  lying down, dead), turned to its heading, projected into the 3/4 view
+  (depth foreshortened like the characters) and painted with the same
+  pixel-art rasterizer as the characters (`placeholder/rig.ts`: lit, 5-tone
+  ramps, colored outlines). So creatures face any direction smoothly.
+  `CreatureView` repaints a few times a second into its own canvas texture
+  (15 Hz moving, 5 Hz idle, never off screen); `rig.finish()` only works on
+  the painted area.
+- **AI** (`CreatureBrainSystem`): perception a few times a second (smell
+  through walls, footsteps of anyone running, sight cut by darkness and
+  fog, gunfire and explosions heard far off); then by temperament:
+  `passive` grazers bolt (the whole herd) from danger; `territorial` ones
+  warn (alert pose, a growl) and attack intruders who come inside their
+  territory; `predator` packs hunt anything hostile, circling while their
+  bites recharge; `ambush` hunters wait hidden and stalk closer. Attacks
+  are telegraphed by a wind-up: bites and claws in reach, charges that run
+  straight through (and stop dead against a wall), pounces through the air,
+  acid globs that arc and can be dodged (`SpitSystem`), feeding bites that
+  heal. Hurt creatures and broken packs run; anyone who hurts one is
+  hated by its whole pack (`Creature.grudges`). Animals don't open doors.
+- **Abilities:** cloaked creatures are a faint shimmer (NPCs only see them
+  up close) until they strike or are hurt; burrowers are under the ground
+  (bullets and eyes can't find them, a mound of earth moves) until they
+  surface to bite; glowing eyes are drawn above the darkness.
+- **Where they live** (`wildlife.ts`): generators list dens (`lairs()`):
+  planets by biome (`fauna` on a biome: density and weighted creatures; away
+  from places, roads and the start), interiors in fitting rooms (`fauna` in
+  the interior params). Dens fill with their pack when the player comes
+  within 30 tiles and empty again (alive) beyond 40, so a big planet stays
+  cheap. Kills are saved per respawn epoch (`<den>:<n>@<epoch>`): a cleared
+  den stays empty for a few game days (`RESPAWN_DAYS`), then refills.
+  Carcasses are containers holding the rolled `parts`; they are saved and rot
+  away when the den refills.
+- **Husks** are zombified stalkers: an `npcTemplate` with `mind: "husk"`
+  and a grey `tint`, run by the NPC brain: they shamble straight at you
+  firing, never hide, heal, retreat or throw grenades. They wander the
+  roads and haunt some roadside shacks.
+
 ## Extension points
 
 ### Add a playable race
@@ -570,6 +624,15 @@ generated tile.
 - **Flammable tile:** `"burns": { "fuel": 6, "spread": 0.6, "becomes": "<burnt tile>" }`.
 - **Incendiary:** `"blast": { ..., "fire": { "radius": 2.5, "fuel": 9 } }` on an explosive; `"trigger": "impact"` to burst on landing.
 - **Weather on a world:** `"weather": { "clear": 4, "cloudy": 3, "rain": 3, "storm": 1, "fog": 1.5 }` (relative odds) on its `worldGen`. New kinds go in the `KIND` table in `src/game/weather.ts`.
+
+### Add a creature
+- A def in `content/base/creatures/` (copy the closest one): pick a body
+  `plan` and shape it with the body numbers and `features`; set its
+  temperament, senses, attacks and sounds. Preview it from the dev panel
+  ("Spawn creatures…").
+- Make it live somewhere: add it to a biome's `fauna` or an interior's
+  `fauna` list. Parts it yields go in `content/base/parts/` (a new item kind:
+  `part`).
 
 ### Add a new kind of content (weapons, armor, factions, station chunks…)
 1. `src/content/types/<kind>.ts`: a schema (`v.object({...})`), a `crossCheck` for

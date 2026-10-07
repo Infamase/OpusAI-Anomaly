@@ -19,7 +19,7 @@ import { GameLoop } from './GameLoop';
 import { SceneManager } from './Scene';
 import { loadSettings, saveSettings, type Settings } from './Settings';
 
-export const GAME_VERSION = '0.11.0';
+export const GAME_VERSION = '0.12.0';
 
 export interface GameEvents {
   'input:device': InputDevice;

@@ -37,6 +37,10 @@ export interface CombatEvents {
   grenadeBounce: { x: number; y: number };
   /** Something blew up (`recordId` etc. say whether it was a saved charge). */
   explosion: { entity: Entity; x: number; y: number; defId: string; radius: number; owner: Entity | null; recordId: string | null; chunkKey: string | null; generated: boolean; angle: number };
+  /** A creature made a noise worth hearing (a growl, a pounce landing). */
+  creature: { entity: Entity; x: number; y: number; defId: string; sound: 'idle' | 'alert' | 'attack' | 'land' | 'bite' };
+  /** A glob of acid burst. */
+  splash: { x: number; y: number; radius: number; color: string };
   /** A bullet struck a breakable prop (a crate). */
   propHit: { target: Entity; x: number; y: number; angle: number; amount: number; attacker: Entity | null };
 }

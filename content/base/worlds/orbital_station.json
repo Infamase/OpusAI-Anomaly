@@ -85,6 +85,13 @@
       ],
       "chance": 0.08
     },
+    "fauna": {
+      "count": [1, 3],
+      "creatures": [
+        { "creature": "skitter", "weight": 3, "tags": ["hydroponics", "storage", "reactor"] },
+        { "creature": "crawler", "weight": 1, "tags": ["medbay", "quarters"] }
+      ]
+    },
     "lamps": {
       "color": "#d0ecff",
       "radius": 7,

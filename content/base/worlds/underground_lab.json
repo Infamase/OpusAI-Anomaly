@@ -86,6 +86,14 @@
       ],
       "chance": 0.12
     },
+    "fauna": {
+      "count": [3, 5],
+      "creatures": [
+        { "creature": "crawler", "weight": 3, "tags": ["containment", "lab", "storage", "corridor"] },
+        { "creature": "shade", "weight": 1, "tags": ["containment", "reactor"] },
+        { "creature": "blind_hound", "weight": 1, "tags": ["storage", "quarters", "corridor"] }
+      ]
+    },
     "lamps": {
       "color": "#e8f0ff",
       "radius": 6.5,

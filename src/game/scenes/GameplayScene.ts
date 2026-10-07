@@ -45,6 +45,10 @@ import type { Landmark, PortalSpawn, WorldGenerator } from '../world/generators'
 import { minimapColor, MINIMAP_RADIUS, type Blip } from '../../ui/Minimap';
 import { WorldLabels } from '../../ui/WorldLabels';
 import { NpcBrainSystem, type BarkKind } from '../ai/NpcBrainSystem';
+import { CreatureBrainSystem, SpitSystem } from '../ai/CreatureBrainSystem';
+import { spawnCreature, Wildlife } from '../wildlife';
+import { CreatureFx } from '../../render/CreatureFx';
+import type { CreatureView } from '../../render/CreatureView';
 import { addCombatComponents, prepareCharacterArt, resolveColors, setCharacterAppearance, spawnCharacter } from '../characters';
 import { CHEST_HEIGHT, currentSpread, lineOfSight } from '../combat';
 import { GameAudio, playUseSound } from '../GameAudio';
@@ -75,6 +79,11 @@ import {
   Breakable,
   Explosive,
   Flashlight,
+  Creature,
+  CreatureBrain,
+  CreatureViewC,
+  Spit,
+  Collider,
 } from '../components';
 import { pickQuickHeal, useConsumable } from '../consumables';
 import { findItem } from '../../content/items';
@@ -195,6 +204,9 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
   private labels: WorldLabels | null = null;
   private relations!: Relations;
   private population: Population | null = null;
+  /** Creatures: their dens, and the effects they make. */
+  private wildlife: Wildlife | null = null;
+  private creatureFx = new CreatureFx();
   private devSquads = 0;
   private fx = new CombatFx();
   private anomalyFx = new AnomalyFx();
@@ -318,6 +330,8 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     g.renderer.screen.addChildAt(this.lightRenderer.sprite, 0);
     g.renderer.screen.addChildAt(this.weatherFx.layer, 1);
     g.renderer.overlay.addChild(this.fireFx.layer);
+    g.renderer.overlay.addChild(this.creatureFx.layer);
+    g.renderer.screen.addChildAt(this.creatureFx.eyesLayer, 2);
     this.fire = new FireMap(this.map);
     this.lighting.extraSources = () => this.fireLights();
     if (typeof save.flags.clock !== 'number') save.flags.clock = START_MINUTES;
@@ -341,6 +355,14 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
           onFire: (tx: number, ty: number) => !!this.fire?.isBurning(tx, ty),
         }),
       )
+      .addSystem(
+        Object.assign(new CreatureBrainSystem(g.content, map, this.combatEvents, this.relations), {
+          avoid: (tx: number, ty: number) => this.hazards.has(tx, ty) || !!this.fire?.isBurning(tx, ty),
+          lightAt: (x: number, y: number) => this.lighting?.levelAt(x, y) ?? 1,
+          sightScale: () => (this.weather ? weatherSight(this.weather) : 1),
+          isNight: () => this.isNight(),
+        }),
+      )
       .addSystem(new DoorSystem(map, this.combatEvents))
       .addSystem(new WeaponSystem(g.content, map, this.combatEvents))
       .addSystem(new AnomalySystem(g.content, map, this.combatEvents))
@@ -350,11 +372,13 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       .addSystem(new ArtifactSystem(g.content))
       .addSystem(new MovementSystem(map))
       .addSystem(new ProjectileSystem(g.content, map, this.combatEvents))
+      .addSystem(new SpitSystem(g.content, map, this.combatEvents, this.relations))
       .addSystem(new VitalsSystem(this.combatEvents))
       .addSystem(new EncumbranceSystem(g.content))
       .addSystem(new AnimationSystem());
     this.world.onDestroy = (e) => {
       this.world.get(e, View)?.destroy();
+      this.world.get(e, CreatureViewC)?.destroy();
       this.world.get(e, PropViewC)?.destroy();
       this.shownWeapon.delete(e);
     };
@@ -415,6 +439,21 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const camps = generator.population?.(record.seed, params, this.map.widthTiles, this.map.heightTiles, (tx, ty) => !this.map!.isSolid(tx, ty));
     if (camps) await this.population.spawnCamps(camps, record.seed);
 
+    // --- Creatures: dens fill up as you come near them (small worlds: all at once).
+    this.wildlife = new Wildlife(
+      this.world,
+      g.content,
+      this.deltas,
+      this.map,
+      record.seed,
+      (e) => g.renderer.entities.addChild(this.world.req(e, CreatureViewC).root),
+      () => {},
+    );
+    this.wildlife.setLairs(generator.lairs?.(record.seed, params, this.map.widthTiles, this.map.heightTiles, (tx, ty) => !this.map!.isSolid(tx, ty) && !this.map!.isSolid(tx, ty - 1)) ?? []);
+    this.wildlife.restoreCarcasses(save.flags.clock as number);
+    if (this.map.widthTiles * this.map.heightTiles <= 160 * 160) this.wildlife.spawnAll(save.flags.clock as number);
+    else this.wildlife.update(0, x, y, save.flags.clock as number, true);
+
     this.hud = new Hud(g.root);
     this.labels = new WorldLabels(g.root);
     this.dev = new DevTools(g, this);
@@ -454,12 +493,16 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.lightRenderer = null;
     this.fireFx.destroy();
     this.weatherFx.destroy();
+    this.creatureFx.destroy();
+    this.wildlife?.clear();
     this.sound?.stopBeds();
     this.hazards.clear();
     this.crosshair.g.destroy();
     for (const e of this.world.query(View)) this.world.destroy(e);
     for (const e of this.world.query(PropViewC)) this.world.destroy(e);
     for (const e of this.world.query(Projectile)) this.world.destroy(e);
+    for (const e of this.world.query(CreatureViewC)) this.world.destroy(e);
+    for (const e of this.world.query(Spit)) this.world.destroy(e);
     this.world.flushDestroyed();
     this.chunkObjects.clear();
   }
@@ -486,6 +529,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     if (alive && this.game.scenes.current === this && input.justPressed('grenade')) this.throwPlayerGrenade();
     if (alive && this.game.scenes.current === this && input.justPressed('light')) this.toggleFlashlight();
     this.updateLight(dt);
+    {
+      const pt = this.world.req(this.playerEntity, Transform);
+      this.wildlife?.update(dt, pt.x, pt.y, this.game.saves.data.flags.clock as number);
+    }
     if (alive && this.game.scenes.current === this && input.justPressed('place')) {
       const def = this.carriedExplosive('place');
       const err = def ? this.placeExplosive(def.id) : 'Nothing to place.';
@@ -549,6 +596,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       }
     }
 
+    this.renderCreatures(alpha, frameDt, bars);
     g.audio.setListener(px, py);
 
     // Camera leads slightly toward the aim direction, Stalker-style.
@@ -568,6 +616,13 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     this.renderAnomalies(frameDt, alpha);
     this.renderExplosives(frameDt, alpha);
     this.renderFireAndWeather(frameDt);
+    const globs: { x: number; y: number; z: number; color: string }[] = [];
+    for (const e of this.world.query(Spit, Transform)) {
+      const t = this.world.req(e, Transform);
+      const sp = this.world.req(e, Spit);
+      globs.push({ x: lerp(t.prevX, t.x, alpha), y: lerp(t.prevY, t.y, alpha), z: Math.max(0, sp.z), color: sp.color });
+    }
+    this.creatureFx.render(frameDt, globs);
     if (this.lighting && this.lightRenderer) {
       const pt = this.world.req(this.playerEntity, Transform);
       const b = g.camera.bounds;
@@ -630,6 +685,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     ev.on('hit', (h) => {
       this.fx.blood(h.x, h.y, h.angle, h.dealt);
       this.world.get(h.target, View)?.flash();
+      this.world.get(h.target, CreatureViewC)?.flash();
       if (h.attacker === this.playerEntity) this.crosshair.hit(h.killed);
       if (h.target === this.playerEntity) {
         // The arc points back along the bullet's path, toward the shooter.
@@ -649,19 +705,34 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       const d = Math.hypot(pt.x - a.x, pt.y - a.y);
       if (d < TILE_PX * 8) cam.kick((Math.random() - 0.5) * 6 * (1 - d / (TILE_PX * 8)), (Math.random() - 0.5) * 6 * (1 - d / (TILE_PX * 8)));
     });
+    ev.on('splash', (sp) => {
+      this.creatureFx.splash(sp.x, sp.y, sp.radius, sp.color);
+      this.fx.blood(sp.x, sp.y - 4, -Math.PI / 2, 4);
+    });
+    ev.on('creature', (c) => {
+      if (c.sound === 'land') this.creatureFx.dust(c.x, c.y, 18);
+    });
     ev.on('death', (d) => {
       this.world.get(d.entity, View)?.setDead(true);
+      this.world.get(d.entity, CreatureViewC)?.setDead(true);
       this.labels?.forget(d.entity);
       if (d.entity === this.playerEntity) this.onPlayerDeath(d.killer);
       else {
         if (d.killer === this.playerEntity) this.announceKill(d.entity);
-        this.population?.onNpcDeath(d.entity);
+        if (this.world.has(d.entity, Creature)) this.wildlife?.onDeath(d.entity, this.game.saves.data.flags.clock as number);
+        else this.population?.onNpcDeath(d.entity);
       }
     });
   }
 
   /** Kill feed line, in the victim's faction color. */
   private announceKill(e: Entity): void {
+    const cr = this.world.get(e, Creature);
+    if (cr) {
+      const def = this.game.content.get('creature', cr.defId);
+      this.message(`Killed ${withArticle(def.name)}`, this.game.content.tryGet('faction', def.faction)?.color);
+      return;
+    }
     const npc = this.world.get(e, Npc);
     const faction = this.game.content.tryGet('faction', this.world.get(e, Faction)?.id ?? '');
     const template = npc && this.game.content.tryGet('npcTemplate', npc.templateId);
@@ -674,6 +745,12 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     const by = alive ? this.world.get(killer, Equipment) : undefined;
     const weaponId = alive ? by?.[this.world.get(killer, Combatant)?.active ?? 'primary']?.defId : undefined;
     const npc = alive ? this.world.get(killer, Npc) : undefined;
+    const beast = alive ? this.world.get(killer, Creature) : undefined;
+    if (beast) {
+      const name = g.content.tryGet('creature', beast.defId)?.name ?? 'creature';
+      void g.scenes.push(new DeathScene(g, `Killed by ${withArticle(name)}.`, () => g.scenes.change(new GameplayScene(g, this.slotId))));
+      return;
+    }
     const who = npc ? `${npc.name} (${g.content.tryGet('npcTemplate', npc.templateId)?.name ?? 'stalker'})` : 'a stalker';
     const cause =
       killer === null ? (this.world.get(this.playerEntity, Health)?.cause ?? 'You bled out.') : `Killed by ${who}${weaponId ? ` with ${withArticle(g.content.tryGet('weapon', weaponId)?.name ?? weaponId)}` : ''}.`;
@@ -801,6 +878,11 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       if (this.world.has(e, Npc) && !this.world.get(e, Health)?.dead) {
         // People show when close or in plain sight.
         if (Math.hypot(dx, dy) > SENSE_RADIUS && !lineOfSight(map, px, py - CHEST_HEIGHT, t.x, t.y - CHEST_HEIGHT)) continue;
+        blips.push({ x: t.x, y: t.y, kind: this.relations.attitude(this.world, e, this.playerEntity) });
+      } else if (this.world.has(e, Creature) && !this.world.get(e, Health)?.dead) {
+        const c = this.world.req(e, Creature);
+        if (c.hidden || c.visibility < 0.5) continue;
+        if (Math.hypot(dx, dy) > SENSE_RADIUS && !lineOfSight(map, px, py - CHEST_HEIGHT, t.x, t.y - 10)) continue;
         blips.push({ x: t.x, y: t.y, kind: this.relations.attitude(this.world, e, this.playerEntity) });
       } else if (this.world.has(e, Container)) {
         blips.push({ x: t.x, y: t.y, kind: this.world.req(e, Container).kind === 'body' ? 'body' : 'crate' });
@@ -1029,6 +1111,64 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
         this.message('It\'s dark. Press L for your flashlight.', '#c8d8ff');
       }
     }
+  }
+
+  // ---- creatures --------------------------------------------------------------------
+
+  /** Nocturnal creatures come out (and day ones bed down) once it's dark. */
+  private isNight(): boolean {
+    const m = ((this.game.saves.data.flags.clock as number) ?? 0) % 1440;
+    return m < 5.5 * 60 || m > 20.5 * 60;
+  }
+
+  /** Poses and places every creature; eyes that shine in the dark; health bars of the hurt. */
+  private renderCreatures(alpha: number, dt: number, bars: { x: number; y: number; frac: number }[]): void {
+    const g = this.game;
+    const b = g.camera.bounds;
+    const eyes: { x: number; y: number; color: number }[] = [];
+    for (const e of this.world.query(Transform, CreatureViewC, Creature)) {
+      const t = this.world.req(e, Transform);
+      const view: CreatureView = this.world.req(e, CreatureViewC);
+      const c = this.world.req(e, Creature);
+      const brain = this.world.get(e, CreatureBrain);
+      const x = lerp(t.prevX, t.x, alpha);
+      const y = lerp(t.prevY, t.y, alpha);
+      view.setPosition(x, y);
+      view.visibleOnScreen = x > b.left - 120 && x < b.right + 120 && y > b.top - 120 && y < b.bottom + 160;
+      const vel = this.world.get(e, Velocity);
+      const st = brain?.attack;
+      const atk = st ? view.def.attacks[st.index] : undefined;
+      let action: Parameters<CreatureView['update']>[1]['action'] = 'none';
+      let actionT = 0;
+      if (st && atk) {
+        if (st.phase === 'windup') action = 'windup';
+        else if (st.phase === 'strike') action = atk.kind === 'leap' ? 'leap' : atk.kind === 'charge' ? 'charge' : atk.kind === 'drain' ? 'drain' : 'strike';
+        actionT = st.phase === 'recover' ? 1 : Math.min(1, st.t / Math.max(0.01, st.dur));
+        if (st.phase === 'recover') action = 'none';
+      } else if (brain?.state === 'alert') action = 'alert';
+      else if (brain?.state === 'rest' && !brain.goal) action = 'rest';
+      const stepped = view.update(dt, {
+        heading: c.heading,
+        speed: vel ? Math.hypot(vel.x, vel.y) : 0,
+        action,
+        actionT,
+        attack: atk?.kind,
+        lift: brain?.lift ?? 0,
+        cloak: view.def.abilities.cloak ? 1 - c.visibility : 0,
+        buried: brain?.buried ?? 0,
+      });
+      if (stepped && view.visibleOnScreen && view.def.sounds?.step) this.sound.play(view.def.sounds.step, x, y);
+      const h = this.world.get(e, Health);
+      if (h && !h.dead && h.sinceHit < 4 && c.visibility > 0.5) bars.push({ x, y: y - (this.world.get(e, Collider)?.tall ?? 30) + 22, frac: h.hp / view.def.health });
+      if (view.visibleOnScreen && c.visibility > 0.3 && !h?.dead) {
+        const color = parseInt(view.def.body.eyes.color.slice(1), 16);
+        for (const p of view.eyes) {
+          const sp = g.camera.worldToScreen(p.x, p.y);
+          eyes.push({ x: sp.x, y: sp.y, color });
+        }
+      }
+    }
+    this.creatureFx.renderEyes(eyes, this.lighting ? 1 - this.lighting.ambientLevel : 0, g.camera.zoom * g.renderer.pixelRatio);
   }
 
   // ---- fire & weather ---------------------------------------------------------------
@@ -1468,7 +1608,7 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       if (!t) return null;
       const x = lerp(t.prevX, t.x, alpha);
       const y = lerp(t.prevY, t.y, alpha);
-      const head = g.camera.worldToScreen(x, y - 46);
+      const head = g.camera.worldToScreen(x, y - (this.world.get(e, Collider)?.tall ?? 40) - 6);
       const feet = g.camera.worldToScreen(x, y + 2);
       return { x: head.x / px, head: head.y / px, feet: feet.y / px };
     };
@@ -1488,9 +1628,26 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
           hovered = e;
         }
       }
+      for (const e of this.world.query(Creature, Transform, Health, Collider)) {
+        const c = this.world.req(e, Creature);
+        if (this.world.req(e, Health).dead || c.hidden || c.visibility < 0.5) continue;
+        const t = this.world.req(e, Transform);
+        const col = this.world.req(e, Collider);
+        const half = col.w / 2 + 6;
+        if (Math.abs(w.x - t.x) > half || w.y < t.y - (col.tall ?? 20) - 4 || w.y > t.y + 6) continue;
+        const d = Math.hypot(w.x - t.x, w.y - (t.y - (col.tall ?? 20) / 2));
+        if (d < best) {
+          best = d;
+          hovered = e;
+        }
+      }
     }
     if (hovered === null) labels.target(null);
-    else {
+    else if (this.world.has(hovered, Creature)) {
+      const def = g.content.get('creature', this.world.req(hovered, Creature).defId);
+      const attitude = this.relations.attitude(this.world, hovered, this.playerEntity);
+      labels.target(hovered, def.name, `${def.family === 'mutant' ? 'Mutant' : 'Wildlife'} · ${attitude === 'neutral' ? (def.temperament === 'passive' ? 'harmless' : 'keep your distance') : attitude}`, ATTITUDE_COLOR[attitude]);
+    } else {
       const npc = this.world.req(hovered, Npc);
       const fid = this.world.get(hovered, Faction)?.id ?? '';
       const faction = g.content.tryGet('faction', fid);
@@ -1700,6 +1857,10 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
       const t = this.world.req(e, Transform);
       this.deltas.putEntity(c.chunkKey, { id: c.id, kind: 'container', x: t.x, y: t.y, data: structuredClone(c.items) });
     }
+    if (c.kind === 'body' && this.world.has(e, Creature)) {
+      this.wildlife?.saveCarcass(e);
+      return;
+    }
     if (c.kind === 'body') {
       // Gear taken off a body disappears from it.
       const eq = this.world.get(e, Equipment);
@@ -1844,7 +2005,35 @@ export class GameplayScene implements Scene, DevHooks, InventoryHost, MapHost {
     }
   }
 
+  listCreatures(): { id: string; name: string; family: string }[] {
+    return this.game.content.all('creature').map((c) => ({ id: c.id, name: c.name, family: c.family }));
+  }
+
+  /** Dev: a pack of a creature 8–12 tiles from the player (or one, for loners), roaming where it lands. */
+  spawnCreatures(id: string): void {
+    const def = this.game.content.get('creature', id);
+    const pop = this.population;
+    if (!pop) return;
+    const pt = this.world.req(this.playerEntity, Transform);
+    const a = this.rng.range(0, Math.PI * 2);
+    const d = this.rng.range(8, 12) * TILE_PX;
+    const center = pop.spotNear(pt.x + Math.cos(a) * d, pt.y + Math.sin(a) * d, TILE_PX * 2, this.rng);
+    if (!center) return;
+    const lair = `devpack${++this.devSquads}-${Date.now().toString(36)}`;
+    const n = this.rng.int(def.pack[0], def.pack[1]);
+    for (let i = 0; i < n; i++) {
+      const spot = pop.spotNear(center.x, center.y, TILE_PX * 2, this.rng) ?? center;
+      const e = spawnCreature(this.world, this.game.content, def, { id: `${lair}:${i}@0`, lairId: lair, ...spot, homeX: center.x, homeY: center.y, radius: TILE_PX * 6 });
+      this.game.renderer.entities.addChild(this.world.req(e, CreatureViewC).root);
+    }
+  }
+
   clearNpcs(): void {
+    for (const e of this.world.query(Creature, Health)) {
+      if (this.world.req(e, Health).dead) continue;
+      this.labels?.forget(e);
+      this.world.destroy(e);
+    }
     for (const e of this.world.query(Npc, Health)) {
       if (this.world.req(e, Health).dead) continue;
       this.labels?.forget(e);

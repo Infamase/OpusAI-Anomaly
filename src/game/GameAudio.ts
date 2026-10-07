@@ -5,7 +5,7 @@ import type { ContentRegistry } from '../content/Registry';
 import type { EventBus } from '../core/EventBus';
 import type { Entity, World } from '../ecs/World';
 import type { CombatEvents } from './combatEvents';
-import { Character, Combatant, Equipment, Faction, Transform } from './components';
+import { Character, Combatant, Creature, Equipment, Faction, Transform } from './components';
 import { TILE_PX, type TileMap } from './world/TileMap';
 
 /** The sound for using a consumable: its own, or the use_item cue. */
@@ -54,14 +54,24 @@ export class GameAudio {
       // Mostly stopped by armor: a dull clank instead of a wet thud.
       a.play(undefined, pos, h.blocked > h.dealt ? 'hit_armor' : 'hit_flesh');
       if (!h.killed && h.dealt > 0 && (h.target === this.player() || Math.random() < HURT_CHANCE)) {
-        a.play(this.race(h.target)?.sounds?.hurt, this.at(h.target), 'hit_flesh');
+        a.play(this.voiceOf(h.target)?.hurt, this.at(h.target), 'hit_flesh');
       }
       if (h.attacker === this.player() && h.target !== this.player()) a.playCue(h.killed ? 'kill_marker' : 'hit_marker');
     });
     events.on('death', (d) => {
-      a.play(this.race(d.entity)?.sounds?.death, this.at(d.entity), 'death');
+      a.play(this.voiceOf(d.entity)?.death, this.at(d.entity), 'death');
       if (d.entity === this.player()) a.playCue('player_death');
     });
+    events.on('creature', (c) => {
+      const s = this.content.tryGet('creature', c.defId)?.sounds;
+      const at = { x: c.x, y: c.y };
+      if (c.sound === 'land') a.play(s?.step ?? 'creature_whoosh', at);
+      else if (c.sound === 'bite') {
+        a.play('creature_bite', at);
+        if (s?.attack && Math.random() < 0.5) a.play(s.attack, at);
+      } else if (s?.[c.sound]) a.play(s[c.sound], at);
+    });
+    events.on('splash', (sp) => a.play('acid_splash', { x: sp.x, y: sp.y }));
     events.on('anomaly', (an) => {
       if (an.phase === 'burst') a.play(this.content.tryGet('anomaly', an.defId)?.sounds?.trigger, { x: an.x, y: an.y }, 'anomaly_burst');
     });
@@ -128,6 +138,18 @@ export class GameAudio {
   }
 
   /** A foot came down. */
+  /** A sound by id at a spot (creature footfalls). */
+  play(id: string, x: number, y: number): void {
+    this.audio.play(id, { x, y });
+  }
+
+  /** Pain and death sounds: a creature's own, or its race's. */
+  private voiceOf(e: Entity): { hurt?: string; death?: string } | undefined {
+    const c = this.world.get(e, Creature);
+    if (c) return this.content.tryGet('creature', c.defId)?.sounds;
+    return this.race(e)?.sounds;
+  }
+
   footstep(e: Entity, x: number, y: number, sprinting: boolean): void {
     const tile = this.tileAt(x, y);
     this.audio.play(tile?.sounds?.step, { x, y, volume: (sprinting ? 1.35 : 1) * (e === this.player() ? 1 : 0.9) }, 'footstep');

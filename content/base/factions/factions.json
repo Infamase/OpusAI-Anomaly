@@ -41,5 +41,38 @@
       "retreat": ["Pull back!"],
       "angry": ["Hold your fire, you idiot!", "That's your last warning!"]
     }
+  },
+  {
+    "type": "faction", "id": "fauna", "name": "Wildlife", "color": "#9ab46a",
+    "description": "Native animals. They leave you alone if you leave them alone.",
+    "names": ["Animal"]
+  },
+  {
+    "type": "faction", "id": "predators", "name": "Predators", "color": "#d0a040",
+    "description": "Native hunters. Anything that moves is food.",
+    "defaultAttitude": "hostile",
+    "names": ["Predator"]
+  },
+  {
+    "type": "faction", "id": "mutants", "name": "Mutants", "color": "#b05a8a",
+    "description": "Creatures the Zone twisted. Hostile to every living thing.",
+    "defaultAttitude": "hostile",
+    "relations": { "husks": "neutral" },
+    "names": ["Mutant"]
+  },
+  {
+    "type": "faction", "id": "husks", "name": "Husks", "color": "#7a8a7a",
+    "description": "Stalkers whose minds the Zone burned out. They still remember how to shoot.",
+    "defaultAttitude": "hostile",
+    "relations": { "mutants": "neutral" },
+    "names": ["Husk"],
+    "sounds": { "bark": "husk_moan" },
+    "barks": {
+      "contact": ["Hhhrrnn...", "...stalker...", "Mmmhhh... there...", "Brrrhh..."],
+      "hurt": ["Hrrk!", "Nnngh..."],
+      "search": ["...where...", "Hhhh..."],
+      "reload": ["...clip..."],
+      "retreat": ["Hhhnn..."]
+    }
   }
 ]

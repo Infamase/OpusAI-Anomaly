@@ -4,8 +4,8 @@ A 2D pixel-art, top-down survival shooter in the spirit of S.T.A.L.K.E.R., set
 across procedurally generated planets, ships and space stations. It runs in the
 browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamepad.
 
-> **Status:** Phase 1 (the vertical slice) is complete; Phase 2 has started
-> with **planet generation**. New characters arrive at the Rookie Village on
+> **Status:** Phase 1 (the vertical slice) and Phase 2 (worlds: planets,
+> anomalies, interiors, fauna & mutants) are complete. New characters arrive at the Rookie Village on
 > the Northern Zone, a 512×512-tile planet generated from a seed: meadows,
 > pine forests, swamps, wasteland and rocky highlands, lakes and rivers,
 > farmhouses, bandit hideouts, an army checkpoint, a ruined factory, roads
@@ -60,6 +60,18 @@ browser on **PC** (WebGPU with a WebGL fallback), with keyboard/mouse or a gamep
 > and charred trees behind. Rain puts it out. The weather changes every few
 > hours: clouds, rain, thunderstorms with lightning strikes (which can start
 > fires of their own) and fog, which cuts how far you and the NPCs can see.
+>
+> **Fauna & mutants:** the planet is alive. Grazing lopers bolt in herds,
+> plated thornbacks and mutant tuskers charge whoever comes too close, packs
+> of blind hounds hunt by ear and nose, skitter swarms boil out of their
+> nests, prowlers pounce out of the night, spitters lob acid you can sidestep,
+> sandmaws erupt from the wasteland floor, crawlers leap for your throat in
+> the labs and shades shimmer, nearly invisible, until they feed. Husks,
+> stalkers whose minds the Zone burned out, shamble along the roads firing.
+> Every creature is drawn and animated procedurally and turns smoothly in any
+> direction. Creatures fight each other and the factions too; harvest their
+> carcasses for parts (trade goods) and meat. Cleared dens fill up again after
+> a few days.
 >
 > **Sound:** every sound is synthesized from recipes in content files
 > (gunshots per weapon, footsteps per surface, impacts, pain and death per
@@ -158,7 +170,7 @@ tests/               vitest unit tests
 | --- | --- | --- |
 | 0 Foundation | Core, renderer, input, ECS/content/stats, saves | ✅ |
 | 1 Vertical slice | Armor + creator + menus · combat · inventory · AI & factions · art overhaul · cutout animation · sound · HUD | ✅ |
-| 2 Worlds | ✅ Planet generation · ✅ anomalies & artifacts · station/ship chunk generation · alien fauna | in progress |
+| 2 Worlds | ✅ Planet generation · ✅ anomalies & artifacts · ✅ station/ship interiors · ✅ fauna & mutants | ✅ |
 | 3 Space & progression | Space map, player ship, boarding, economy & the two shop stations, NPCs/quests, music & polish | |
 
 ## Deploying to GitHub Pages

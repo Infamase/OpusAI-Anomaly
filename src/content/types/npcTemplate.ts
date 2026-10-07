@@ -34,6 +34,13 @@ const schema = v.object({
   spareMagazines: v.optional(range(0, 20), [1, 3] as [number, number]),
   /** Optional loot table rolled into the pockets on top of `carries`. */
   pockets: v.optional(v.id()),
+  /**
+   * How it thinks: `stalker` (takes cover, heals, retreats, throws grenades) or
+   * `husk` (a burnt-out mind: shambles straight at you, firing, and never runs).
+   */
+  mind: v.optional(v.literal('stalker', 'husk'), 'stalker'),
+  /** Tints the whole character (a husk's grey, dead skin). */
+  tint: v.optional(v.color()),
   /** Extra items carried (and dropped on death). */
   carries: v.optional(
     v.array(
